@@ -50,6 +50,11 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 		return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 			Children: []core.Node{text(i18n.T("Not Playing"), 22, core.FontWeightBold, core.RGBA(0xffffff, 0.5))}}
 	}
+	// The stage and the wall take the whole view; lyrics and the queue sit
+	// beside the cover.
+	if a.npPane.GetUntracked() == 3 {
+		return a.stageView(cx, p, white)
+	}
 	side := core.View{Style: core.Style{Width: core.Pt(380), FlexShrink: 0, Direction: core.Column, Gap: 0, Padding: core.Edges{Bottom: 32}},
 		Children: []core.Node{
 			core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{
@@ -113,8 +118,6 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 				return a.queuePane(cx, white)
 			case 2:
 				return a.wallPane(cx, white)
-			case 3:
-				return a.stagePane(cx, white)
 			default:
 				return a.lyricsPane(cx, white)
 			}
@@ -289,8 +292,9 @@ func (a *app) wallPane(cx *core.Scope, white core.Color) core.Node {
 			}
 		}
 	})
+	cols := max(2, min(6, int((cx.Env().Window().Width-sidebarWidth)/210)))
 	return core.List{Ref: list, Count: func() int { return len(rows) }, Key: func(i int) any { return rows[i].ID },
-		NumColumns: 4, EstimatedSize: 190, ColumnGap: 14, Gap: 14,
+		NumColumns: cols, EstimatedSize: 190, ColumnGap: 14, Gap: 14,
 		Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)},
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
 			i := row.Index()
@@ -301,7 +305,7 @@ func (a *app) wallPane(cx *core.Scope, white core.Color) core.Node {
 				return now >= 0 && now < len(o) && o[now] == queueIndex(queue, tr.ID)
 			}
 			_ = at
-			return base.Button{Label: tr.Name, TestID: "wall-" + tr.ID, OnPress: func(core.PressEvent) {
+			item := base.Button{Label: tr.Name, TestID: "wall-" + tr.ID, OnPress: func(core.PressEvent) {
 				for qi, q := range queue {
 					if q.ID == tr.ID {
 						a.pl.Jump(qi)
@@ -313,6 +317,10 @@ func (a *app) wallPane(cx *core.Scope, white core.Color) core.Node {
 					Hover: &core.Style{Background: core.RGBA(0xffffff, 0.07)}}
 				if current() {
 					s.Background = core.RGBA(0xffffff, 0.12)
+					s.BorderWidth, s.BorderColor = 1.5, core.RGBA(0xffffff, 0.9)
+				}
+				if tr.Unavailable {
+					s.Opacity = core.Alpha(0.4)
 				}
 				return s
 			}, Children: []core.Node{
@@ -323,6 +331,7 @@ func (a *app) wallPane(cx *core.Scope, white core.Color) core.Node {
 				core.Text{Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 12.5, FontWeight: core.FontWeightMedium, Color: white}},
 				core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: 11.5, Color: core.RGBA(0xffffff, 0.5)}},
 			}}
+			return ui.ContextMenu{Trigger: item, Children: a.trackMenu(tr, "", -1)}
 		}}
 }
 
@@ -333,49 +342,4 @@ func queueIndex(queue []music.Track, id string) int {
 		}
 	}
 	return -1
-}
-
-// stagePane is the lyrics as a show: the line sung large in the middle,
-// the line after it under, dimmer, and the one before it above, faint.
-func (a *app) stagePane(cx *core.Scope, white core.Color) core.Node {
-	lines, _ := a.pl.Lyrics()
-	if len(lines) == 0 {
-		return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
-			Children: []core.Node{text(i18n.T("No lyrics. Enjoy the music."), 26, core.FontWeightBold, core.RGBA(0xffffff, 0.4))}}
-	}
-	line := func(i int, size core.Points, alpha float32) core.Node {
-		if i < 0 || i >= len(lines) {
-			return core.View{Style: core.Style{Height: core.Pt(size * 1.6)}}
-		}
-		l := lines[i]
-		return core.Text{Content: l.Text, MaxLines: 2, StyleFunc: func() core.Style {
-			a.tick.Get()
-			cur := lyrics.Index(lines, a.pl.Position())
-			at := float32(0.18)
-			switch {
-			case i == cur:
-				at = 1
-			case i == cur+1 || i == cur-1:
-				at = 0.42
-			}
-			return core.Style{MaxWidth: core.Pct(90), TextAlign: core.TextAlignCenter, FontSize: size,
-				FontWeight: core.FontWeightBold, LetterSpacing: -0.6, Color: core.RGBA(0xffffff, at*alpha)}
-		}}
-	}
-	return core.View{Style: core.Style{FlexGrow: 1, Direction: core.Column, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 10},
-		Children: []core.Node{
-			core.Dynamic(func(cx *core.Scope) core.Node {
-				a.tick.Get()
-				cur := lyrics.Index(lines, a.pl.Position())
-				return core.Group{line(cur-1, 26, 0.7), line(cur, 40, 1), line(cur+1, 22, 0.7)}
-			}),
-			core.Text{ContentFunc: func() string {
-				a.tick.Get()
-				cur := lyrics.Index(lines, a.pl.Position())
-				if cur < 0 || cur >= len(lines) {
-					return ""
-				}
-				return lines[cur].Translation
-			}, Style: core.Style{FontSize: 16, FontWeight: core.FontWeightMedium, Color: core.RGBA(0xffffff, 0.55), TextAlign: core.TextAlignCenter}},
-		}}
 }

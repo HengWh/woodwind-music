@@ -2,7 +2,7 @@
 
 用 [NSGo](https://github.com/oneo-me/nsgo) 复刻 [MyGo Music](https://github.com/egoist/mygo-music) 的原生桌面音乐播放器：界面、交互和文案以 mygo-music 为准，UI 框架由 MyGo 换成 NSGo，音频、曲库、歌词与播放队列沿用上游实现。
 
-> 状态：可持续运行的本地音乐播放器。播放、曲库、歌词、队列、设置、中英文、菜单栏与媒体键已接通；插件、刘海迷你播放器、播客与评论尚未移植，详见[与上游的差距](#与上游的差距)。
+> 状态：可持续运行的本地音乐播放器，界面仍在按上游继续复刻。播放、曲库、歌词、队列、设置、中英文、菜单栏与媒体键已接通；插件、播客与评论尚未移植，刘海迷你播放器按要求不移植，详见[与上游的差距](#与上游的差距)。
 
 ![首页](docs/home.png)
 
@@ -23,6 +23,18 @@ go tool nsgo build      # 按 nsgo.yaml 的目标打包
 
 应用名、id、版本和构建目标在 `nsgo.yaml`。
 
+若 `dev` 报 `the icon needs Xcode's actool`，是 `xcode-select` 指向了 CommandLineTools。选择 Xcode 后即可：
+
+```sh
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+```
+
+不修改全局设置时，也可以只给这条命令指定 Xcode：
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer go tool nsgo dev
+```
+
 ### 截图
 
 `TestShots` 会在目标上跑真实窗口并保存每个页面的截图，用于对照上游：
@@ -39,7 +51,8 @@ open .nsgo/test/screenshots/macos
 - 歌单：新建、重命名、删除、添加/移除歌曲、上下移动
 - 喜欢的音乐
 - 播放器：队列、随机、单曲/列表循环、进度拖动、音量、暂停淡出、响度归一化、磁盘缓存、会话恢复
-- Now Playing：封面、歌词、舞台、接下来、封面墙，点击歌词跳转
+- Now Playing：封面、歌词、舞台（Flow / Steps / Tilt 与 Sparks）、接下来、封面墙，点击歌词跳转
+- 首页主推卡片、专辑/歌手/歌单卡片、歌手页歌曲/专辑切换、查看全部、搜索历史下拉与设置页侧栏/搜索
 - 侧栏、返回/前进、搜索历史、空状态
 - 设置：语言（跟随系统 / English / 简体中文）、外观（跟随系统/浅色/深色）、目录、缓存、音量归一化
 - macOS：隐藏标题栏、自绘顶部区域、菜单栏图标、媒体键与系统“正在播放”
@@ -65,10 +78,9 @@ open .nsgo/test/screenshots/macos
 这些上游能力还没移植：
 
 - 插件系统（JS 宿主、安装/更新、插件源、登录窗口、评论、播客、电台）
-- 刘海迷你播放器（macOS notch panel）
+- 刘海迷你播放器（按要求不移植）
 - 播客字幕与本地语音识别（sherpa-onnx）
-- 逐字歌词与 Folia 舞台动画风格（当前为静态大字舞台）
-- 封面取色、雾效、进度条烟雾、封面飞入等细节动画
+- 封面取色、雾效、进度条烟雾、封面飞入与封面墙的自由拖动等细节动画
 - 自动更新、勾选通知、Dock/菜单栏图标切换等发布相关功能
 
 移植约定：交互、布局、文案和设置项以 mygo-music 为准；NSGo 缺少的能力先补 NSGo，再在 app 中使用。核心包只改 import path 与平台抽象，不顺手重构播放与解码逻辑。

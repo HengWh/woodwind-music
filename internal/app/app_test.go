@@ -177,7 +177,7 @@ func TestLibraryPages(t *testing.T) {
 
 	// Search.
 	a.search("Haru")
-	app.WaitFor("text:/Results for/", 5*time.Second)
+	app.WaitFor("text:/“Haru”/", 5*time.Second)
 	app.Find("text:Haruhikage >> nth=0")
 
 	// An album's page.
@@ -271,7 +271,9 @@ func TestSettingsView(t *testing.T) {
 	app.Find("text:Appearance")
 	app.Find("text:Library")
 	app.Find("text:Cache")
+	app.Press("text:Playback")
 	app.Find("text:Normalize volume")
+	app.Press("text:General")
 
 	// Chinese from then on.
 	a.set.Language = i18n.Chinese
@@ -309,4 +311,54 @@ func TestLyricsFollowTheTrack(t *testing.T) {
 	app.Find("text:答えを急がないで")
 	app.Press("id:np-tab-3")
 	app.Find("text:迷子でもいい、迷子でも進め")
+}
+
+func TestStageStyleMenu(t *testing.T) {
+	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	musicDir := t.TempDir()
+	writeToneWAV(t, filepath.Join(musicDir, "Haruhikage.wav"))
+	if err := os.WriteFile(filepath.Join(musicDir, "Haruhikage.lrc"), []byte("[00:00.00]迷子でもいい、迷子でも進め\n[00:00.40]答えを急がないで\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var a *app
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		a = newApp(cx)
+		return a.view(cx)
+	}, nsgotest.Size(1180, 780))
+	a.local.AddFolders(musicDir)
+	app.WaitUntil(5*time.Second, func() bool {
+		return a.local.TrackCount() == 1 && !a.local.Scanning() && !a.homeBusy && a.home != nil && len(a.home.Sections) > 0
+	})
+	app.Press("text:Haruhikage >> nth=0")
+	app.WaitUntil(5*time.Second, func() bool {
+		_, loaded := a.pl.Lyrics()
+		return loaded
+	})
+	app.Press("id:bar-open")
+	app.Find("text:Lyrics")
+	app.Press("id:np-tab-3")
+	app.Find("text:迷子でもいい、迷子でも進め")
+	app.Press("id:stage-style")
+	app.Press("text:Tilt")
+	app.WaitUntil(2*time.Second, func() bool { return a.set.StageStyle == "tilt" })
+	app.Press("id:stage-style")
+	app.Press("text:Sparks")
+	app.WaitUntil(2*time.Second, func() bool { return a.set.StageSparks })
+}
+
+func TestSearchSuggestsHistory(t *testing.T) {
+	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	var a *app
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		a = newApp(cx)
+		return a.view(cx)
+	}, nsgotest.Size(1180, 780))
+	a.set.SearchHistory = []string{"Haru"}
+	a.set.save()
+	a.bump()
+	app.Settle()
+	a.searchRef.Focus()
+	app.WaitFor("text:Haru", 2*time.Second)
+	app.Press("text:Haru")
+	app.WaitFor("text:/“Haru”/", 2*time.Second)
 }

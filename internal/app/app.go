@@ -56,6 +56,7 @@ const (
 	pageArtist
 	pageSearch
 	pageBrowse
+	pageSection
 )
 
 // route is the page shown. A page is of the one source, the local files.
@@ -82,6 +83,10 @@ type settings struct {
 	GrowFromCover bool `json:"growFromCover"`
 	// Smoke makes the progress bar a comet as music plays.
 	Smoke bool `json:"smoke"`
+	// StageStyle is how the stage sets its lyrics: Flow, Steps or Tilt.
+	StageStyle string `json:"stageStyle,omitempty"`
+	// StageSparks throws sparks off each word as it is sung.
+	StageSparks bool `json:"stageSparks,omitempty"`
 
 	path string
 }
@@ -126,6 +131,8 @@ type artistData struct {
 	page    *music.ArtistPage
 	loading bool
 	err     string
+	// tab is what the page lists: 0 for songs, 1 for albums.
+	tab int
 }
 
 // playlistData is what the app has of a playlist.
@@ -164,14 +171,17 @@ type app struct {
 
 	// Signals: rev changes when any data the pages show does; route is
 	// the page shown; tick moves as what plays does, for the clock.
-	rev     *core.Signal[int]
-	playRev *core.Signal[int]
-	route   *core.Signal[route]
-	tick    *core.Signal[int]
-	query   *core.Signal[string]
-	np      *core.Signal[bool]
-	npPane  *core.Signal[int]
-	toast   *core.Signal[string]
+	rev        *core.Signal[int]
+	playRev    *core.Signal[int]
+	route      *core.Signal[route]
+	tick       *core.Signal[int]
+	query      *core.Signal[string]
+	searchText string
+	searchOpen bool
+	np         *core.Signal[bool]
+	npPane     *core.Signal[int]
+	stageTick  *core.Signal[int]
+	toast      *core.Signal[string]
 
 	history  []route
 	forward  []route
@@ -207,15 +217,17 @@ type app struct {
 	scroll     map[string]core.Points
 
 	// Dialogs.
-	naming       bool
-	namingNew    bool
-	namingText   string
-	namingID     string
-	deleting     bool
-	deletingID   string
-	deletingName string
-	settings     bool
-	settingsPage string
+	naming        bool
+	namingNew     bool
+	namingText    string
+	namingID      string
+	deleting      bool
+	deletingID    string
+	deletingName  string
+	settings      bool
+	settingsPage  string
+	settingsQuery string
+	stageTicking  bool
 
 	tray     *desktop.Tray
 	openMain func()
@@ -242,6 +254,7 @@ func newApp(cx *core.Scope) *app {
 		query:     core.NewSignal(cx, ""),
 		np:        core.NewSignal(cx, false),
 		npPane:    core.NewSignal(cx, 0),
+		stageTick: core.NewSignal(cx, 0),
 		toast:     core.NewSignal(cx, ""),
 		searchRef: new(core.Ref),
 		likedSet:  map[string]bool{},
@@ -406,6 +419,8 @@ func (a *app) reloadPage(r route) {
 		a.loadBrowse(r.id, false)
 	case pageSearch:
 		a.loadSearch(r, true)
+	case pageSection:
+		// Read from the page the section is on.
 	}
 }
 
@@ -773,6 +788,9 @@ func (a *app) search(q string) {
 	if q == "" {
 		return
 	}
+	a.query.Set(q)
+	a.searchText = q
+	a.searchOpen = false
 	kind := music.SearchTracks
 	if r := a.route.GetUntracked(); r.page == pageSearch && r.query == q {
 		kind = r.kind
@@ -802,6 +820,7 @@ func (a *app) rememberSearch(q string) {
 
 func (a *app) closeSearch() {
 	a.query.Set("")
+	a.searchText, a.searchOpen = "", false
 	if a.route.GetUntracked().page == pageSearch {
 		a.open(route{page: pageHome})
 	}

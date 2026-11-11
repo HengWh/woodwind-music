@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,6 +35,8 @@ func (a *app) page(cx *core.Scope, p palette) core.Node {
 		return a.browsePage(cx, p, r.id)
 	case pageSearch:
 		return a.searchPage(cx, p, r)
+	case pageSection:
+		return a.sectionPage(cx, p, r)
 	}
 	return a.emptyNote(p, i18n.T("Nothing here"), "")
 }
@@ -82,8 +85,8 @@ func (a *app) homePage(cx *core.Scope, p palette) core.Node {
 	w := cx.Env().Window().Width - sidebarWidth - 2*pagePad
 	var body []core.Node
 	body = append(body, a.titleBlock(p, greeting(time.Now()), i18n.Today(time.Now())))
-	for _, sec := range a.home.Sections {
-		body = append(body, a.browseSection(cx, p, sec, w)...)
+	for i, sec := range a.home.Sections {
+		body = append(body, a.browseSection(cx, p, sec, w, "", i)...)
 	}
 	return a.pageScroll(p, body...)
 }
@@ -108,33 +111,149 @@ func (a *app) emptyHome(p palette) core.Node {
 		}}
 }
 
-// browseSection is one heading of a source's page, and what it lists.
-func (a *app) browseSection(cx *core.Scope, p palette, sec music.Section, width core.Points) []core.Node {
-	var out []core.Node
-	if sec.Title != "" {
-		out = append(out, core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{a.sectionTitle(p, sec.Title)}})
+// featureCard leads a source's Home with the songs of its first section: the
+// first cover over the card's colors, the day and the section's name, and a
+// play button. A press opens all of them.
+func (a *app) featureCard(p palette, sec music.Section, index int, now time.Time) core.Node {
+	tracks := sec.Tracks
+	if len(tracks) == 0 {
+		return core.Group{}
 	}
-	if len(sec.Tracks) > 0 {
+	cover := tracks[0].Album.ImageURL
+	open := func() { a.open(route{page: pageSection, query: strconv.Itoa(index)}) }
+	play := func(core.PressEvent) { a.playTracks(tracks, 0) }
+	title := sec.Title
+	if title == "" {
+		title = i18n.T("Recently Played")
+	}
+	artists := tracks[0].ArtistNames()
+	card := base.Button{Label: title, OnPress: func(core.PressEvent) { open() }, StyleFunc: func() core.Style {
+		return core.Style{Height: core.Pt(212), Direction: core.Row, AlignItems: core.AlignCenter, CornerRadius: 24,
+			Background: core.RGB(0x242126), Overflow: core.Hidden,
+			Gradients: []core.Gradient{core.LinearGradient(135, core.RGBA(0x3a3036, 0.96), core.RGBA(0x17151a, 0.98))},
+			Hover:     &core.Style{Background: core.RGB(0x2c282e)}}
+	}, Children: []core.Node{
+		func() core.Node {
+			if cover == "" {
+				return core.Group{}
+			}
+			return core.Image{Source: core.Src(cover), ResizeMode: core.Cover, BlurRadius: 34,
+				Style: core.Style{Position: core.Absolute, Top: core.Pt(-30), Right: core.Pt(-30), Bottom: core.Pt(-30), Left: core.Pt(-30),
+					Opacity: core.Alpha(0.42)}}
+		}(),
+		core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0),
+			Gradients: []core.Gradient{core.LinearGradient(120, core.RGBA(0x000000, 0.08), core.RGBA(0x000000, 0.62))}}},
+		core.View{Style: core.Style{Position: core.Relative, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Direction: core.Column,
+			Gap: 6, Padding: core.Symmetric(0, 32)}, Children: []core.Node{
+			text(i18n.Today(now), 12, core.FontWeightSemibold, core.RGBA(0xffffff, 0.66)),
+			text(title, 32, core.FontWeightBold, core.RGB(0xffffff)),
+			core.Text{Content: artists, MaxLines: 1, Style: core.Style{FontSize: 13, Color: core.RGBA(0xffffff, 0.8)}},
+			core.View{Style: core.Style{Direction: core.Row, Gap: 10, Margin: core.Edges{Top: 10}}, Children: []core.Node{
+				base.Button{Label: i18n.T("Play"), OnPress: play, Style: core.Style{Height: core.Pt(36), Padding: core.Symmetric(0, 18),
+					Gap: 8, Direction: core.Row, AlignItems: core.AlignCenter, CornerRadius: 999, Background: core.RGBA(0xffffff, 0.16),
+					Hover: &core.Style{Background: core.RGBA(0xffffff, 0.24)}}, Children: []core.Node{
+					icon(lucidePlay, 14, core.RGB(0xffffff)),
+					text(i18n.T("Play"), 14, core.FontWeightSemibold, core.RGB(0xffffff)),
+				}},
+			}},
+		}},
+		func() core.Node {
+			if a.cx.Env().Window().Width < 1000 {
+				return core.Group{}
+			}
+			var picks []core.Node
+			for i := 0; i < len(tracks) && i < 3; i++ {
+				i := i
+				trc := tracks[i]
+				picks = append(picks, base.Button{Label: trc.Name, OnPress: func(core.PressEvent) { a.playTracks(tracks, i) },
+					Style: core.Style{Height: core.Pt(34), Padding: core.Symmetric(0, 10), Gap: 10, Direction: core.Row, AlignItems: core.AlignCenter,
+						CornerRadius: 8, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.08)}}, Children: []core.Node{
+						text(fmt.Sprint(i+1), 11, core.FontWeightNormal, core.RGBA(0xffffff, 0.4)),
+						core.Text{Content: trc.Name, MaxLines: 1, Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0),
+							FontSize: 13, FontWeight: core.FontWeightMedium, Color: core.RGB(0xffffff)}},
+						text(clock(trc.Length()), 11, core.FontWeightNormal, core.RGBA(0xffffff, 0.4)),
+					}})
+			}
+			return core.View{Style: core.Style{Position: core.Relative, Width: core.Pt(300), FlexShrink: 1, Direction: core.Column, Gap: 2,
+				Padding: core.Edges{Right: 16}}, Children: picks}
+		}(),
+		core.View{Style: core.Style{Position: core.Relative, Width: core.Pt(24), Height: core.Pt(24), FlexShrink: 0}, Children: []core.Node{
+			icon(lucideChevronRight, 18, core.RGBA(0xffffff, 0.55)),
+		}},
+	}}
+	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12), Margin: core.Edges{Bottom: 6}}, Children: []core.Node{card}}
+}
+
+// sectionOf finds the section a section page shows.
+func (a *app) sectionOf(r route) *music.Section {
+	var page *music.Browse
+	if r.id == "" {
+		page = a.home
+	} else if d := a.browses[r.id]; d != nil {
+		page = d.browse
+	}
+	at, err := strconv.Atoi(r.query)
+	if page == nil || err != nil || at < 0 || at >= len(page.Sections) {
+		return nil
+	}
+	return &page.Sections[at]
+}
+
+// sectionPage lists all the songs of a feature card, headed as the card is.
+func (a *app) sectionPage(cx *core.Scope, p palette, r route) core.Node {
+	sec := a.sectionOf(r)
+	if sec == nil {
+		return a.emptyNote(p, i18n.T("This page is gone"), "")
+	}
+	tracks := sec.Tracks
+	title := sec.PageTitle
+	if title == "" {
+		title = sec.Title
+	}
+	if title == "" {
+		title = i18n.T("Songs")
+	}
+	now := time.Now()
+	var pic core.Node
+	if len(tracks) > 0 && tracks[0].Album.ImageURL != "" {
+		pic = a.cover(p, tracks[0].Album.ImageURL, 212, 14)
+	} else {
+		pic = core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), CornerRadius: 14, Background: p.accent,
+			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{
+			text(fmt.Sprint(now.Day()), 96, core.FontWeightBold, p.onAccent)}}
+	}
+	about := i18n.Songs(len(tracks))
+	if sec.Subtitle != "" {
+		about += " · " + sec.Subtitle
+	}
+	sub := core.Text{Content: about, Style: core.Style{FontSize: 13, Color: p.muted}}
+	return a.pageScroll(p,
+		a.heroNode(p, pic, i18n.Today(now), title, sub, tracks),
+		a.trackList(p, tracks, true, a.currentID()),
+	)
+}
+
+// browseSection is one heading of a source's page, and what it lists.
+func (a *app) browseSection(cx *core.Scope, p palette, sec music.Section, width core.Points, pageID string, index int) []core.Node {
+	var out []core.Node
+	// The songs of a source's Home lead it with a card of their own.
+	feature := pageID == "" && index == 0 && len(sec.Tracks) > 0
+	if feature {
+		out = append(out, a.featureCard(p, sec, index, time.Now()))
+	} else if sec.Title != "" || sec.MorePage != "" {
+		out = append(out, core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{a.sectionHeader(p, sec.Title, sec.MorePage)}})
+	}
+	if len(sec.Tracks) > 0 && !feature {
 		tracks := sec.Tracks
 		out = append(out, core.View{Style: core.Style{Padding: core.Symmetric(0, 2)}, Children: []core.Node{
 			core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
-				EstimatedSize: 52, Viewport: core.ListViewportParent,
+				EstimatedSize: 54, Viewport: core.ListViewportParent,
 				Row: func(cx *core.Scope, row core.ListRow) core.Node {
 					i := row.Index()
 					cur := a.pl.Current()
 					return a.trackRow(p, tracks, i, true, false, true, cur != nil && cur.ID == tracks[i].ID)
 				}},
 		}})
-		if sec.MorePage != "" {
-			more := sec.MorePage
-			label := i18n.T("Show All")
-			if sec.PageTitle != "" {
-				label = i18n.Tf("All %s", sec.PageTitle)
-			}
-			out = append(out, core.View{Style: core.Style{Padding: core.Symmetric(0, 12), Margin: core.Edges{Top: 6}}, Children: []core.Node{
-				a.pillButton(p, nil, label, p.hover, p.text, func() { a.open(route{page: pageBrowse, id: more}) }),
-			}})
-		}
 	}
 	if len(sec.Albums) > 0 {
 		out = append(out, a.cardGrid(p, width, 168, len(sec.Albums), func(i int) core.Node { return a.albumCard(p, sec.Albums[i], 168) }))
@@ -172,9 +291,10 @@ func (a *app) card(p palette, size core.Points, onPress func(), pic core.Node, n
 	var children []core.Node
 	children = append(children, core.View{Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: 10,
 		ShadowColor: p.cardShade, ShadowRadius: 8, ShadowOffset: core.Point{Y: 4}}, Children: []core.Node{pic}})
-	children = append(children, core.Text{Content: name, MaxLines: 1, Style: core.Style{FontSize: 13.5, FontWeight: core.FontWeightSemibold, Color: p.text}})
+	children = append(children, core.Text{Content: name, MaxLines: 2, Style: core.Style{FontSize: 13.5, FontWeight: core.FontWeightMedium,
+		LineHeight: 1.35, Color: p.text}})
 	if sub != "" {
-		children = append(children, core.Text{Content: sub, MaxLines: 1, Style: core.Style{FontSize: 12.5, Color: p.muted}})
+		children = append(children, core.Text{Content: sub, MaxLines: 1, Style: core.Style{FontSize: 12, Color: p.muted, Margin: core.Edges{Top: -2}}})
 	}
 	return base.Button{Label: name, OnPress: func(core.PressEvent) { onPress() },
 		StyleFunc: func() core.Style {
@@ -185,7 +305,14 @@ func (a *app) card(p palette, size core.Points, onPress func(), pic core.Node, n
 func (a *app) albumCard(p palette, al music.Album, size core.Points) core.Node {
 	id := al.ID
 	name := al.Name
-	return a.card(p, size, func() { a.open(route{page: pageAlbum, id: id}) }, a.cover(p, al.ImageURL, size, 10), name, artistsOf(al.Artists))
+	var meta []string
+	if by := artistsOf(al.Artists); by != "" {
+		meta = append(meta, by)
+	}
+	if len(al.Released) >= 4 {
+		meta = append(meta, al.Released[:4])
+	}
+	return a.card(p, size, func() { a.open(route{page: pageAlbum, id: id}) }, a.cover(p, al.ImageURL, size, 10), name, strings.Join(meta, " · "))
 }
 
 func (a *app) artistCard(p palette, ar music.Artist, size core.Points) core.Node {
@@ -226,7 +353,7 @@ func artistsOf(list []music.Artist) string {
 // heading.
 func (a *app) trackList(p palette, tracks []music.Track, showAlbum bool, current string) core.Node {
 	return core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
-		EstimatedSize: 52, Viewport: core.ListViewportParent,
+		EstimatedSize: 54, Viewport: core.ListViewportParent,
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
 			i := row.Index()
 			tr := tracks[i]
@@ -238,7 +365,20 @@ func (a *app) trackList(p palette, tracks []music.Track, showAlbum bool, current
 // trackMenu is what a track's menu offers.
 func (a *app) trackMenu(tr music.Track, playlist string, index int) []core.Node {
 	var items []core.Node
-	items = append(items, ui.MenuItem{Text: i18n.T("Play"), Icon: lucide.Play, OnSelect: func() { a.playTracks([]music.Track{tr}, 0) }})
+	name, names := tr.Name, tr.ArtistNames()
+	items = append(items, ui.MenuItem{Text: i18n.T("Copy Title"), Icon: lucide.Copy, OnSelect: func() {
+		a.cx.SetClipboard(name)
+	}})
+	if names != "" {
+		items = append(items, ui.MenuItem{Text: i18n.T("Copy Title and Artists"), Icon: lucide.Copy, OnSelect: func() {
+			a.cx.SetClipboard(name + " - " + names)
+		}})
+	}
+	if tr.URL != "" {
+		url := tr.URL
+		items = append(items, ui.MenuItem{Text: i18n.T("Copy Link"), Icon: lucide.Link2, OnSelect: func() { a.cx.SetClipboard(url) }})
+	}
+	items = append(items, ui.MenuSeparator{}, ui.MenuItem{Text: i18n.T("Play"), Icon: lucide.Play, OnSelect: func() { a.playTracks([]music.Track{tr}, 0) }})
 	if len(a.mine) > 0 {
 		var adds []core.Node
 		for _, pl := range a.mine {
@@ -266,12 +406,17 @@ func (a *app) trackMenu(tr music.Track, playlist string, index int) []core.Node 
 	}
 	items = append(items, ui.MenuSeparator{}, ui.MenuItem{Text: label, Icon: lucide.Heart, OnSelect: func() { a.toggleLike(tr.ID) }})
 	if tr.Album.ID != "" {
-		id := tr.Album.ID
-		items = append(items, ui.MenuItem{Text: i18n.T("Go to Album"), Icon: lucide.Disc3, OnSelect: func() { a.open(route{page: pageAlbum, id: id}) }})
+		id, album := tr.Album.ID, tr.Album.Name
+		items = append(items, ui.MenuItem{Text: i18n.Tf("Go to Album: %s", album), Icon: lucide.Disc3, OnSelect: func() { a.open(route{page: pageAlbum, id: id}) }})
 	}
-	if len(tr.Artists) > 0 && tr.Artists[0].ID != "" {
-		id := tr.Artists[0].ID
-		items = append(items, ui.MenuItem{Text: i18n.T("Go to Artist"), Icon: lucide.User, OnSelect: func() { a.open(route{page: pageArtist, id: id}) }})
+	for _, ar := range tr.Artists {
+		if ar.ID == "" {
+			continue
+		}
+		id, artist := ar.ID, ar.Name
+		items = append(items, ui.MenuItem{Text: i18n.Tf("Go to Artist: %s", artist), Icon: lucide.User, OnSelect: func() {
+			a.open(route{page: pageArtist, id: id})
+		}})
 	}
 	if playlist != "" {
 		id, at := tr.ID, index
@@ -371,7 +516,7 @@ func (a *app) playlistPage(cx *core.Scope, p palette, id string) core.Node {
 	return a.pageScroll(p, core.Group{
 		a.playlistHero(p, pl),
 		core.List{Count: func() int { return len(pl.Tracks) }, Key: func(i int) any { return pl.Tracks[i].ID },
-			EstimatedSize: 52, Viewport: core.ListViewportParent,
+			EstimatedSize: 54, Viewport: core.ListViewportParent,
 			Row: func(cx *core.Scope, row core.ListRow) core.Node {
 				i := row.Index()
 				tr := pl.Tracks[i]
@@ -440,24 +585,91 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 	}
 	page := d.page
 	w := cx.Env().Window().Width - sidebarWidth - 2*pagePad
-	var body []core.Node
-	body = append(body, core.View{Style: core.Style{Direction: core.Row, Gap: 24, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 12),
-		Margin: core.Edges{Bottom: 24}}, Children: []core.Node{
-		a.coverRound(p, page.Artist.ImageURL, 172),
-		core.View{Style: core.Style{Gap: 6}, Children: []core.Node{
-			text(i18n.T("Artist"), 12, core.FontWeightSemibold, p.accent),
-			text(page.Artist.Name, 30, core.FontWeightBold, p.text),
-			text(i18n.Songs(len(page.Tracks)), 13, core.FontWeightNormal, p.muted),
-			a.playButtons(p, page.Tracks),
-		}},
-	}})
-	if len(page.Tracks) > 0 {
-		body = append(body, a.sectionTitle(p, i18n.T("Songs")))
-		body = append(body, a.trackList(p, page.Tracks, true, a.currentID()))
+
+	// What the page lists follows what it has: songs only, albums only, or
+	// the tab chosen when it has both.
+	tab := d.tab
+	switch {
+	case len(page.Tracks) == 0:
+		tab = 1
+	case len(page.Albums) == 0:
+		tab = 0
 	}
-	if len(page.Albums) > 0 {
-		body = append(body, core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{a.sectionTitle(p, i18n.T("Albums"))}})
+
+	setTab := func(next int) func() {
+		return func() {
+			d.tab = next
+			a.bump()
+		}
+	}
+
+	var meta []string
+	if len(page.Tracks) > 0 {
+		meta = append(meta, i18n.Songs(len(page.Tracks)))
+	}
+	switch n := len(page.Albums); n {
+	case 1:
+		meta = append(meta, i18n.T("1 album"))
+	case 0:
+	default:
+		meta = append(meta, i18n.Tf("%d albums", n))
+	}
+
+	header := core.View{Style: core.Style{Direction: core.Row, Gap: 28, AlignItems: core.AlignEnd, Padding: core.Symmetric(0, 12),
+		Margin: core.Edges{Bottom: 8}}, Children: []core.Node{
+		a.coverRound(p, page.Artist.ImageURL, 212),
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 8}, Children: []core.Node{
+			text(i18n.T("Artist"), 12, core.FontWeightSemibold, p.accent),
+			core.Text{Content: page.Artist.Name, MaxLines: 2, Style: core.Style{FontSize: 30, FontWeight: core.FontWeightBold,
+				LetterSpacing: -0.6, LineHeight: 1.2, Color: p.text}},
+			text(strings.Join(meta, " · "), 13, core.FontWeightNormal, p.muted),
+			core.Show{When: func() bool { return len(page.Tracks) > 0 }, Then: func(*core.Scope) core.Node {
+				return a.playButtons(p, page.Tracks)
+			}},
+		}},
+	}}
+
+	tabs := core.View{Style: core.Style{Direction: core.Row, Gap: 2, Padding: core.All(2), Background: p.hover,
+		CornerRadius: 8, AlignSelf: core.AlignEnd}, Children: func() []core.Node {
+		var buttons []core.Node
+		for i, label := range []string{i18n.T("Songs"), i18n.T("Albums")} {
+			index := i
+			selected := tab == index
+			bg, fg := core.Color(0), p.muted
+			if selected {
+				bg, fg = p.bg, p.text
+			}
+			buttons = append(buttons, base.Button{Label: label, OnPress: func(core.PressEvent) { setTab(index)() },
+				Style: core.Style{Padding: core.Symmetric(5, 12), CornerRadius: 7, Background: bg,
+					Hover: &core.Style{Background: p.sidebar}},
+				Children: []core.Node{text(label, 12.5, core.FontWeightMedium, fg)}})
+		}
+		return buttons
+	}()}
+	var body []core.Node
+	body = append(body, header)
+	if len(page.Tracks) > 0 && len(page.Albums) > 0 {
+		label := i18n.T("Songs")
+		if tab == 1 {
+			label = i18n.T("Albums")
+		}
+		body = append(body, core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Margin: core.Edges{Top: 26, Bottom: 14}},
+			Children: []core.Node{
+				core.Text{Content: label, Style: core.Style{FlexGrow: 1, FontSize: 19, FontWeight: core.FontWeightBold,
+					LetterSpacing: -0.3, Color: p.text}},
+				tabs,
+			}})
+	} else {
+		section := i18n.T("Songs")
+		if tab == 1 {
+			section = i18n.T("Albums")
+		}
+		body = append(body, core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{a.sectionHeader(p, section, "")}})
+	}
+	if tab == 1 {
 		body = append(body, a.cardGrid(p, w, 168, len(page.Albums), func(i int) core.Node { return a.albumCard(p, page.Albums[i], 168) }))
+	} else {
+		body = append(body, a.trackList(p, page.Tracks, true, a.currentID()))
 	}
 	return a.pageScroll(p, body...)
 }
@@ -476,8 +688,8 @@ func (a *app) browsePage(cx *core.Scope, p palette, id string) core.Node {
 	if b.Title != "" {
 		body = append(body, a.titleBlock(p, b.Title, b.Subtitle))
 	}
-	for _, sec := range b.Sections {
-		body = append(body, a.browseSection(cx, p, sec, w)...)
+	for i, sec := range b.Sections {
+		body = append(body, a.browseSection(cx, p, sec, w, id, i)...)
 	}
 	return a.pageScroll(p, body...)
 }
@@ -553,12 +765,15 @@ func (a *app) searchHeader(p palette, r route) core.Node {
 		}
 		tabs = append(tabs, base.Button{Label: i18n.T(k.label), OnPress: func(core.PressEvent) {
 			a.open(route{page: pageSearch, query: r.query, kind: kind})
-		}, Style: core.Style{Padding: core.Symmetric(5, 14), CornerRadius: 999, Background: bg, Hover: &core.Style{Background: p.sidebar}},
+		}, Style: core.Style{Padding: core.Symmetric(6, 14), CornerRadius: 999, Background: bg, Hover: &core.Style{Background: p.sidebar}},
 			Children: []core.Node{text(i18n.T(k.label), 13, core.FontWeightSemibold, fg)}})
 	}
 	// A long search locks the field, so its results can be chosen.
 	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12), Gap: 14, Margin: core.Edges{Bottom: 18}}, Children: []core.Node{
-		text(i18n.Tf("Results for “%s”", r.query), 26, core.FontWeightBold, p.text),
+		core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
+			text(i18n.T("Search"), 12, core.FontWeightSemibold, p.muted),
+			text("“"+r.query+"”", 30, core.FontWeightBold, p.text),
+		}},
 		core.View{Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignCenter}, Children: tabs},
 	}}
 }

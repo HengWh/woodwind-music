@@ -187,8 +187,8 @@ func (a *app) trackRow(p palette, tracks []music.Track, i int, showCover bool, s
 	}
 	row := base.Button{Label: tr.Name, TestID: "track-" + tr.ID, OnPress: func(core.PressEvent) { a.playTracks(tracks, i) },
 		StyleFunc: func() core.Style {
-			s := core.Style{Height: core.Pt(52), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12,
-				Padding: core.Symmetric(0, 10), CornerRadius: 8, Color: p.text,
+			s := core.Style{Height: core.Pt(54), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 14,
+				Padding: core.Symmetric(4, 12), CornerRadius: 10, Color: p.text,
 				Hover: &core.Style{Background: p.sidebar}}
 			a.playRev.Get()
 			if isCurrent() {
@@ -196,17 +196,14 @@ func (a *app) trackRow(p palette, tracks []music.Track, i int, showCover bool, s
 			}
 			return s
 		}}
-	children := []core.Node{}
-	if playing {
-		children = append(children, core.View{Style: core.Style{Width: core.Pt(16), Direction: core.Row, AlignItems: core.AlignCenter,
-			JustifyContent: core.JustifyCenter}, Children: []core.Node{core.Show{When: func() bool { a.playRev.Get(); return isCurrent() },
-			Then: func(*core.Scope) core.Node { return icon(lucideVolume, 14, p.accent) },
-			Else: func(*core.Scope) core.Node { return text(fmt.Sprint(i+1), 12, core.FontWeightNormal, p.faint) }}}})
-	} else if !showCover {
-		children = append(children, text(fmt.Sprint(i+1), 12, core.FontWeightNormal, p.faint))
-	}
+	// The number says where it is in the list, or the bars of the song
+	// playing, as a song's row does in Music.
+	children := []core.Node{core.View{Style: core.Style{Width: core.Pt(26), Direction: core.Row, AlignItems: core.AlignCenter,
+		JustifyContent: core.JustifyCenter}, Children: []core.Node{core.Show{When: func() bool { a.playRev.Get(); return isCurrent() },
+		Then: func(*core.Scope) core.Node { return icon(lucideVolume, 14, p.accent) },
+		Else: func(*core.Scope) core.Node { return text(fmt.Sprint(i+1), 13, core.FontWeightNormal, p.faint) }}}}}
 	if showCover {
-		children = append(children, core.View{Style: core.Style{Width: core.Pt(40)}, Children: []core.Node{a.cover(p, tr.Album.ImageURL, 40, 6)}})
+		children = append(children, core.View{Style: core.Style{Width: core.Pt(40), FlexShrink: 0}, Children: []core.Node{a.cover(p, tr.Album.ImageURL, 40, 6)}})
 	}
 	children = append(children, core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Direction: core.Column, Gap: 3}, Children: []core.Node{
 		core.Text{Content: tr.Name, MaxLines: 1, StyleFunc: func() core.Style {
@@ -267,6 +264,28 @@ func (a *app) likeButton(p palette, id string, size core.Points, color core.Colo
 func (a *app) sectionTitle(p palette, title string) core.Node {
 	return core.Text{Content: title, Style: core.Style{FontSize: 19, FontWeight: core.FontWeightBold, LetterSpacing: -0.3,
 		Color: p.text, Margin: core.Edges{Top: 34, Bottom: 14}}}
+}
+
+// sectionHeader is a section's title, with See All at its end when the
+// section has a page of its own.
+func (a *app) sectionHeader(p palette, title, more string) core.Node {
+	var children []core.Node
+	if title != "" {
+		children = append(children, core.Text{Content: title, Style: core.Style{FontSize: 19, FontWeight: core.FontWeightBold,
+			LetterSpacing: -0.3, Color: p.text, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}})
+	} else {
+		children = append(children, core.View{Style: core.Style{FlexGrow: 1}})
+	}
+	if more != "" {
+		page := more
+		children = append(children, base.Button{Label: i18n.T("See All"), OnPress: func(core.PressEvent) {
+			a.open(route{page: pageBrowse, id: page})
+		}, Style: core.Style{Height: core.Pt(26), Padding: core.Symmetric(0, 8), Direction: core.Row, AlignItems: core.AlignCenter,
+			CornerRadius: 6, Hover: &core.Style{Background: p.hover}},
+			Children: []core.Node{text(i18n.T("See All"), 13, core.FontWeightNormal, p.muted)}})
+	}
+	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Margin: core.Edges{Top: 34, Bottom: 14}},
+		Children: children}
 }
 
 // pageTitle is the heading of a page.
