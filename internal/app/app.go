@@ -183,6 +183,18 @@ type app struct {
 	stageTick  *core.Signal[int]
 	toast      *core.Signal[string]
 
+	// artRev moves as a cover's colors are found, for the daily card.
+	artRev       *core.Signal[int]
+	dailyHover   *core.Signal[bool]
+	dailyTick    *core.Signal[int]
+	dailyPlay    *core.Signal[bool]
+	dailySpin    spinState
+	dailyBars    [4]float32
+	dailyTicking bool
+	tints        map[string]core.Color
+	tintDone     map[string]bool
+	tintBusy     map[string]bool
+
 	history  []route
 	forward  []route
 	scrolled route
@@ -243,29 +255,36 @@ func newApp(cx *core.Scope) *app {
 		dir = filepath.Join(os.TempDir(), "nsgo-music")
 	}
 	a := &app{
-		cx:        cx,
-		dir:       dir,
-		dataDir:   dir,
-		set:       loadSettings(dir),
-		rev:       core.NewSignal(cx, 0),
-		playRev:   core.NewSignal(cx, 0),
-		route:     core.NewSignal(cx, route{page: pageHome}),
-		tick:      core.NewSignal(cx, 0),
-		query:     core.NewSignal(cx, ""),
-		np:        core.NewSignal(cx, false),
-		npPane:    core.NewSignal(cx, 0),
-		stageTick: core.NewSignal(cx, 0),
-		toast:     core.NewSignal(cx, ""),
-		searchRef: new(core.Ref),
-		likedSet:  map[string]bool{},
-		playlists: map[string]*playlistData{},
-		albums:    map[string]*albumData{},
-		artists:   map[string]*artistData{},
-		browses:   map[string]*browseData{},
-		searches:  map[route]*searchData{},
-		lyricAt:   -1,
-		queueAt:   -1,
-		scroll:    map[string]core.Points{},
+		cx:         cx,
+		dir:        dir,
+		dataDir:    dir,
+		set:        loadSettings(dir),
+		rev:        core.NewSignal(cx, 0),
+		playRev:    core.NewSignal(cx, 0),
+		route:      core.NewSignal(cx, route{page: pageHome}),
+		tick:       core.NewSignal(cx, 0),
+		query:      core.NewSignal(cx, ""),
+		np:         core.NewSignal(cx, false),
+		npPane:     core.NewSignal(cx, 0),
+		stageTick:  core.NewSignal(cx, 0),
+		toast:      core.NewSignal(cx, ""),
+		artRev:     core.NewSignal(cx, 0),
+		dailyHover: core.NewSignal(cx, false),
+		dailyTick:  core.NewSignal(cx, 0),
+		dailyPlay:  core.NewSignal(cx, false),
+		tints:      map[string]core.Color{},
+		tintDone:   map[string]bool{},
+		tintBusy:   map[string]bool{},
+		searchRef:  new(core.Ref),
+		likedSet:   map[string]bool{},
+		playlists:  map[string]*playlistData{},
+		albums:     map[string]*albumData{},
+		artists:    map[string]*artistData{},
+		browses:    map[string]*browseData{},
+		searches:   map[route]*searchData{},
+		lyricAt:    -1,
+		queueAt:    -1,
+		scroll:     map[string]core.Points{},
 	}
 	a.applyLanguage()
 	a.local = local.New(dir)

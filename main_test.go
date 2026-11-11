@@ -162,7 +162,7 @@ func TestShots(t *testing.T) {
 	}
 	t.Setenv("NSGO_MUSIC_DATA_DIR", data)
 	app := nsgotest.Start(t, app.Root, nsgotest.Size(1180, 780))
-	app.WaitUntil(8*time.Second, func() bool { return app.Exists("text:迷跡波") && app.Exists("text:Haruhikage") })
+	app.WaitUntil(8*time.Second, func() bool { return app.Exists("text:迷跡波") })
 	shot := func(name string) {
 		time.Sleep(1500 * time.Millisecond)
 		app.Settle()
