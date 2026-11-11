@@ -7,6 +7,7 @@ import (
 	"github.com/oneo-me/nsgo/base"
 	"github.com/oneo-me/nsgo/core"
 	"github.com/oneo-me/nsgo/icons/lucide"
+	"github.com/oneo-me/nsgo/ui"
 
 	"nsgo-music/internal/i18n"
 	"nsgo-music/internal/music"
@@ -175,6 +176,10 @@ func clock(d time.Duration) string {
 	return fmt.Sprintf("%d:%02d", s/60, s%60)
 }
 
+// trackRowGroup is the style group of a track's row, which the row's own
+// hover shows its play button and heart by, as Music does.
+const trackRowGroup = "track-row"
+
 // trackRow is a row of a track list: its number, cover, title, artist, album
 // and length.
 func (a *app) trackRow(p palette, tracks []music.Track, i int, showCover bool, showAlbum bool, playing bool, _ bool) core.Node {
@@ -188,20 +193,46 @@ func (a *app) trackRow(p palette, tracks []music.Track, i int, showCover bool, s
 	row := base.Button{Label: tr.Name, TestID: "track-" + tr.ID, OnPress: func(core.PressEvent) { a.playTracks(tracks, i) },
 		StyleFunc: func() core.Style {
 			s := core.Style{Height: core.Pt(54), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 14,
-				Padding: core.Symmetric(4, 12), CornerRadius: 10, Color: p.text,
-				Hover: &core.Style{Background: p.sidebar}}
+				Padding: core.Symmetric(4, 12), CornerRadius: 10, Color: p.text, Group: trackRowGroup,
+				Hover: &core.Style{Background: p.hover}}
 			a.playRev.Get()
 			if isCurrent() {
-				s.Background = p.hover
+				// The song playing keeps its tint, under the pointer too.
+				s.Background = ui.Alpha(p.accent, 0.09)
+				s.Hover = &core.Style{Background: s.Background}
+			}
+			if tr.Unavailable {
+				s.Opacity = core.Alpha(0.42)
 			}
 			return s
 		}}
-	// The number says where it is in the list, or the bars of the song
-	// playing, as a song's row does in Music.
+	// The number says where it is in the list, or, under the pointer, a play
+	// button; the song playing shows the bars of its sound instead.
+	number := func() core.Style {
+		a.playRev.Get()
+		hovered := core.DisplayNone
+		if isCurrent() {
+			hovered = core.DisplayFlex
+		}
+		return core.Style{Display: core.DisplayFlex,
+			GroupStyle: &core.GroupStyle{Name: trackRowGroup, Hover: &core.Style{Display: hovered}}}
+	}
+	play := func() core.Style {
+		a.playRev.Get()
+		hovered := core.DisplayFlex
+		if isCurrent() {
+			hovered = core.DisplayNone
+		}
+		return core.Style{Display: core.DisplayNone,
+			GroupStyle: &core.GroupStyle{Name: trackRowGroup, Hover: &core.Style{Display: hovered}}}
+	}
 	children := []core.Node{core.View{Style: core.Style{Width: core.Pt(26), Direction: core.Row, AlignItems: core.AlignCenter,
-		JustifyContent: core.JustifyCenter}, Children: []core.Node{core.Show{When: func() bool { a.playRev.Get(); return isCurrent() },
-		Then: func(*core.Scope) core.Node { return icon(lucideVolume, 14, p.accent) },
-		Else: func(*core.Scope) core.Node { return text(fmt.Sprint(i+1), 13, core.FontWeightNormal, p.faint) }}}}}
+		JustifyContent: core.JustifyCenter}, Children: []core.Node{
+		core.View{StyleFunc: number, Children: []core.Node{core.Show{When: func() bool { a.playRev.Get(); return isCurrent() },
+			Then: func(*core.Scope) core.Node { return icon(lucideVolume, 14, p.accent) },
+			Else: func(*core.Scope) core.Node { return text(fmt.Sprint(i+1), 13, core.FontWeightNormal, p.faint) }}}},
+		core.View{StyleFunc: play, Children: []core.Node{icon(lucidePlay, 13, p.text)}},
+	}}}
 	if showCover {
 		children = append(children, core.View{Style: core.Style{Width: core.Pt(40), FlexShrink: 0}, Children: []core.Node{a.cover(p, tr.Album.ImageURL, 40, 6)}})
 	}
@@ -212,15 +243,25 @@ func (a *app) trackRow(p palette, tracks []music.Track, i int, showCover bool, s
 			if isCurrent() {
 				c = p.accent
 			}
-			return core.Style{FontSize: 13.5, FontWeight: core.FontWeightMedium, Color: c}
+			return core.Style{FontSize: 14, FontWeight: core.FontWeightMedium, Color: c}
 		}},
-		a.artistLine(p, tr, 12, p.muted),
+		a.artistLine(p, tr, 12.5, p.muted),
 	}})
 	if showAlbum {
 		children = append(children, core.Text{Content: tr.Album.Name, MaxLines: 1, Style: core.Style{Width: core.Pct(26), FontSize: 12.5, Color: p.muted}})
 	}
-	children = append(children, a.likeButton(p, tr.ID, 15, p.muted))
-	children = append(children, core.Text{Content: clock(tr.Length()), Style: core.Style{Width: core.Pt(44), TextAlign: core.TextAlignEnd, FontSize: 12, Color: p.faint}})
+	// A liked song's heart shows; the others' as the pointer is on them,
+	// in a cell the row keeps whether or not it shows, as Music does.
+	heart := core.DisplayNone
+	if a.likedSet[tr.ID] {
+		heart = core.DisplayFlex
+	}
+	children = append(children, core.View{Style: core.Style{Width: core.Pt(32), Height: core.Pt(32), Direction: core.Row,
+		AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{
+		core.View{Style: core.Style{Display: heart,
+			GroupStyle: &core.GroupStyle{Name: trackRowGroup, Hover: &core.Style{Display: core.DisplayFlex}}},
+			Children: []core.Node{a.likeButton(p, tr.ID, 15, p.muted)}}}})
+	children = append(children, core.Text{Content: clock(tr.Length()), Style: core.Style{Width: core.Pt(44), TextAlign: core.TextAlignEnd, FontSize: 12.5, Color: p.faint}})
 	row.Children = children
 	return row
 }

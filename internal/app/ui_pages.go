@@ -229,7 +229,7 @@ func (a *app) sectionPage(cx *core.Scope, p palette, r route) core.Node {
 	sub := core.Text{Content: about, Style: core.Style{FontSize: 13, Color: p.muted}}
 	return a.pageScroll(p,
 		a.heroNode(p, pic, i18n.Today(now), title, sub, tracks),
-		a.trackList(p, tracks, true, a.currentID()),
+		a.trackList(p, tracks, true, true, a.currentID()),
 	)
 }
 
@@ -351,13 +351,13 @@ func artistsOf(list []music.Artist) string {
 
 // trackList is tracks as rows that play, in a page that scrolls with its
 // heading.
-func (a *app) trackList(p palette, tracks []music.Track, showAlbum bool, current string) core.Node {
+func (a *app) trackList(p palette, tracks []music.Track, covers, showAlbum bool, current string) core.Node {
 	return core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
 		EstimatedSize: 54, Viewport: core.ListViewportParent,
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
 			i := row.Index()
 			tr := tracks[i]
-			r := a.trackRow(p, tracks, i, true, showAlbum, false, current == tr.ID)
+			r := a.trackRow(p, tracks, i, covers, showAlbum, false, current == tr.ID)
 			return ui.ContextMenu{Trigger: r, Children: a.trackMenu(tr, "", -1)}
 		}}
 }
@@ -494,7 +494,7 @@ func (a *app) likedPage(cx *core.Scope, p palette) core.Node {
 		Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideHeart, 64, p.onAccent)}}
 	return a.pageScroll(p,
 		a.hero(p, pic, i18n.T("Playlist"), i18n.T("Liked Songs"), i18n.Songs(len(tracks)), tracks),
-		a.trackList(p, tracks, false, a.currentID()),
+		a.trackList(p, tracks, true, false, a.currentID()),
 	)
 }
 
@@ -555,9 +555,12 @@ func (a *app) albumPage(cx *core.Scope, p palette, id string) core.Node {
 		if i > 0 {
 			spans = append(spans, core.Span{Content: ", "})
 		}
-		id := ar.ID
-		spans = append(spans, core.Span{Content: ar.Name, Style: core.Style{Color: p.text},
-			OnPress: func(core.PressEvent) { a.open(route{page: pageArtist, id: id}) }})
+		span := core.Span{Content: ar.Name, Style: core.Style{Color: p.muted, Hover: &core.Style{Color: p.text}}}
+		if ar.ID != "" {
+			id := ar.ID
+			span.OnPress = func(core.PressEvent) { a.open(route{page: pageArtist, id: id}) }
+		}
+		spans = append(spans, span)
 	}
 	var meta []string
 	if al.Released != "" {
@@ -571,7 +574,7 @@ func (a *app) albumPage(cx *core.Scope, p palette, id string) core.Node {
 	sub := core.Text{Spans: spans, Style: core.Style{FontSize: 13, Color: p.muted}}
 	return a.pageScroll(p,
 		a.heroNode(p, a.cover(p, al.ImageURL, 212, 14), i18n.T("Album"), al.Name, sub, tracks),
-		a.trackList(p, tracks, false, a.currentID()),
+		a.trackList(p, tracks, false, false, a.currentID()),
 	)
 }
 
@@ -669,7 +672,7 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 	if tab == 1 {
 		body = append(body, a.cardGrid(p, w, 168, len(page.Albums), func(i int) core.Node { return a.albumCard(p, page.Albums[i], 168) }))
 	} else {
-		body = append(body, a.trackList(p, page.Tracks, true, a.currentID()))
+		body = append(body, a.trackList(p, page.Tracks, true, true, a.currentID()))
 	}
 	return a.pageScroll(p, body...)
 }
@@ -718,7 +721,7 @@ func (a *app) searchPage(cx *core.Scope, p palette, r route) core.Node {
 		if len(d.res.Tracks) == 0 {
 			body = append(body, a.emptyNote(p, i18n.T("No songs found"), i18n.T("Try another search.")))
 		} else {
-			body = append(body, a.trackList(p, d.res.Tracks, true, a.currentID()))
+			body = append(body, a.trackList(p, d.res.Tracks, true, true, a.currentID()))
 		}
 	case music.SearchAlbums:
 		if len(d.res.Albums) == 0 {
