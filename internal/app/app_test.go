@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -361,4 +362,32 @@ func TestSearchSuggestsHistory(t *testing.T) {
 	app.WaitFor("text:Haru", 2*time.Second)
 	app.Press("text:Haru")
 	app.WaitFor("text:/“Haru”/", 2*time.Second)
+}
+
+// TestSongsPageScrolls checks that a page longer than the window scrolls,
+// its list instead of growing the page past the player bar.
+func TestSongsPageScrolls(t *testing.T) {
+	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	musicDir := t.TempDir()
+	const n = 60
+	for i := 0; i < n; i++ {
+		writeToneWAV(t, filepath.Join(musicDir, fmt.Sprintf("Song %02d.wav", i)))
+	}
+	var a *app
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		a = newApp(cx)
+		return a.view(cx)
+	}, nsgotest.Size(1180, 780))
+	a.local.AddFolders(musicDir)
+	app.WaitUntil(20*time.Second, func() bool {
+		return a.local.TrackCount() == n && !a.local.Scanning() && !a.homeBusy && a.home != nil && len(a.home.Sections) > 0
+	})
+	app.Press("id:nav-songs")
+	app.WaitFor("text:Song 00", 2*time.Second)
+	bar := app.Find("id:play-pause")
+	if bar.Frame.Origin.Y+bar.Frame.Size.Height > 780 {
+		t.Fatalf("player bar pushed to %v: the page grew instead of scrolling", bar.Frame.Origin)
+	}
+	// A song page longer than the window scrolls.
+	app.Scroll("text:Song 00", 400)
 }

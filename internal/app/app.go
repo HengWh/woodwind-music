@@ -889,7 +889,7 @@ func (a *app) view(cx *core.Scope) core.Node {
 	root.Children = []core.Node{
 		core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); a.route.Get(); return a.sidebar(cx, top) }),
 		core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Direction: core.Column, Background: p.bg}, Children: []core.Node{
-			core.View{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
+			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
 				core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); a.route.Get(); return a.pageTop(cx, p, top) }),
 				core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); return a.page(cx, p) }),
 			}},
