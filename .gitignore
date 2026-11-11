@@ -1,0 +1,22 @@
+# Build output
+/dist/
+/build/
+
+# NSGo tooling
+.nsgo/
+
+# Go
+*.test
+*.out
+*.prof
+
+# Local checkout of mygo-music, used as the porting reference
+/.reference/
+
+# macOS
+.DS_Store
+
+# Editors
+.idea/
+.vscode/
+*.swp
