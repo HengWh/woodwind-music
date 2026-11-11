@@ -292,7 +292,7 @@ func (a *app) card(p palette, size core.Points, onPress func(), pic core.Node, n
 	children = append(children, core.View{Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: 10,
 		ShadowColor: p.cardShade, ShadowRadius: 8, ShadowOffset: core.Point{Y: 4}}, Children: []core.Node{pic}})
 	children = append(children, core.Text{Content: name, MaxLines: 2, Style: core.Style{FontSize: 13.5, FontWeight: core.FontWeightMedium,
-		LineHeight: 1.35, Color: p.text}})
+		LineHeightMultiple: 1.35, Color: p.text}})
 	if sub != "" {
 		children = append(children, core.Text{Content: sub, MaxLines: 1, Style: core.Style{FontSize: 12, Color: p.muted, Margin: core.Edges{Top: -2}}})
 	}
@@ -306,7 +306,7 @@ func (a *app) albumCard(p palette, al music.Album, size core.Points) core.Node {
 	id := al.ID
 	name := al.Name
 	var meta []string
-	if by := artistsOf(al.Artists); by != "" {
+	if by := artistsOf(al.Artists); by != "" && a.route.Get().page != pageArtist {
 		meta = append(meta, by)
 	}
 	if len(al.Released) >= 4 {
@@ -617,11 +617,13 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 
 	header := core.View{Style: core.Style{Direction: core.Row, Gap: 28, AlignItems: core.AlignEnd, Padding: core.Symmetric(0, 12),
 		Margin: core.Edges{Bottom: 8}}, Children: []core.Node{
-		a.coverRound(p, page.Artist.ImageURL, 212),
+		core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), CornerRadius: 106,
+			Shadows: []core.BoxShadow{{Offset: core.Point{Y: 18}, Blur: 40, Spread: -10, Color: p.cardShade}}},
+			Children: []core.Node{a.coverRound(p, page.Artist.ImageURL, 212)}},
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 8}, Children: []core.Node{
 			text(i18n.T("Artist"), 12, core.FontWeightSemibold, p.accent),
-			core.Text{Content: page.Artist.Name, MaxLines: 2, Style: core.Style{FontSize: 30, FontWeight: core.FontWeightBold,
-				LetterSpacing: -0.6, LineHeight: 1.2, Color: p.text}},
+			core.Text{Content: page.Artist.Name, MaxLines: 2, Style: core.Style{FontSize: 30, FontWeight: core.FontWeight(800),
+				LetterSpacing: -0.6, LineHeightMultiple: 1.2, Color: p.text}},
 			text(strings.Join(meta, " · "), 13, core.FontWeightNormal, p.muted),
 			core.Show{When: func() bool { return len(page.Tracks) > 0 }, Then: func(*core.Scope) core.Node {
 				return a.playButtons(p, page.Tracks)
@@ -653,7 +655,7 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 		if tab == 1 {
 			label = i18n.T("Albums")
 		}
-		body = append(body, core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Margin: core.Edges{Top: 26, Bottom: 14}},
+		body = append(body, core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 12), Margin: core.Edges{Top: 34, Bottom: 14}},
 			Children: []core.Node{
 				core.Text{Content: label, Style: core.Style{FlexGrow: 1, FontSize: 19, FontWeight: core.FontWeightBold,
 					LetterSpacing: -0.3, Color: p.text}},
@@ -668,6 +670,9 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 	}
 	if tab == 1 {
 		body = append(body, a.cardGrid(p, w, 168, len(page.Albums), func(i int) core.Node { return a.albumCard(p, page.Albums[i], 168) }))
+		if len(page.Albums) == 0 {
+			body = append(body, a.emptyNote(p, i18n.T("No albums"), ""))
+		}
 	} else {
 		body = append(body, a.trackList(p, page.Tracks, true, a.currentID()))
 	}

@@ -193,7 +193,7 @@ func (a *app) settingsGroupCard(p palette, g settingsGroupDef) core.Node {
 			Hover: &core.Style{Background: p.hover}}, Children: []core.Node{
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Direction: core.Column, Gap: 3}, Children: []core.Node{
 				text(r.label, 13.5, core.FontWeightMedium, p.text),
-				core.Text{Content: r.sub, Style: core.Style{FontSize: 12, Color: p.muted, LineHeight: 1.4}},
+				core.Text{Content: r.sub, Style: core.Style{FontSize: 12, Color: p.muted, LineHeightMultiple: 1.4}},
 			}},
 			control,
 		}}
