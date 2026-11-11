@@ -45,19 +45,22 @@ func (a *app) page(cx *core.Scope, p palette) core.Node {
 // edges.
 func (a *app) pageScroll(p palette, children ...core.Node) core.Node {
 	return core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-		core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 8, Right: pagePad - 8, Bottom: 48, Left: pagePad - 8}},
+		core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 12, Right: pagePad - 8, Bottom: 48, Left: pagePad - 8}},
 			Children: children},
 	}}
 }
 
 // titleBlock is the greeting or page heading.
 func (a *app) titleBlock(p palette, title, sub string) core.Node {
-	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12), Gap: 4, Margin: core.Edges{Bottom: 18}}, Children: []core.Node{
-		core.Group{
-			text(sub, 12, core.FontWeightSemibold, p.muted),
-			text(title, 30, core.FontWeightBold, p.text),
-		},
-	}}
+	var children []core.Node
+	if sub != "" {
+		children = append(children, core.Text{Content: sub, Style: core.Style{FontSize: 12, FontWeight: core.FontWeightSemibold,
+			LetterSpacing: 0.4, Color: p.muted}})
+	}
+	children = append(children, core.Text{Content: title, Style: core.Style{FontSize: 30, FontWeight: core.FontWeightBold,
+		LetterSpacing: -0.6, Color: p.text}})
+	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12), Gap: 4, Margin: core.Edges{Bottom: 18}},
+		Children: []core.Node{core.Group(children)}}
 }
 
 func greeting(now time.Time) string {
@@ -111,79 +114,6 @@ func (a *app) emptyHome(p palette) core.Node {
 		}}
 }
 
-// featureCard leads a source's Home with the songs of its first section: the
-// first cover over the card's colors, the day and the section's name, and a
-// play button. A press opens all of them.
-func (a *app) featureCard(p palette, sec music.Section, index int, now time.Time) core.Node {
-	tracks := sec.Tracks
-	if len(tracks) == 0 {
-		return core.Group{}
-	}
-	cover := tracks[0].Album.ImageURL
-	open := func() { a.open(route{page: pageSection, query: strconv.Itoa(index)}) }
-	play := func(core.PressEvent) { a.playTracks(tracks, 0) }
-	title := sec.Title
-	if title == "" {
-		title = i18n.T("Recently Played")
-	}
-	artists := tracks[0].ArtistNames()
-	card := base.Button{Label: title, OnPress: func(core.PressEvent) { open() }, StyleFunc: func() core.Style {
-		return core.Style{Height: core.Pt(212), Direction: core.Row, AlignItems: core.AlignCenter, CornerRadius: 24,
-			Background: core.RGB(0x242126), Overflow: core.Hidden,
-			Gradients: []core.Gradient{core.LinearGradient(135, core.RGBA(0x3a3036, 0.96), core.RGBA(0x17151a, 0.98))},
-			Hover:     &core.Style{Background: core.RGB(0x2c282e)}}
-	}, Children: []core.Node{
-		func() core.Node {
-			if cover == "" {
-				return core.Group{}
-			}
-			return core.Image{Source: core.Src(cover), ResizeMode: core.Cover, BlurRadius: 34,
-				Style: core.Style{Position: core.Absolute, Top: core.Pt(-30), Right: core.Pt(-30), Bottom: core.Pt(-30), Left: core.Pt(-30),
-					Opacity: core.Alpha(0.42)}}
-		}(),
-		core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0),
-			Gradients: []core.Gradient{core.LinearGradient(120, core.RGBA(0x000000, 0.08), core.RGBA(0x000000, 0.62))}}},
-		core.View{Style: core.Style{Position: core.Relative, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Direction: core.Column,
-			Gap: 6, Padding: core.Symmetric(0, 32)}, Children: []core.Node{
-			text(i18n.Today(now), 12, core.FontWeightSemibold, core.RGBA(0xffffff, 0.66)),
-			text(title, 32, core.FontWeightBold, core.RGB(0xffffff)),
-			core.Text{Content: artists, MaxLines: 1, Style: core.Style{FontSize: 13, Color: core.RGBA(0xffffff, 0.8)}},
-			core.View{Style: core.Style{Direction: core.Row, Gap: 10, Margin: core.Edges{Top: 10}}, Children: []core.Node{
-				base.Button{Label: i18n.T("Play"), OnPress: play, Style: core.Style{Height: core.Pt(36), Padding: core.Symmetric(0, 18),
-					Gap: 8, Direction: core.Row, AlignItems: core.AlignCenter, CornerRadius: 999, Background: core.RGBA(0xffffff, 0.16),
-					Hover: &core.Style{Background: core.RGBA(0xffffff, 0.24)}}, Children: []core.Node{
-					icon(lucidePlay, 14, core.RGB(0xffffff)),
-					text(i18n.T("Play"), 14, core.FontWeightSemibold, core.RGB(0xffffff)),
-				}},
-			}},
-		}},
-		func() core.Node {
-			if a.cx.Env().Window().Width < 1000 {
-				return core.Group{}
-			}
-			var picks []core.Node
-			for i := 0; i < len(tracks) && i < 3; i++ {
-				i := i
-				trc := tracks[i]
-				picks = append(picks, base.Button{Label: trc.Name, OnPress: func(core.PressEvent) { a.playTracks(tracks, i) },
-					Style: core.Style{Height: core.Pt(34), Padding: core.Symmetric(0, 10), Gap: 10, Direction: core.Row, AlignItems: core.AlignCenter,
-						CornerRadius: 8, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.08)}}, Children: []core.Node{
-						text(fmt.Sprint(i+1), 11, core.FontWeightNormal, core.RGBA(0xffffff, 0.4)),
-						core.Text{Content: trc.Name, MaxLines: 1, Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0),
-							FontSize: 13, FontWeight: core.FontWeightMedium, Color: core.RGB(0xffffff)}},
-						text(clock(trc.Length()), 11, core.FontWeightNormal, core.RGBA(0xffffff, 0.4)),
-					}})
-			}
-			return core.View{Style: core.Style{Position: core.Relative, Width: core.Pt(300), FlexShrink: 1, Direction: core.Column, Gap: 2,
-				Padding: core.Edges{Right: 16}}, Children: picks}
-		}(),
-		core.View{Style: core.Style{Position: core.Relative, Width: core.Pt(24), Height: core.Pt(24), FlexShrink: 0}, Children: []core.Node{
-			icon(lucideChevronRight, 18, core.RGBA(0xffffff, 0.55)),
-		}},
-	}}
-	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12), Margin: core.Edges{Bottom: 6}}, Children: []core.Node{card}}
-}
-
 // sectionOf finds the section a section page shows.
 func (a *app) sectionOf(r route) *music.Section {
 	var page *music.Browse
@@ -199,7 +129,8 @@ func (a *app) sectionOf(r route) *music.Section {
 	return &page.Sections[at]
 }
 
-// sectionPage lists all the songs of a feature card, headed as the card is.
+// sectionPage lists all the songs of a feature card, headed as the card is:
+// the day over the first cover's colors, and its date over the title.
 func (a *app) sectionPage(cx *core.Scope, p palette, r route) core.Node {
 	sec := a.sectionOf(r)
 	if sec == nil {
@@ -210,64 +141,78 @@ func (a *app) sectionPage(cx *core.Scope, p palette, r route) core.Node {
 	if title == "" {
 		title = sec.Title
 	}
-	if title == "" {
-		title = i18n.T("Songs")
-	}
 	now := time.Now()
-	var pic core.Node
-	if len(tracks) > 0 && tracks[0].Album.ImageURL != "" {
-		pic = a.cover(p, tracks[0].Album.ImageURL, 212, 14)
-	} else {
-		pic = core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), CornerRadius: 14, Background: p.accent,
-			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{
-			text(fmt.Sprint(now.Day()), 96, core.FontWeightBold, p.onAccent)}}
-	}
 	about := i18n.Songs(len(tracks))
 	if sec.Subtitle != "" {
 		about += " · " + sec.Subtitle
 	}
-	sub := core.Text{Content: about, Style: core.Style{FontSize: 13, Color: p.muted}}
-	return a.pageScroll(p,
-		a.heroNode(p, pic, i18n.Today(now), title, sub, tracks),
-		a.trackList(p, tracks, true, true, a.currentID()),
-	)
+	header := core.View{Style: core.Style{Direction: core.Row, Gap: 28, AlignItems: core.AlignEnd, Padding: core.Edges{Bottom: 26}},
+		Children: []core.Node{
+			a.dayCover(p, tracks, now),
+			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 8}, Children: []core.Node{
+				core.Text{Content: i18n.Today(now), MaxLines: 1, Style: core.Style{FontSize: 12, FontWeight: core.FontWeightSemibold,
+					LetterSpacing: 0.3, Color: p.muted}},
+				core.Text{Content: title, MaxLines: 2, Style: core.Style{FontSize: 30, FontWeight: core.FontWeight(800),
+					LetterSpacing: -0.6, LineHeightMultiple: 1.2, Color: p.text}},
+				core.Text{Content: about, MaxLines: 2, Style: core.Style{FontSize: 13, Color: p.muted}},
+				core.View{Style: core.Style{Direction: core.Row, Gap: 10, Margin: core.Edges{Top: 8}}, Children: []core.Node{
+					a.playButtons(p, tracks)}},
+			}},
+		}}
+	return a.pageScroll(p, header, a.trackList(p, tracks, true, true, a.currentID()))
 }
 
 // browseSection is one heading of a source's page, and what it lists.
 func (a *app) browseSection(cx *core.Scope, p palette, sec music.Section, width core.Points, pageID string, index int) []core.Node {
 	var out []core.Node
+	first := index == 0
 	// The songs of a source's Home lead it with a card of their own.
-	feature := pageID == "" && index == 0 && len(sec.Tracks) > 0
+	feature := pageID == "" && first && len(sec.Tracks) > 0
 	if feature {
-		out = append(out, a.featureCard(p, sec, index, time.Now()))
+		below := core.Points(0)
+		if len(sec.Albums)+len(sec.Artists)+len(sec.Playlists)+len(sec.Links) > 0 {
+			below = cardRowGap
+		}
+		out = append(out, core.View{Style: core.Style{Padding: core.Edges{Right: 12, Bottom: below, Left: 12}},
+			Children: []core.Node{a.featureCard(p, sec, pageID, index, time.Now())}})
 	} else if sec.Title != "" || sec.MorePage != "" {
-		out = append(out, core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{a.sectionHeader(p, sec.Title, sec.MorePage)}})
+		out = append(out, core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{
+			a.sectionHeaderAt(p, sec.Title, sec.MorePage, first)}})
 	}
 	if len(sec.Tracks) > 0 && !feature {
 		tracks := sec.Tracks
-		out = append(out, core.View{Style: core.Style{Padding: core.Symmetric(0, 2)}, Children: []core.Node{
-			core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
-				EstimatedSize: 54, Viewport: core.ListViewportParent,
-				Row: func(cx *core.Scope, row core.ListRow) core.Node {
-					i := row.Index()
-					cur := a.pl.Current()
-					return a.trackRow(p, tracks, i, true, false, true, cur != nil && cur.ID == tracks[i].ID)
-				}},
-		}})
+		if len(tracks) <= 50 {
+			var rows []core.Node
+			for i := range tracks {
+				cur := a.pl.Current()
+				rows = append(rows, a.trackRow(p, tracks, i, true, false, true, cur != nil && cur.ID == tracks[i].ID))
+			}
+			out = append(out, core.View{Style: core.Style{Direction: core.Column}, Children: rows})
+		} else {
+			out = append(out, core.View{Style: core.Style{}, Children: []core.Node{
+				core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
+					EstimatedSize: 54, Viewport: core.ListViewportParent,
+					Row: func(cx *core.Scope, row core.ListRow) core.Node {
+						i := row.Index()
+						cur := a.pl.Current()
+						return a.trackRow(p, tracks, i, true, false, true, cur != nil && cur.ID == tracks[i].ID)
+					}},
+			}})
+		}
 	}
 	if len(sec.Albums) > 0 {
-		out = append(out, a.cardGrid(p, width, 168, len(sec.Albums), func(i int) core.Node { return a.albumCard(p, sec.Albums[i], 168) }))
+		out = append(out, a.cardGrid(p, width, 156, len(sec.Albums), func(i int) core.Node { return a.albumCard(p, sec.Albums[i]) }))
 	}
 	if len(sec.Artists) > 0 {
-		out = append(out, a.cardGrid(p, width, 168, len(sec.Artists), func(i int) core.Node { return a.artistCard(p, sec.Artists[i], 168) }))
+		out = append(out, a.cardGrid(p, width, 156, len(sec.Artists), func(i int) core.Node { return a.artistCard(p, sec.Artists[i]) }))
 	}
 	if len(sec.Playlists) > 0 {
-		out = append(out, a.cardGrid(p, width, 168, len(sec.Playlists), func(i int) core.Node { return a.playlistCard(p, sec.Playlists[i], 168) }))
+		out = append(out, a.cardGrid(p, width, 156, len(sec.Playlists), func(i int) core.Node { return a.playlistCard(p, sec.Playlists[i]) }))
 	}
 	if len(sec.Links) > 0 {
-		out = append(out, a.cardGrid(p, width, 168, len(sec.Links), func(i int) core.Node {
+		out = append(out, a.cardGrid(p, width, 156, len(sec.Links), func(i int) core.Node {
 			l := sec.Links[i]
-			return a.card(p, 168, func() { a.open(route{page: pageBrowse, id: l.Page}) }, a.cover(p, l.ImageURL, 168, 10), l.Title, l.Subtitle)
+			return a.linkCard(p, l)
 		}))
 	}
 	return out
@@ -281,30 +226,52 @@ func (a *app) cardGrid(p palette, width core.Points, min core.Points, n int, car
 		cards = append(cards, card(i))
 	}
 	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{
-		core.View{Style: core.Style{Display: core.DisplayGrid, GridTemplateColumns: core.GridTracks(fmt.Sprintf("repeat(%d, minmax(0, 1fr))", cols)),
-			Gap: 20, RowGap: 28, Margin: core.Edges{Top: 12, Bottom: 4}}, Children: cards},
+		core.View{Style: core.Style{Display: core.DisplayGrid, Width: core.Pct(100),
+			GridTemplateColumns: core.GridTracks(fmt.Sprintf("repeat(%d, minmax(0, 1fr))", cols)),
+			Gap:                 20, RowGap: cardRowGap, Margin: core.Edges{Top: 12, Bottom: 0}}, Children: cards},
 	}}
 }
 
-// card is a picture over a name and what it says under it.
-func (a *app) card(p palette, size core.Points, onPress func(), pic core.Node, name, sub string) core.Node {
-	var children []core.Node
-	children = append(children, core.View{Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: 10,
-		ShadowColor: p.cardShade, ShadowRadius: 8, ShadowOffset: core.Point{Y: 4}}, Children: []core.Node{pic}})
-	children = append(children, core.Text{Content: name, MaxLines: 2, Style: core.Style{FontSize: 13.5, FontWeight: core.FontWeightMedium,
-		LineHeightMultiple: 1.35, Color: p.text}})
-	if sub != "" {
-		children = append(children, core.Text{Content: sub, MaxLines: 1, Style: core.Style{FontSize: 12, Color: p.muted, Margin: core.Edges{Top: -2}}})
+// cardRowGap is the room under a row of cards.
+const cardRowGap = 28
+
+// coverArt fills a card's square with a cover, or the icon of what it shows
+// when it has none.
+func (a *app) coverArt(p palette, url string, radius core.Points, fallback *core.SVG) core.Node {
+	if url == "" {
+		return core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), Background: p.hover,
+			CornerRadius: radius, Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+			Children: []core.Node{icon(fallback, 40, p.faint)}}
 	}
-	return base.Button{Label: name, OnPress: func(core.PressEvent) { onPress() },
-		StyleFunc: func() core.Style {
-			return core.Style{Direction: core.Column, Gap: 6, Padding: core.All(8), CornerRadius: 12, Hover: &core.Style{Background: p.sidebar}}
-		}, Children: children}
+	return core.Image{Source: core.Src(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
+		Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), CornerRadius: radius, Background: p.sidebar}}
 }
 
-func (a *app) albumCard(p palette, al music.Album, size core.Points) core.Node {
-	id := al.ID
-	name := al.Name
+// cardFrame is a cover over a name and a line under it, lifting as the pointer
+// comes onto it: the shape of an album's, an artist's and a playlist's card.
+func (a *app) cardFrame(p palette, name, sub string, radius core.Points, art core.Node, onPress func()) core.Node {
+	box := core.View{Style: core.Style{Width: core.Pct(100), AspectRatio: 1, CornerRadius: radius,
+		Shadows: []core.BoxShadow{{Offset: core.Point{Y: 2}, Blur: 8, Spread: -2, Color: p.cardShade}},
+		Transition: core.Transition{Duration: 180 * time.Millisecond, Easing: core.EaseOut,
+			Properties: core.TransitionTransform | core.TransitionShadow},
+		GroupStyle: &core.GroupStyle{Name: "card", Hover: &core.Style{Transform: core.Transform{TranslateY: -3},
+			Shadows: []core.BoxShadow{{Offset: core.Point{Y: 12}, Blur: 28, Spread: -6, Color: p.cardShade}}}}},
+		Children: []core.Node{art}}
+	var children []core.Node
+	children = append(children, box)
+	children = append(children, core.Text{Content: name, MaxLines: 2, Style: core.Style{FontSize: 13,
+		FontWeight: core.FontWeightMedium, LineHeightMultiple: 1.35, Color: p.text}})
+	if sub != "" {
+		children = append(children, core.Text{Content: sub, MaxLines: 1, Style: core.Style{FontSize: 12, Color: p.muted,
+			Margin: core.Edges{Top: -6}}})
+	}
+	return base.Button{Label: name, OnPress: func(core.PressEvent) { onPress() },
+		Style:    core.Style{Direction: core.Column, Gap: 10, AlignItems: core.AlignStretch, Group: "card"},
+		Children: children}
+}
+
+// albumCard is an album's cover over its name and the year it came out.
+func (a *app) albumCard(p palette, al music.Album) core.Node {
 	var meta []string
 	if by := artistsOf(al.Artists); by != "" && a.route.Get().page != pageArtist {
 		meta = append(meta, by)
@@ -312,25 +279,69 @@ func (a *app) albumCard(p palette, al music.Album, size core.Points) core.Node {
 	if len(al.Released) >= 4 {
 		meta = append(meta, al.Released[:4])
 	}
-	return a.card(p, size, func() { a.open(route{page: pageAlbum, id: id}) }, a.cover(p, al.ImageURL, size, 10), name, strings.Join(meta, " · "))
+	id := al.ID
+	return a.cardFrame(p, al.Name, strings.Join(meta, " · "), 10, a.coverArt(p, al.ImageURL, 10, lucideNote),
+		func() { a.open(route{page: pageAlbum, id: id}) })
 }
 
-func (a *app) artistCard(p palette, ar music.Artist, size core.Points) core.Node {
+// artistCard is an artist's picture, round, over their name.
+func (a *app) artistCard(p palette, ar music.Artist) core.Node {
 	id := ar.ID
-	return a.card(p, size, func() { a.open(route{page: pageArtist, id: id}) }, a.coverRound(p, ar.ImageURL, size), ar.Name, "")
+	card := a.cardFrame(p, ar.Name, "", 999, a.coverArt(p, ar.ImageURL, 999, lucideUser),
+		func() { a.open(route{page: pageArtist, id: id}) })
+	return card
 }
 
-func (a *app) playlistCard(p palette, pl music.Playlist, size core.Points) core.Node {
+// playlistCard is a playlist's cover over its name and how many songs it has,
+// with a button that plays it on the cover under the pointer.
+func (a *app) playlistCard(p palette, pl music.Playlist) core.Node {
 	id := pl.ID
-	pic := a.cover(p, pl.ImageURL, size, 10)
-	if pl.ImageURL == "" {
-		pic = core.View{Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: 10, Background: p.accent,
-			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{
-			icon(lucideList, size*0.3, p.onAccent)}}
-	}
-	return a.card(p, size, func() { a.open(route{page: pagePlaylist, id: id}) }, pic, pl.Name, "")
+	art := core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pct(100)}, Children: []core.Node{
+		a.coverArt(p, pl.ImageURL, 10, lucideNote),
+		a.coverPlayButton(p, func() { a.playPlaylist(id) }),
+	}}
+	card := a.cardFrame(p, pl.Name, playlistLine(pl), 10, art, func() { a.open(route{page: pagePlaylist, id: id}) })
+	return card
 }
 
+// linkCard is a page's card, as a section of a source's page links it.
+func (a *app) linkCard(p palette, l music.Link) core.Node {
+	return a.cardFrame(p, l.Title, l.Subtitle, 10, a.coverArt(p, l.ImageURL, 10, lucideNote),
+		func() { a.open(route{page: pageBrowse, id: l.Page}) })
+}
+
+// playlistLine is what a playlist's card says under its name: how many songs
+// it has and who made it.
+func playlistLine(pl music.Playlist) string {
+	var meta []string
+	if pl.TrackCount > 0 {
+		meta = append(meta, i18n.Songs(pl.TrackCount))
+	}
+	if pl.Owner != "" {
+		meta = append(meta, pl.Owner)
+	}
+	return strings.Join(meta, " · ")
+}
+
+// coverPlayButton plays a playlist from its card, without opening it. It shows
+// as the pointer comes onto the card.
+func (a *app) coverPlayButton(p palette, play func()) core.Node {
+	white := core.RGB(0xffffff)
+	return core.View{Style: core.Style{Position: core.Absolute, Bottom: core.Pt(10), Right: core.Pt(10),
+		Opacity: core.Alpha(0), Transform: core.Transform{Scale: 0.8, TranslateY: 6},
+		Transition: core.Transition{Duration: 180 * time.Millisecond, Easing: core.EaseOut,
+			Properties: core.TransitionTransform | core.TransitionOpacity},
+		GroupStyle: &core.GroupStyle{Name: "card", Hover: &core.Style{Opacity: core.Alpha(1),
+			Transform: core.Transform{Scale: 1}}}},
+		Children: []core.Node{base.Button{Label: i18n.T("Play"), OnPress: func(core.PressEvent) { play() },
+			Style: core.Style{Width: core.Pt(38), Height: core.Pt(38), Direction: core.Row, AlignItems: core.AlignCenter,
+				JustifyContent: core.JustifyCenter, CornerRadius: 999, Background: p.accent,
+				ShadowColor: core.RGBA(0x000000, 0.3), ShadowRadius: 12, ShadowOffset: core.Point{Y: 4},
+				Hover: &core.Style{Background: blend(p.accent, white, 0.15)}},
+			Children: []core.Node{icon(lucidePlay, 15, white)}}}}
+}
+
+// coverRound is an artist's picture, or a placeholder of the same size.
 func (a *app) coverRound(p palette, url string, size core.Points) core.Node {
 	if url == "" {
 		return core.View{Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: size / 2, Background: p.sidebar,
@@ -338,6 +349,31 @@ func (a *app) coverRound(p palette, url string, size core.Points) core.Node {
 	}
 	return core.Image{Source: core.Src(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
 		Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: size / 2, Background: p.sidebar}}
+}
+
+// playPlaylist loads a playlist, if it isn't loaded, and plays it.
+func (a *app) playPlaylist(id string) {
+	if d := a.playlists[id]; d != nil && d.playlist != nil {
+		a.playTracks(d.playlist.Tracks, firstPlayable(d.playlist.Tracks))
+		return
+	}
+	go func() {
+		pl, err := a.local.Playlist(id)
+		a.post(func() {
+			if err != nil {
+				a.say(err.Error())
+				return
+			}
+			d := a.playlists[id]
+			if d == nil {
+				d = &playlistData{}
+				a.playlists[id] = d
+			}
+			d.playlist = pl
+			a.bump()
+			a.playTracks(pl.Tracks, firstPlayable(pl.Tracks))
+		})
+	}()
 }
 
 // artistsOf names a list of artists.
@@ -451,7 +487,13 @@ func (a *app) trackMenu(tr music.Track, playlist string, index int) []core.Node 
 // playButtons are the Play and Shuffle buttons of a page.
 func (a *app) playButtons(p palette, tracks []music.Track) core.Node {
 	return core.View{Style: core.Style{Direction: core.Row, Gap: 10, Margin: core.Edges{Top: 10}}, Children: []core.Node{
-		a.pillButton(p, lucidePlay, i18n.T("Play"), p.accent, p.onAccent, func() { a.playTracks(tracks, 0) }),
+		a.pillButton(p, lucidePlay, i18n.T("Play"), p.accent, p.onAccent, func() {
+			if a.pl.Shuffle() {
+				a.toggleShuffle()
+			}
+			a.pl.PlayQueue(tracks, firstPlayable(tracks))
+			a.heartbeat()
+		}),
 		a.pillButton(p, lucideShuffle, i18n.T("Shuffle"), p.hover, p.text, func() { a.pl.PlayShuffled(tracks); a.heartbeat() }),
 	}}
 }
@@ -672,7 +714,7 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 		body = append(body, core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{a.sectionHeader(p, section, "")}})
 	}
 	if tab == 1 {
-		body = append(body, a.cardGrid(p, w, 168, len(page.Albums), func(i int) core.Node { return a.albumCard(p, page.Albums[i], 168) }))
+		body = append(body, a.cardGrid(p, w, 156, len(page.Albums), func(i int) core.Node { return a.albumCard(p, page.Albums[i]) }))
 		if len(page.Albums) == 0 {
 			body = append(body, a.emptyNote(p, i18n.T("No albums"), ""))
 		}
@@ -732,19 +774,19 @@ func (a *app) searchPage(cx *core.Scope, p palette, r route) core.Node {
 		if len(d.res.Albums) == 0 {
 			body = append(body, a.emptyNote(p, i18n.T("No albums found"), i18n.T("Try another search.")))
 		} else {
-			body = append(body, a.cardGrid(p, w, 168, len(d.res.Albums), func(i int) core.Node { return a.albumCard(p, d.res.Albums[i], 168) }))
+			body = append(body, a.cardGrid(p, w, 156, len(d.res.Albums), func(i int) core.Node { return a.albumCard(p, d.res.Albums[i]) }))
 		}
 	case music.SearchArtists:
 		if len(d.res.Artists) == 0 {
 			body = append(body, a.emptyNote(p, i18n.T("No artists found"), i18n.T("Try another search.")))
 		} else {
-			body = append(body, a.cardGrid(p, w, 168, len(d.res.Artists), func(i int) core.Node { return a.artistCard(p, d.res.Artists[i], 168) }))
+			body = append(body, a.cardGrid(p, w, 156, len(d.res.Artists), func(i int) core.Node { return a.artistCard(p, d.res.Artists[i]) }))
 		}
 	case music.SearchPlaylists:
 		if len(d.res.Playlists) == 0 {
 			body = append(body, a.emptyNote(p, i18n.T("No playlists found"), i18n.T("Try another search.")))
 		} else {
-			body = append(body, a.cardGrid(p, w, 168, len(d.res.Playlists), func(i int) core.Node { return a.playlistCard(p, d.res.Playlists[i], 168) }))
+			body = append(body, a.cardGrid(p, w, 156, len(d.res.Playlists), func(i int) core.Node { return a.playlistCard(p, d.res.Playlists[i]) }))
 		}
 	}
 	return a.pageScroll(p, append([]core.Node{a.searchHeader(p, r)}, body...)...)

@@ -310,6 +310,16 @@ func (a *app) sectionTitle(p palette, title string) core.Node {
 // sectionHeader is a section's title, with See All at its end when the
 // section has a page of its own.
 func (a *app) sectionHeader(p palette, title, more string) core.Node {
+	return a.sectionHeaderAt(p, title, more, false)
+}
+
+// sectionHeaderAt is a section's title, the first of its page with no room
+// above it, and See All at its end when the section has a page of its own.
+func (a *app) sectionHeaderAt(p palette, title, more string, first bool) core.Node {
+	top := core.Points(34)
+	if first {
+		top = 0
+	}
 	var children []core.Node
 	if title != "" {
 		children = append(children, core.Text{Content: title, Style: core.Style{FontSize: 19, FontWeight: core.FontWeightBold,
@@ -321,11 +331,11 @@ func (a *app) sectionHeader(p palette, title, more string) core.Node {
 		page := more
 		children = append(children, base.Button{Label: i18n.T("See All"), OnPress: func(core.PressEvent) {
 			a.open(route{page: pageBrowse, id: page})
-		}, Style: core.Style{Height: core.Pt(26), Padding: core.Symmetric(0, 8), Direction: core.Row, AlignItems: core.AlignCenter,
+		}, Style: core.Style{Padding: core.Symmetric(2, 8), Direction: core.Row, AlignItems: core.AlignCenter,
 			CornerRadius: 6, Hover: &core.Style{Background: p.hover}},
 			Children: []core.Node{text(i18n.T("See All"), 13, core.FontWeightNormal, p.muted)}})
 	}
-	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Margin: core.Edges{Top: 34, Bottom: 14}},
+	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Margin: core.Edges{Top: top, Bottom: 14}},
 		Children: children}
 }
 

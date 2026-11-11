@@ -91,6 +91,8 @@ func TestPlaysFile(t *testing.T) {
 	app.WaitUntil(5*time.Second, func() bool {
 		return a.local.TrackCount() == 1 && !a.local.Scanning() && !a.homeBusy && a.home != nil && len(a.home.Sections) > 0
 	})
+	app.Press("id:daily")
+	app.WaitUntil(2*time.Second, func() bool { return app.Exists("text:Haruhikage") })
 	app.Find("text:Haruhikage >> nth=0")
 	app.Press("text:Haruhikage >> nth=0")
 	app.WaitUntil(5*time.Second, func() bool { return a.pl.Current() != nil && a.pl.Current().Name == "Haruhikage" })
@@ -119,6 +121,8 @@ func TestBarStaysWhilePlaying(t *testing.T) {
 	app.WaitUntil(5*time.Second, func() bool {
 		return a.local.TrackCount() == 2 && !a.local.Scanning() && !a.homeBusy && a.home != nil && len(a.home.Sections) > 0
 	})
+	app.Press("id:daily")
+	app.WaitUntil(2*time.Second, func() bool { return app.Exists("text:Haruhikage") })
 	app.Press("text:Haruhikage >> nth=0")
 	app.WaitUntil(2*time.Second, func() bool { return a.pl.Current() != nil && a.pl.Current().Name == "Haruhikage" })
 	app.Find("id:play-pause")
@@ -311,6 +315,8 @@ func TestLyricsFollowTheTrack(t *testing.T) {
 	app.WaitUntil(5*time.Second, func() bool {
 		return a.local.TrackCount() == 1 && !a.local.Scanning() && !a.homeBusy && a.home != nil && len(a.home.Sections) > 0
 	})
+	app.Press("id:daily")
+	app.WaitUntil(2*time.Second, func() bool { return app.Exists("text:Haruhikage") })
 	app.Press("text:Haruhikage >> nth=0")
 	app.WaitUntil(5*time.Second, func() bool {
 		_, loaded := a.pl.Lyrics()
@@ -339,6 +345,8 @@ func TestStageStyleMenu(t *testing.T) {
 	app.WaitUntil(5*time.Second, func() bool {
 		return a.local.TrackCount() == 1 && !a.local.Scanning() && !a.homeBusy && a.home != nil && len(a.home.Sections) > 0
 	})
+	app.Press("id:daily")
+	app.WaitUntil(2*time.Second, func() bool { return app.Exists("text:Haruhikage") })
 	app.Press("text:Haruhikage >> nth=0")
 	app.WaitUntil(5*time.Second, func() bool {
 		_, loaded := a.pl.Lyrics()
