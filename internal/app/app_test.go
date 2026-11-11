@@ -273,8 +273,17 @@ func TestSettingsView(t *testing.T) {
 	app.Find("text:Library")
 	app.Find("text:Cache")
 	app.Press("text:Playback")
-	app.Find("text:Normalize volume")
+	app.Find("text:Even Out Loudness")
 	app.Press("text:General")
+	app.Find("text:App Icon")
+
+	// A search finds rows of every page; none, says so.
+	app.Type("id:settings-search", "cache")
+	app.WaitFor("text:Song Cache", 2*time.Second)
+	app.Type("id:settings-search", "zzz")
+	app.WaitFor("text:No settings found", 2*time.Second)
+	app.Clear("id:settings-search")
+	app.WaitFor("text:Language", 2*time.Second)
 
 	// Chinese from then on.
 	a.set.Language = i18n.Chinese

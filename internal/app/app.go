@@ -30,9 +30,12 @@ func Run() error {
 		a.openMain = func() { nsgo.SetMainView(cx, a.view) }
 		a.openMain()
 		if w := desktop.MainWindow(cx); w != nil {
-			w.OnClosing(cx, func(*desktop.WindowClosing) { a.saveSession() })
+			w.OnClosing(cx, func(*desktop.WindowClosing) {
+				a.saveSession()
+				a.post(a.applyAppIcon)
+			})
 		}
-		a.tray = a.makeTray(cx)
+		a.applyAppIcon()
 		desktop.OnReopen(cx, a.openMain)
 	}, nsgo.WindowSize(1180, 780),
 		nsgo.WindowConstraints(core.WindowConstraints{MinWidth: 880, MinHeight: 580}))
@@ -83,6 +86,10 @@ type settings struct {
 	GrowFromCover bool `json:"growFromCover"`
 	// Smoke makes the progress bar a comet as music plays.
 	Smoke bool `json:"smoke"`
+	// Fog fills Now Playing's backdrop with fog of the cover's colors.
+	Fog bool `json:"fog"`
+	// AppIcon is where the app's icon shows on macOS (appIcons).
+	AppIcon string `json:"appIcon"`
 	// StageStyle is how the stage sets its lyrics: Flow, Steps or Tilt.
 	StageStyle string `json:"stageStyle,omitempty"`
 	// StageSparks throws sparks off each word as it is sung.
@@ -92,7 +99,8 @@ type settings struct {
 }
 
 func defaultSettings() settings {
-	return settings{Language: i18n.System, Appearance: "system", Volume: 0.8, Normalize: true, Quality: "high", CacheMB: 2048}
+	return settings{Language: i18n.System, Appearance: "system", Volume: 0.8, Normalize: true, Quality: "high",
+		CacheMB: 2048, AppIcon: "dock-and-menubar"}
 }
 
 func loadSettings(dir string) settings {
@@ -217,17 +225,21 @@ type app struct {
 	scroll     map[string]core.Points
 
 	// Dialogs.
-	naming        bool
-	namingNew     bool
-	namingText    string
-	namingID      string
-	deleting      bool
-	deletingID    string
-	deletingName  string
-	settings      bool
-	settingsPage  string
-	settingsQuery string
-	stageTicking  bool
+	naming           bool
+	namingNew        bool
+	namingText       string
+	namingID         string
+	deleting         bool
+	deletingID       string
+	deletingName     string
+	settingsWin      *desktop.Window
+	settingsRef      *core.Ref
+	settingsPage     string
+	settingsQuery    string
+	settingsQueryRev *core.Signal[int]
+	// cacheUsed is what the song cache takes, in bytes: -1 until measured.
+	cacheUsed    int64
+	stageTicking bool
 
 	tray     *desktop.Tray
 	openMain func()
@@ -243,29 +255,32 @@ func newApp(cx *core.Scope) *app {
 		dir = filepath.Join(os.TempDir(), "nsgo-music")
 	}
 	a := &app{
-		cx:        cx,
-		dir:       dir,
-		dataDir:   dir,
-		set:       loadSettings(dir),
-		rev:       core.NewSignal(cx, 0),
-		playRev:   core.NewSignal(cx, 0),
-		route:     core.NewSignal(cx, route{page: pageHome}),
-		tick:      core.NewSignal(cx, 0),
-		query:     core.NewSignal(cx, ""),
-		np:        core.NewSignal(cx, false),
-		npPane:    core.NewSignal(cx, 0),
-		stageTick: core.NewSignal(cx, 0),
-		toast:     core.NewSignal(cx, ""),
-		searchRef: new(core.Ref),
-		likedSet:  map[string]bool{},
-		playlists: map[string]*playlistData{},
-		albums:    map[string]*albumData{},
-		artists:   map[string]*artistData{},
-		browses:   map[string]*browseData{},
-		searches:  map[route]*searchData{},
-		lyricAt:   -1,
-		queueAt:   -1,
-		scroll:    map[string]core.Points{},
+		cx:               cx,
+		dir:              dir,
+		dataDir:          dir,
+		set:              loadSettings(dir),
+		rev:              core.NewSignal(cx, 0),
+		playRev:          core.NewSignal(cx, 0),
+		route:            core.NewSignal(cx, route{page: pageHome}),
+		tick:             core.NewSignal(cx, 0),
+		query:            core.NewSignal(cx, ""),
+		np:               core.NewSignal(cx, false),
+		npPane:           core.NewSignal(cx, 0),
+		stageTick:        core.NewSignal(cx, 0),
+		toast:            core.NewSignal(cx, ""),
+		searchRef:        new(core.Ref),
+		settingsRef:      new(core.Ref),
+		settingsQueryRev: core.NewSignal(cx, 0),
+		cacheUsed:        -1,
+		likedSet:         map[string]bool{},
+		playlists:        map[string]*playlistData{},
+		albums:           map[string]*albumData{},
+		artists:          map[string]*artistData{},
+		browses:          map[string]*browseData{},
+		searches:         map[route]*searchData{},
+		lyricAt:          -1,
+		queueAt:          -1,
+		scroll:           map[string]core.Points{},
 	}
 	a.applyLanguage()
 	a.local = local.New(dir)
@@ -867,11 +882,27 @@ func (a *app) restoreSession() {
 	}
 }
 
-// settingsWindow opens the settings window, or shows it again.
+// openSettings shows the settings window, opening it the first time.
 func (a *app) openSettings() {
-	a.settings = true
-	desktop.OpenWindow(a.cx, desktop.WindowOptions{Title: i18n.T("Settings"), Width: 780, Height: 640, Key: "settings",
+	if a.settingsWin != nil && !a.settingsWin.Closed() {
+		a.settingsWin.Show()
+		a.settingsWin.Focus()
+		a.measureCache()
+		a.applyAppIcon()
+		return
+	}
+	a.measureCache()
+	w := desktop.OpenWindow(a.cx, desktop.WindowOptions{Title: i18n.T("Settings"), Width: 780, Height: 640, Key: "settings",
 		Constraints: core.WindowConstraints{MinWidth: 640, MinHeight: 420}}, a.settingsView)
+	if w == nil {
+		return
+	}
+	a.settingsWin = w
+	w.OnClosing(a.cx, func(*desktop.WindowClosing) {
+		a.settingsWin = nil
+		a.post(a.applyAppIcon)
+	})
+	a.applyAppIcon()
 	a.bump()
 }
 

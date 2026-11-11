@@ -139,7 +139,7 @@ func (a *app) pillButton(p palette, svg *core.SVG, label string, bg, fg core.Col
 			onPress()
 		}
 	}, StyleFunc: func() core.Style {
-		return core.Style{Height: core.Pt(36), Padding: core.Symmetric(0, 18), Gap: 8, Direction: core.Row, AlignItems: core.AlignCenter, AlignSelf: core.AlignStart,
+		return core.Style{Height: core.Pt(36), Padding: core.Symmetric(0, 18), Gap: 8, Direction: core.Row, AlignItems: core.AlignCenter,
 			CornerRadius: 999, Background: bg, Color: fg, Hover: &core.Style{Background: blend(bg, core.RGB(0xffffff), 0.12)},
 			Active: &core.Style{Background: blend(bg, core.RGB(0x000000), 0.12)}}
 	}, Children: children}

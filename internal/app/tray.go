@@ -2,6 +2,7 @@ package app
 
 import (
 	_ "embed"
+	"runtime"
 
 	"github.com/oneo-me/nsgo/core"
 	"github.com/oneo-me/nsgo/desktop"
@@ -14,6 +15,40 @@ import (
 //
 //go:embed tray/tray-template.png
 var trayTemplate []byte
+
+// appIcons are where the app's icon shows on macOS, with their names: the
+// Dock and the menu bar, the Dock alone, or the menu bar alone.
+var appIcons = []struct{ id, label string }{
+	{"dock-and-menubar", i18n.N("Dock and Menu Bar")},
+	{"dock", i18n.N("Dock Only")},
+	{"menubar", i18n.N("Menu Bar Only")},
+}
+
+// applyAppIcon shows the app's icon where the settings say: in the menu
+// bar or the notification area, and in the Dock on macOS. The Dock icon
+// stays while a window is open, so the app can be switched to.
+func (a *app) applyAppIcon() {
+	show := runtime.GOOS != "darwin" || a.set.AppIcon != "dock"
+	switch {
+	case show && a.tray == nil:
+		a.tray = a.makeTray(a.cx)
+	case !show && a.tray != nil:
+		a.tray.Remove()
+		a.tray = nil
+	}
+	if runtime.GOOS == "darwin" {
+		desktop.SetDockVisible(a.cx, a.set.AppIcon != "menubar" || a.windowOpen())
+	}
+}
+
+// windowOpen tells whether the main window or the settings window is
+// open.
+func (a *app) windowOpen() bool {
+	if w := desktop.MainWindow(a.cx); w != nil && w.Visible() {
+		return true
+	}
+	return a.settingsWin != nil && !a.settingsWin.Closed() && a.settingsWin.Visible()
+}
 
 // makeTray adds the app's icon to the menu bar or the notification area,
 // which opens its window and plays.
@@ -50,4 +85,5 @@ func (a *app) showMain() {
 	if a.openMain != nil {
 		a.openMain()
 	}
+	a.applyAppIcon()
 }
