@@ -24,8 +24,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/dhowden/tag"
-	"nsgo-music/internal/audio/mp4"
 	"golang.org/x/text/encoding/simplifiedchinese"
+	"nsgo-music/internal/audio/mp4"
 )
 
 const (
@@ -113,6 +113,18 @@ type found struct {
 	mod     int64
 	sidecar string
 }
+
+// picture is an image beside the music, named for a track or for its folder.
+type picture struct {
+	path  string
+	base  string // its name without the picture extension, in lower case
+	clean string // base without the extensions of what it was downloaded as
+	ext   int    // which extension, for picking a jpg over a png
+}
+
+// mediaExts are the extensions a track or picture may have been downloaded as,
+// one after another: "Song.mp3.flac".
+var mediaExts = []string{".mp3", ".flac", ".ogg", ".wav", ".m4a", ".aac"}
 
 func (s *Source) scan(ctx context.Context, gen int64, folders []string) {
 	files := walk(ctx, folders)
@@ -212,6 +224,7 @@ func walk(ctx context.Context, folders []string) []found {
 	seen := map[string]bool{}
 	sidecars := map[string]string{}
 	ranks := map[string]int{}
+	pictures := map[string][]picture{}
 	for _, root := range folders {
 		start := root
 		if !strings.HasSuffix(start, string(filepath.Separator)) {
@@ -234,11 +247,14 @@ func walk(ctx context.Context, folders []string) []found {
 			if strings.HasPrefix(name, ".") {
 				return nil // such as macOS's ._song.mp3
 			}
-			if rank := sidecarRank(name); rank >= 0 {
+			if pic, ok := pictureNamed(name, path); ok {
 				dir := filepath.Dir(path)
-				if have, ok := ranks[dir]; !ok || rank < have {
-					ranks[dir] = rank
-					sidecars[dir] = path
+				pictures[dir] = append(pictures[dir], pic)
+				if rank := sidecarRank(name); rank >= 0 {
+					if have, ok := ranks[dir]; !ok || rank < have {
+						ranks[dir] = rank
+						sidecars[dir] = path
+					}
 				}
 				return nil
 			}
@@ -260,9 +276,70 @@ func walk(ctx context.Context, folders []string) []found {
 		})
 	}
 	for i := range files {
-		files[i].sidecar = sidecars[filepath.Dir(files[i].path)]
+		dir := filepath.Dir(files[i].path)
+		files[i].sidecar = trackSidecar(files[i].path, pictures[dir], sidecars[dir])
 	}
 	return files
+}
+
+// pictureNamed makes a picture of an image file, if it's one the app can show.
+func pictureNamed(name, path string) (picture, bool) {
+	lower := strings.ToLower(name)
+	ex := slices.Index([]string{".jpg", ".jpeg", ".png"}, filepath.Ext(lower))
+	if ex < 0 {
+		return picture{}, false
+	}
+	base := strings.TrimSuffix(lower, filepath.Ext(lower))
+	return picture{path: path, base: base, clean: cleanName(base), ext: ex}, true
+}
+
+// trackSidecar is the picture beside a track: the one named after the track if
+// there is one, as downloads leave them, or else the folder's cover. Names are
+// compared with the extensions of what they were downloaded as taken off, for
+// "Artist - Song.jpg" to stand for "Artist - Song.mp3.flac".
+func trackSidecar(path string, pictures []picture, folder string) string {
+	name := filepath.Base(path)
+	stem := strings.ToLower(strings.TrimSuffix(name, filepath.Ext(name)))
+	clean := cleanName(stem)
+	best, bestRank := "", math.MaxInt
+	for _, pic := range pictures {
+		match := -1
+		switch {
+		case pic.base == stem:
+			match = 0 // the track's own name, extension and all
+		case pic.clean == clean:
+			match = 1
+		}
+		if match < 0 {
+			continue
+		}
+		if rank := match*3 + pic.ext; rank < bestRank || (rank == bestRank && pic.path < best) {
+			best, bestRank = pic.path, rank
+		}
+	}
+	if best != "" {
+		return best
+	}
+	return folder
+}
+
+// cleanName takes the extensions of what a picture or track was downloaded as
+// off its name: "Song.mp3.flac" and "Song.mp3.jpg" are both "song".
+func cleanName(name string) string {
+	name = strings.ToLower(name)
+	for {
+		cut := false
+		for _, ext := range mediaExts {
+			if strings.HasSuffix(name, ext) {
+				name = strings.TrimSuffix(name, ext)
+				cut = true
+				break
+			}
+		}
+		if !cut {
+			return name
+		}
+	}
 }
 
 // sidecarRank says how much a file's name makes it a folder's cover, lowest

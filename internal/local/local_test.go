@@ -971,6 +971,52 @@ func TestCovers(t *testing.T) {
 	check(songNamed(t, s, "Pic2").Album.ImageURL, jpegData)
 }
 
+// Pictures named after a track stand for that track alone, however the download
+// spelled the two, and a folder's cover stands in where there is no such picture.
+func TestTrackCovers(t *testing.T) {
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "a", "Artist - Song.mp3.flac"), flacWith(t, nil, "TITLE=Song", "TALB=Singles"))
+	songPic := write(t, filepath.Join(dir, "a", "Artist - Song.jpg"), jpegData)
+	write(t, filepath.Join(dir, "a", "Other - Tune.flac"), flacWith(t, nil, "TITLE=Tune", "TALB=Singles"))
+	tunePic := write(t, filepath.Join(dir, "a", "Other - Tune.JPEG"), jpegData)
+	write(t, filepath.Join(dir, "a", "Other - Tune.png"), pngData) // a lesser choice
+	write(t, filepath.Join(dir, "a", "Clip - One.mp3.flac"), flacWith(t, nil, "TITLE=One"))
+	clipPic := write(t, filepath.Join(dir, "a", "Clip - One.mp3.jpg"), jpegData)
+	write(t, filepath.Join(dir, "a", "Clip - One.png"), pngData) // not the track's own name
+	write(t, filepath.Join(dir, "d", "Lonely.flac"), flacWith(t, nil, "TITLE=Lonely"))
+	// The folder's cover is for the tracks without one of their own.
+	folderPic := write(t, filepath.Join(dir, "b", "cover.png"), pngData)
+	write(t, filepath.Join(dir, "b", "x.flac"), flacWith(t, nil, "TITLE=X"))
+	write(t, filepath.Join(dir, "b", "y.mp3"), mp3With(t, [2]string{"TIT2", "Y"}))
+	yPic := write(t, filepath.Join(dir, "b", "y.jpg"), jpegData)
+	// A picture added later is seen without the track changing.
+	write(t, filepath.Join(dir, "c", "late.flac"), flacWith(t, nil, "TITLE=Late"))
+
+	s := scanned(t, dir)
+	for name, want := range map[string]string{
+		"Song":   music.FileURL(songPic),
+		"Tune":   music.FileURL(tunePic),
+		"One":    music.FileURL(clipPic),
+		"Lonely": "",
+		"X":      music.FileURL(folderPic),
+		"Y":      music.FileURL(yPic),
+		"Late":   "",
+	} {
+		if got := songNamed(t, s, name).Album.ImageURL; got != want {
+			t.Errorf("%s: %q, want %q", name, got, want)
+		}
+	}
+	if got := songNamed(t, s, "Tune").Album.ImageURL; !strings.HasSuffix(got, ".JPEG") {
+		t.Errorf("jpeg over png: %q", got)
+	}
+
+	latePic := write(t, filepath.Join(dir, "c", "late.jpg"), jpegData)
+	rescan(t, s)
+	if got := songNamed(t, s, "Late").Album.ImageURL; got != music.FileURL(latePic) {
+		t.Errorf("added picture: %q", got)
+	}
+}
+
 // A picture goes by what it holds over what it says it is, and one of no kind
 // the app can show is no cover, for a sidecar to stand in.
 func TestPictureKinds(t *testing.T) {
