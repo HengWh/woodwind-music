@@ -1,0 +1,16 @@
+name: MyGo Music
+id: dev.oneo.nsgo.music
+version: 0.1.22
+
+icon:
+  apple: icon/AppIcon.icon
+  png: resources/icon.png
+
+dev:
+  target: native
+  icon:
+    png: resources/icon-dev.png
+
+build:
+  output: dist
+  targets: [macos_arm64]

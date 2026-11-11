@@ -1,0 +1,14 @@
+MyGo Music · NSGo 复刻
+=====================
+
+This project is a derivative of MyGo Music (https://github.com/egoist/mygo-music),
+Copyright (c) MyGo Music contributors, licensed under the GNU Affero General
+Public License, version 3. See LICENSE.
+
+The audio engine in internal/audio is taken from MyGo
+(https://github.com/egoist/mygo), Copyright (c) 2026 MyGo contributors,
+licensed under the MIT License. See LICENSES/MyGo-MIT.txt.
+
+The user interface is written against NSGo
+(https://github.com/oneo-me/nsgo), Copyright the NSGo contributors,
+licensed under the Apache License, version 2.0.
