@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -85,11 +84,10 @@ func (a *app) homePage(cx *core.Scope, p palette) core.Node {
 	if a.home == nil || len(a.home.Sections) == 0 {
 		return a.emptyHome(p)
 	}
-	w := cx.Env().Window().Width - sidebarWidth - 2*pagePad
 	var body []core.Node
 	body = append(body, a.titleBlock(p, greeting(time.Now()), i18n.Today(time.Now())))
 	for i, sec := range a.home.Sections {
-		body = append(body, a.browseSection(cx, p, sec, w, "", i)...)
+		body = append(body, a.browseSection(p, sec, "", i)...)
 	}
 	return a.pageScroll(p, body...)
 }
@@ -163,7 +161,7 @@ func (a *app) sectionPage(cx *core.Scope, p palette, r route) core.Node {
 }
 
 // browseSection is one heading of a source's page, and what it lists.
-func (a *app) browseSection(cx *core.Scope, p palette, sec music.Section, width core.Points, pageID string, index int) []core.Node {
+func (a *app) browseSection(p palette, sec music.Section, pageID string, index int) []core.Node {
 	var out []core.Node
 	first := index == 0
 	// The songs of a source's Home lead it with a card of their own.
@@ -201,16 +199,16 @@ func (a *app) browseSection(cx *core.Scope, p palette, sec music.Section, width 
 		}
 	}
 	if len(sec.Albums) > 0 {
-		out = append(out, a.cardGrid(p, width, 156, len(sec.Albums), func(i int) core.Node { return a.albumCard(p, sec.Albums[i]) }))
+		out = append(out, a.cardGrid(p, len(sec.Albums), func(i int) core.Node { return a.albumCard(p, sec.Albums[i]) }))
 	}
 	if len(sec.Artists) > 0 {
-		out = append(out, a.cardGrid(p, width, 156, len(sec.Artists), func(i int) core.Node { return a.artistCard(p, sec.Artists[i]) }))
+		out = append(out, a.cardGrid(p, len(sec.Artists), func(i int) core.Node { return a.artistCard(p, sec.Artists[i]) }))
 	}
 	if len(sec.Playlists) > 0 {
-		out = append(out, a.cardGrid(p, width, 156, len(sec.Playlists), func(i int) core.Node { return a.playlistCard(p, sec.Playlists[i]) }))
+		out = append(out, a.cardGrid(p, len(sec.Playlists), func(i int) core.Node { return a.playlistCard(p, sec.Playlists[i]) }))
 	}
 	if len(sec.Links) > 0 {
-		out = append(out, a.cardGrid(p, width, 156, len(sec.Links), func(i int) core.Node {
+		out = append(out, a.cardGrid(p, len(sec.Links), func(i int) core.Node {
 			l := sec.Links[i]
 			return a.linkCard(p, l)
 		}))
@@ -218,16 +216,17 @@ func (a *app) browseSection(cx *core.Scope, p palette, sec music.Section, width 
 	return out
 }
 
-// cardGrid lays n cards in as many columns as fit.
-func (a *app) cardGrid(p palette, width core.Points, min core.Points, n int, card func(i int) core.Node) core.Node {
-	cols := columns(width, min)
+// cardGrid lays n cards in as many columns as fit. The grid fills the page
+// it is on, its tracks as wide as they can be while staying cardMinWidth
+// or wider, so a window can be any size without cutting a card off.
+func (a *app) cardGrid(p palette, n int, card func(i int) core.Node) core.Node {
 	var cards []core.Node
 	for i := 0; i < n; i++ {
 		cards = append(cards, card(i))
 	}
 	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{
 		core.View{Style: core.Style{Display: core.DisplayGrid, Width: core.Pct(100),
-			GridTemplateColumns: core.GridTracks(fmt.Sprintf("repeat(%d, minmax(0, 1fr))", cols)),
+			GridTemplateColumns: "repeat(auto-fill, minmax(156px, 1fr))",
 			Gap:                 20, RowGap: cardRowGap, Margin: core.Edges{Top: 12, Bottom: 0}}, Children: cards},
 	}}
 }
@@ -629,7 +628,6 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 		return a.loadingPage(p)
 	}
 	page := d.page
-	w := cx.Env().Window().Width - sidebarWidth - 2*pagePad
 
 	// What the page lists follows what it has: songs only, albums only, or
 	// the tab chosen when it has both.
@@ -714,7 +712,7 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 		body = append(body, core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{a.sectionHeader(p, section, "")}})
 	}
 	if tab == 1 {
-		body = append(body, a.cardGrid(p, w, 156, len(page.Albums), func(i int) core.Node { return a.albumCard(p, page.Albums[i]) }))
+		body = append(body, a.cardGrid(p, len(page.Albums), func(i int) core.Node { return a.albumCard(p, page.Albums[i]) }))
 		if len(page.Albums) == 0 {
 			body = append(body, a.emptyNote(p, i18n.T("No albums"), ""))
 		}
@@ -733,13 +731,12 @@ func (a *app) browsePage(cx *core.Scope, p palette, id string) core.Node {
 		return a.loadingPage(p)
 	}
 	b := d.browse
-	w := cx.Env().Window().Width - sidebarWidth - 2*pagePad
 	var body []core.Node
 	if b.Title != "" {
 		body = append(body, a.titleBlock(p, b.Title, b.Subtitle))
 	}
 	for i, sec := range b.Sections {
-		body = append(body, a.browseSection(cx, p, sec, w, id, i)...)
+		body = append(body, a.browseSection(p, sec, id, i)...)
 	}
 	return a.pageScroll(p, body...)
 }
@@ -761,7 +758,6 @@ func (a *app) searchPage(cx *core.Scope, p palette, r route) core.Node {
 	if d.err != "" {
 		return a.pageScroll(p, a.searchHeader(p, r), a.emptyNote(p, i18n.T("The search failed"), d.err))
 	}
-	w := cx.Env().Window().Width - sidebarWidth - 2*pagePad
 	var body []core.Node
 	switch r.kind {
 	case music.SearchTracks:
@@ -774,19 +770,19 @@ func (a *app) searchPage(cx *core.Scope, p palette, r route) core.Node {
 		if len(d.res.Albums) == 0 {
 			body = append(body, a.emptyNote(p, i18n.T("No albums found"), i18n.T("Try another search.")))
 		} else {
-			body = append(body, a.cardGrid(p, w, 156, len(d.res.Albums), func(i int) core.Node { return a.albumCard(p, d.res.Albums[i]) }))
+			body = append(body, a.cardGrid(p, len(d.res.Albums), func(i int) core.Node { return a.albumCard(p, d.res.Albums[i]) }))
 		}
 	case music.SearchArtists:
 		if len(d.res.Artists) == 0 {
 			body = append(body, a.emptyNote(p, i18n.T("No artists found"), i18n.T("Try another search.")))
 		} else {
-			body = append(body, a.cardGrid(p, w, 156, len(d.res.Artists), func(i int) core.Node { return a.artistCard(p, d.res.Artists[i]) }))
+			body = append(body, a.cardGrid(p, len(d.res.Artists), func(i int) core.Node { return a.artistCard(p, d.res.Artists[i]) }))
 		}
 	case music.SearchPlaylists:
 		if len(d.res.Playlists) == 0 {
 			body = append(body, a.emptyNote(p, i18n.T("No playlists found"), i18n.T("Try another search.")))
 		} else {
-			body = append(body, a.cardGrid(p, w, 156, len(d.res.Playlists), func(i int) core.Node { return a.playlistCard(p, d.res.Playlists[i]) }))
+			body = append(body, a.cardGrid(p, len(d.res.Playlists), func(i int) core.Node { return a.playlistCard(p, d.res.Playlists[i]) }))
 		}
 	}
 	return a.pageScroll(p, append([]core.Node{a.searchHeader(p, r)}, body...)...)
