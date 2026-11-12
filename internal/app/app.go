@@ -902,6 +902,12 @@ func (a *app) restoreSession() {
 
 // openSettings shows the settings window, opening it the first time.
 func (a *app) openSettings() {
+	// OpenWindow belongs to the current reactive owner. A button's owner
+	// goes away as the sidebar redraws, so open under the app's stable scope.
+	a.post(a.showSettings)
+}
+
+func (a *app) showSettings() {
 	if a.settingsWin != nil && !a.settingsWin.Closed() {
 		a.settingsWin.Show()
 		a.settingsWin.Focus()
