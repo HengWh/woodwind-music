@@ -357,8 +357,3 @@ func (a *app) emptyNote(p palette, big, small string) core.Node {
 			text(small, 13.5, core.FontWeightNormal, p.muted),
 		}}
 }
-
-// grid returns how many cards of at least min points fit across width.
-func columns(width core.Points, min core.Points) int {
-	return max(2, int((width+20)/(min+20)))
-}
