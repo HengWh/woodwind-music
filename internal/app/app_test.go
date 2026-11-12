@@ -212,6 +212,49 @@ func TestLibraryPages(t *testing.T) {
 	}
 }
 
+// TestArtistCards lays an artist's name centered under a small, round
+// picture, and keeps the cards within a window made narrower.
+func TestArtistCards(t *testing.T) {
+	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	musicDir := t.TempDir()
+	names := []string{"Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"}
+	for i, name := range names {
+		writeTaggedMP3(t, filepath.Join(musicDir, fmt.Sprintf("%02d %s.mp3", i, name)), "Song "+name, name, "Album "+name)
+	}
+	var a *app
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		a = newApp(cx)
+		return a.view(cx)
+	}, nsgotest.Size(1180, 780))
+	a.local.AddFolders(musicDir)
+	app.WaitUntil(20*time.Second, func() bool {
+		return a.local.TrackCount() == len(names) && !a.local.Scanning() && !a.homeBusy && a.home != nil
+	})
+	app.Press("id:nav-artists")
+	name := app.WaitFor("text:Alpha", 5*time.Second)
+	if got := name.TextStyle.Align; got != core.TextAlignCenter {
+		t.Fatalf("artist name aligned %v, want the center", got)
+	}
+	card := name.Parent
+	if card == nil || len(card.Children) == 0 {
+		t.Fatal("artist card has no picture")
+	}
+	if got := card.Children[0].Frame.Size.Width; got > artistAvatarSize+0.5 {
+		t.Fatalf("artist picture %v wide, want at most %v", got, artistAvatarSize)
+	}
+
+	// A narrower window must shrink the grid rather than clip its cards.
+	app.Resize(900, 780)
+	name = app.Find("text:Alpha")
+	grid := name.Parent.Parent.Parent
+	if grid == nil {
+		t.Fatal("the artist grid is gone")
+	}
+	if got, max := grid.Frame.Size.Width, core.Points(900-sidebarWidth-2*(pagePad-8)); got > max+0.5 {
+		t.Fatalf("the artist grid is %v wide in a 900 point window, want at most %v", got, max)
+	}
+}
+
 func TestCreatesPlaylistAndLikes(t *testing.T) {
 	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
 	musicDir := t.TempDir()
