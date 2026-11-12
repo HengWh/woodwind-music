@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // Remote playback: a track of a PlaybackRemote source plays elsewhere, in the

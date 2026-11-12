@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/HengWh/woodwind-music/internal/audio"
 	gomp3 "github.com/hajimehoshi/go-mp3"
-	"nsgo-music/internal/audio"
 
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // A download fetches a song as it plays: readers wait for the bytes they

@@ -23,8 +23,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // ID is the source's ID, on every track it answers.

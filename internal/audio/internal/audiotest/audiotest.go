@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"nsgo-music/internal/audio"
+	"github.com/HengWh/woodwind-music/internal/audio"
 )
 
 // Read reads a file of testdata.

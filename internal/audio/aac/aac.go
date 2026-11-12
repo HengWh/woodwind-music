@@ -3,7 +3,7 @@
 // streams it), through package audio/mp4, and in ADTS (.aac). Import it
 // for its side effect:
 //
-//	import _ "nsgo-music/internal/audio/aac"
+//	import _ "github.com/HengWh/woodwind-music/internal/audio/aac"
 //
 // HE-AAC (AAC+, with SBR) and HE-AAC v2 it does not decode: their files
 // fail to open, and mp4.Track's Decodable says so of them.
@@ -18,8 +18,8 @@ import (
 	"errors"
 	"io"
 
-	"nsgo-music/internal/audio"
-	"nsgo-music/internal/audio/mp4"
+	"github.com/HengWh/woodwind-music/internal/audio"
+	"github.com/HengWh/woodwind-music/internal/audio/mp4"
 	aacpcm "github.com/tphakala/go-aac/pcm"
 )
 

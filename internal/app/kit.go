@@ -9,8 +9,8 @@ import (
 	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // palette holds the app's colors, for the light and the dark appearance.

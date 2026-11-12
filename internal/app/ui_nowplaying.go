@@ -8,8 +8,8 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // nowPlayingView covers the window with what plays, its lyrics and the

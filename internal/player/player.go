@@ -7,11 +7,11 @@ import (
 	"os"
 	"time"
 
-	"nsgo-music/internal/audio"
+	"github.com/HengWh/woodwind-music/internal/audio"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/lyrics"
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/lyrics"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 type RepeatMode int

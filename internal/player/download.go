@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // Song is a track's audio found for the listener to keep a copy of, in a file

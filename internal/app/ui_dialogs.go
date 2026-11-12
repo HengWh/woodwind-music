@@ -5,7 +5,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
 
-	"nsgo-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/i18n"
 )
 
 // nameDialog names a new playlist, or renames one.

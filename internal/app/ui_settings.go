@@ -13,8 +13,8 @@ import (
 	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/player"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/player"
 )
 
 // settingsRowDef is a row of the settings: what it is, what it means, and

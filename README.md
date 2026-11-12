@@ -1,10 +1,10 @@
-# nsgo-music
+# Woodwind Music
 
 基于 [NSGo](https://github.com/nsgo-dev/nsgo) 的原生桌面音乐播放器，由 [MyGo Music](https://github.com/egoist/mygo-music) 复刻与移植而来。
 
 NSGo 为本项目提供窗口、界面渲染和交互框架；MyGo Music 是界面设计、交互、文案及播放、曲库、歌词和队列等核心实现的来源。本项目将 UI 框架由 MyGo 迁移到 NSGo，并完成相应的平台适配与体验调整。
 
-应用显示名称统一为 `nsgo-music`。感谢两个项目的作者与贡献者，详细说明见[致谢](#致谢)与[许可证](#许可证)。
+应用显示名称统一为 **Woodwind Music**，仓库名为 `woodwind-music`。感谢两个项目的作者与贡献者，详细说明见[致谢](#致谢)与[许可证](#许可证)。
 
 > 当前专注于本地音乐播放和已有 UI 的打磨，暂不扩展插件、播客等功能。主要播放流程已接通，界面仍在对照上游完善；具体范围见[已实现](#已实现)和[与上游的差距](#与上游的差距)。
 
@@ -36,7 +36,7 @@ NSGo 为本项目提供窗口、界面渲染和交互框架；MyGo Music 是界�
 
 ## 开发与运行
 
-从源码开发需要 Go 1.26 或更高版本。当前打包目标为 **macOS Apple Silicon（arm64）**；打包配置使用 Apple `.icon` 图标，需要完整 Xcode 中的 `actool`。
+从源码开发需要 Go 1.26 或更高版本。当前打包目标为 **macOS Apple Silicon（arm64）**；正式版与开发版统一使用木听风二次元图标，macOS 使用预生成的 `.icns`。
 
 ### 环境准备
 
@@ -45,15 +45,15 @@ NSGo 与本项目应放在同一级目录：
 ```text
 workspace/
 ├── nsgo/
-└── nsgo-music/
+└── woodwind-music/
 ```
 
 `go.mod` 使用 `github.com/nsgo-dev/nsgo`，并通过 `replace` 指向 `../nsgo`。首次准备目录时可以运行：
 
 ```sh
 git clone https://github.com/nsgo-dev/nsgo.git
-git clone https://github.com/HengWh/nsgo-music.git
-cd nsgo-music
+git clone https://github.com/HengWh/woodwind-music.git
+cd woodwind-music
 ```
 
 ### 常用命令
@@ -69,28 +69,25 @@ go tool nsgo build      # 按 nsgo.yaml 的目标打包
 
 ### 构建产物
 
-应用名、id、版本和构建目标在 `nsgo.yaml`，当前版本为 `0.1.22`。构建产物包括：
+应用名、id、版本和构建目标在 `nsgo.yaml`，当前版本为 `0.1.23`。构建产物包括：
 
 ```text
-dist/nsgo-music-0.1.22-macos_arm64/nsgo-music.app
-dist/releases/nsgo-music-0.1.22-macos-arm64.dmg
+dist/Woodwind Music-0.1.23-macos_arm64/Woodwind Music.app
+dist/releases/woodwind-music-0.1.23-macos-arm64.dmg
 ```
 
-### Xcode 设置
+### 应用图标
 
-若 `dev` 报 `the icon needs Xcode's actool`，是 `xcode-select` 指向了 CommandLineTools。选择 Xcode 后即可：
+当前使用自有的耳机、松树与风吹叶子二次元图标，主图保存在 `assets/woodwind-icon-anime/`；此前的写实设计稿保留在 `assets/woodwind-icon-v2/`。
+
+更换主图后，在项目根目录刷新各平台资源：
 
 ```sh
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+go run ./icon       # 刷新应用 PNG 与 macOS ICNS
+go run ./icon/tray  # 刷新菜单栏的单色耳机与松树图标
 ```
 
-不修改全局设置时，也可以只给这条命令指定 Xcode：
-
-```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer go tool nsgo dev
-```
-
-同样的 `DEVELOPER_DIR` 前缀也适用于 `build` 和真实窗口截图命令。
+`nsgo.yaml` 显式指定新的 `.icns`，正式版与开发版使用相同图标。仓库中保留的旧 `.icon` 文档不参与当前构建。图标打包无需 `actool`；需要完整 Xcode 的其他构建步骤仍可通过 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 指定工具链。
 
 ## 测试与验证
 
@@ -116,14 +113,14 @@ go tool nsgo test -run TestSettingsWindowSurvivesSidebarUpdates
 需要目视对照上游时再运行截图测试。`TestShots` 覆盖首页、专辑、歌手、播放页、舞台、封面墙、队列、搜索和歌单等页面：
 
 ```sh
-NSGO_SHOTS=1 go tool nsgo test -target macos -run TestShots
+WOODWIND_SHOTS=1 go tool nsgo test -target macos -run TestShots
 open .nsgo/test/screenshots/macos
 ```
 
 设置与歌词的专项截图使用固定播放位置，覆盖深浅主题、下拉菜单、长文本、无歌词与窄窗口：
 
 ```sh
-(cd internal/app && NSGO_UI_SHOTS=1 go tool nsgo test -target macos -run TestUIShots)
+(cd internal/app && WOODWIND_UI_SHOTS=1 go tool nsgo test -target macos -run TestUIShots)
 open internal/app/.nsgo/test/screenshots/macos
 ```
 
@@ -158,7 +155,15 @@ open internal/app/.nsgo/test/screenshots/macos
 
 刘海迷你播放器明确不在移植范围内。实验性功能面板中的雾效、进度条烟雾和封面飞入设置仍保留，相关效果尚未完成移植。
 
-移植约定：应用名称使用 `nsgo-music`，其余交互、布局、文案和设置项以 mygo-music 为准；NSGo 缺少的能力先补 NSGo，再在 app 中使用。核心包只改 import path 与平台抽象，不顺手重构播放与解码逻辑。
+移植约定：应用名称使用 `Woodwind Music`，其余交互、布局、文案和设置项以 mygo-music 为准；NSGo 缺少的能力先补 NSGo，再在 app 中使用。核心包只改 import path 与平台抽象，不顺手重构播放与解码逻辑。
+
+## 更名与兼容
+
+本项目原名 `nsgo-music`，从 `0.1.23` 起使用 **Woodwind Music**；仓库与发布文件使用 `woodwind-music`，Go 模块为 `github.com/HengWh/woodwind-music`。
+
+应用内部 ID 保留为 `dev.oneo.nsgo.music`，因此现有用户的曲库、歌单、播放记录与设置继续使用原目录，无需搬迁。自定义数据目录优先读取 `WOODWIND_MUSIC_DATA_DIR`，并兼容旧的 `NSGO_MUSIC_DATA_DIR`。
+
+完整的远端仓库、本地目录与发布检查步骤见 [更名记录](docs/rename-checklist.md)。
 
 ## 项目结构
 
@@ -178,7 +183,7 @@ open internal/app/.nsgo/test/screenshots/macos
 
 ## 致谢
 
-`nsgo-music` 的实现离不开以下两个开源项目：
+Woodwind Music 的实现离不开以下两个开源项目：
 
 - **[NSGo](https://github.com/nsgo-dev/nsgo)**：为本项目提供原生桌面应用框架，承载窗口、界面渲染和交互。感谢 NSGo 作者与贡献者的开发和维护，让使用 Go 构建原生应用成为可能。
 - **[MyGo Music](https://github.com/egoist/mygo-music)**：是本项目复刻与移植的基础。界面设计、交互、文案，以及音频播放、曲库、歌词和队列等核心实现均源自该项目。感谢其作者与贡献者对产品细节的打磨，以及开放源码供大家学习和继续构建。

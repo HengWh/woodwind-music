@@ -17,7 +17,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 
-	"nsgo-music/internal/app"
+	"github.com/HengWh/woodwind-music/internal/app"
 )
 
 //go:embed testdata/tone.mp3
@@ -129,10 +129,10 @@ func lrc(t *testing.T, path, text string) {
 }
 
 // TestShots saves pictures of the app's pages, for a person to look at:
-// NSGO_SHOTS=1 go tool nsgo test -target macos -run TestShots.
+// WOODWIND_SHOTS=1 go tool nsgo test -target macos -run TestShots.
 func TestShots(t *testing.T) {
-	if os.Getenv("NSGO_SHOTS") == "" {
-		t.Skip("set NSGO_SHOTS=1 to save screenshots")
+	if os.Getenv("WOODWIND_SHOTS") == "" {
+		t.Skip("set WOODWIND_SHOTS=1 to save screenshots")
 	}
 	data := t.TempDir()
 	music := t.TempDir()
@@ -148,10 +148,10 @@ func TestShots(t *testing.T) {
 		t.Fatal(err)
 	}
 	settings := map[string]any{}
-	if os.Getenv("NSGO_LIGHT") != "" {
+	if os.Getenv("WOODWIND_LIGHT") != "" {
 		settings["appearance"] = "light"
 	}
-	if os.Getenv("NSGO_EN") != "" {
+	if os.Getenv("WOODWIND_EN") != "" {
 		settings["language"] = "en"
 	}
 	if len(settings) > 0 {
@@ -160,7 +160,7 @@ func TestShots(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	t.Setenv("NSGO_MUSIC_DATA_DIR", data)
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", data)
 	app := nsgotest.Start(t, app.Root, nsgotest.Size(1180, 780))
 	app.WaitUntil(8*time.Second, func() bool { return app.Exists("text:迷跡波") })
 	shot := func(name string) {

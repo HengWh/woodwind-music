@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // Cache keeps the songs played on disk, so that they play again at once,

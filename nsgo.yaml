@@ -1,16 +1,21 @@
-name: nsgo-music
+name: Woodwind Music
+# Stable identity: preserves existing library, playlists and settings.
 id: dev.oneo.nsgo.music
-version: 0.1.22
+version: 0.1.23
 
 icon:
-  apple: icon/AppIcon.icon
+  apple: resources/icon.icns
   png: resources/icon.png
 
 dev:
   target: native
   icon:
+    apple: resources/icon.icns
     png: resources/icon-dev.png
 
 build:
   output: dist
   targets: [macos_arm64]
+
+release:
+  github: HengWh/woodwind-music

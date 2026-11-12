@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // entry is what's known of a file, as index.json keeps it.

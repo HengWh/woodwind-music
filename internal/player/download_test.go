@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // streamer answers the same stream for any track, counting how often it's asked.

@@ -9,9 +9,9 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/lyrics"
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/lyrics"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // reviewTrack holds a song in place so screenshots and layout checks do not
@@ -37,7 +37,7 @@ func reviewTrack(a *app) {
 }
 
 func TestNowPlayingViewport(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a := newApp(cx)
 		reviewTrack(a)
@@ -56,7 +56,7 @@ func TestNowPlayingViewport(t *testing.T) {
 }
 
 func TestPlayerBarFitsNarrowWindows(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a := newApp(cx)
 		reviewTrack(a)
@@ -75,7 +75,7 @@ func TestPlayerBarFitsNarrowWindows(t *testing.T) {
 }
 
 func TestAppearanceUpdatesTheWholeWindow(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -98,7 +98,7 @@ func TestAppearanceUpdatesTheWholeWindow(t *testing.T) {
 }
 
 func TestLyricsWordsAndBrowsing(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -146,7 +146,7 @@ func TestLyricsWordsAndBrowsing(t *testing.T) {
 }
 
 func TestSettingsControls(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -209,15 +209,15 @@ func TestHSVColorKeepsBrightness(t *testing.T) {
 }
 
 // TestUIShots runs only on request, from internal/app:
-// NSGO_UI_SHOTS=1 go tool nsgo test -target macos -run TestUIShots.
+// WOODWIND_UI_SHOTS=1 go tool nsgo test -target macos -run TestUIShots.
 // Every view uses isolated application data.
 func TestUIShots(t *testing.T) {
-	if os.Getenv("NSGO_UI_SHOTS") == "" {
-		t.Skip("set NSGO_UI_SHOTS=1 to review the settings and lyrics")
+	if os.Getenv("WOODWIND_UI_SHOTS") == "" {
+		t.Skip("set WOODWIND_UI_SHOTS=1 to review the settings and lyrics")
 	}
 	for _, dark := range []bool{false, true} {
 		t.Run(fmt.Sprintf("settings-dark-%t", dark), func(t *testing.T) {
-			t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+			t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 			var a *app
 			ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 				a = newApp(cx)
@@ -240,7 +240,7 @@ func TestUIShots(t *testing.T) {
 		})
 	}
 	t.Run("lyrics", func(t *testing.T) {
-		t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+		t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 		var a *app
 		ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 			a = newApp(cx)

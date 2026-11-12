@@ -1,6 +1,6 @@
 package player
 
-import "nsgo-music/internal/music"
+import "github.com/HengWh/woodwind-music/internal/music"
 
 // The next track's audio is asked for once the current one plays, and comes in
 // meanwhile, so that it starts at once when its turn comes: a source may take

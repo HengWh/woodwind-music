@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // nothing is a source that does nothing: tests embed it and add what they need.

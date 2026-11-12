@@ -5,8 +5,8 @@
 // audio/aac for AAC, and audio/flac for FLAC in MP4:
 //
 //	import (
-//		_ "nsgo-music/internal/audio/aac"  // AAC, in MP4 too
-//		_ "nsgo-music/internal/audio/flac" // FLAC, in MP4 too
+//		_ "github.com/HengWh/woodwind-music/internal/audio/aac"  // AAC, in MP4 too
+//		_ "github.com/HengWh/woodwind-music/internal/audio/flac" // FLAC, in MP4 too
 //	)
 //
 // Each imports this package, which registers the format with package
@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"nsgo-music/internal/audio"
+	"github.com/HengWh/woodwind-music/internal/audio"
 )
 
 func init() {

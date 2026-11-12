@@ -13,13 +13,13 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 
-	"nsgo-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/i18n"
 )
 
 func TestMain(m *testing.M) { nsgotest.Main(m) }
 
 func TestStarts(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -38,7 +38,7 @@ func TestStarts(t *testing.T) {
 
 func BenchmarkView(b *testing.B) {
 	dir := b.TempDir()
-	os.Setenv("NSGO_MUSIC_DATA_DIR", dir)
+	os.Setenv("WOODWIND_MUSIC_DATA_DIR", dir)
 	app := nsgotest.Start(b, func(cx *core.Scope) core.Node {
 		a := newApp(cx)
 		return a.view(cx)
@@ -79,7 +79,7 @@ func writeToneWAV(t *testing.T, path string) {
 }
 
 func TestPlaysFile(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	musicDir := t.TempDir()
 	writeToneWAV(t, filepath.Join(musicDir, "Haruhikage.wav"))
 	var a *app
@@ -108,7 +108,7 @@ func TestPlaysFile(t *testing.T) {
 }
 
 func TestBarStaysWhilePlaying(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	musicDir := t.TempDir()
 	writeToneWAV(t, filepath.Join(musicDir, "Haruhikage.wav"))
 	writeToneWAV(t, filepath.Join(musicDir, "Utakotoba.wav"))
@@ -166,7 +166,7 @@ func writeTaggedMP3(t *testing.T, path, title, artist, album string) {
 }
 
 func TestLibraryPages(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	musicDir := t.TempDir()
 	writeTaggedMP3(t, filepath.Join(musicDir, "01 Haruhikage.mp3"), "Haruhikage", "MyGO!!!!!", "Album One")
 	writeTaggedMP3(t, filepath.Join(musicDir, "02 Utakotoba.mp3"), "Utakotoba", "MyGO!!!!!", "Album One")
@@ -215,7 +215,7 @@ func TestLibraryPages(t *testing.T) {
 // TestArtistCards lays an artist's name centered under a small, round
 // picture, and keeps the cards within a window made narrower.
 func TestArtistCards(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	musicDir := t.TempDir()
 	names := []string{"Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"}
 	for i, name := range names {
@@ -256,7 +256,7 @@ func TestArtistCards(t *testing.T) {
 }
 
 func TestCreatesPlaylistAndLikes(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	musicDir := t.TempDir()
 	writeTaggedMP3(t, filepath.Join(musicDir, "01 Haruhikage.mp3"), "Haruhikage", "MyGO!!!!!", "Album One")
 	var a *app
@@ -309,7 +309,7 @@ func (a *app) likedTrackID() string {
 }
 
 func TestSettingsView(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -342,7 +342,7 @@ func TestSettingsView(t *testing.T) {
 }
 
 func TestLyricsFollowTheTrack(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	musicDir := t.TempDir()
 	path := filepath.Join(musicDir, "Haruhikage.wav")
 	writeToneWAV(t, path)
@@ -373,7 +373,7 @@ func TestLyricsFollowTheTrack(t *testing.T) {
 }
 
 func TestStageStyleMenu(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	musicDir := t.TempDir()
 	writeToneWAV(t, filepath.Join(musicDir, "Haruhikage.wav"))
 	if err := os.WriteFile(filepath.Join(musicDir, "Haruhikage.lrc"), []byte("[00:00.00]迷子でもいい、迷子でも進め\n[00:00.40]答えを急がないで\n"), 0o644); err != nil {
@@ -408,7 +408,7 @@ func TestStageStyleMenu(t *testing.T) {
 }
 
 func TestSearchSuggestsHistory(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -427,7 +427,7 @@ func TestSearchSuggestsHistory(t *testing.T) {
 // TestSongsPageScrolls checks that a page longer than the window scrolls,
 // its list instead of growing the page past the player bar.
 func TestSongsPageScrolls(t *testing.T) {
-	t.Setenv("NSGO_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	musicDir := t.TempDir()
 	const n = 60
 	for i := 0; i < n; i++ {

@@ -10,8 +10,8 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/lyrics"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/lyrics"
 )
 
 // The stage sets a song's lyrics as Folia's visualizers do: Flow, its classic,

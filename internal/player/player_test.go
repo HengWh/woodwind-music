@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"nsgo-music/internal/audio"
+	"github.com/HengWh/woodwind-music/internal/audio"
 
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 func TestPlayEmptyQueue(t *testing.T) {

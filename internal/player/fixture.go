@@ -3,10 +3,10 @@ package player
 import (
 	"time"
 
-	"nsgo-music/internal/audio"
+	"github.com/HengWh/woodwind-music/internal/audio"
 
-	"nsgo-music/internal/lyrics"
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/lyrics"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // These set a player up as it would be after loading, without loading

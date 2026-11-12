@@ -11,7 +11,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	_ "golang.org/x/image/webp"
 
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // coverTint returns the most vivid color of the cover at url, loading it if

@@ -6,10 +6,10 @@ import (
 	"math"
 	"sync"
 
-	"nsgo-music/internal/audio"
-	_ "nsgo-music/internal/audio/aac" // AAC in MP4
-	"nsgo-music/internal/audio/flac"
-	"nsgo-music/internal/audio/mp4"
+	"github.com/HengWh/woodwind-music/internal/audio"
+	_ "github.com/HengWh/woodwind-music/internal/audio/aac" // AAC in MP4
+	"github.com/HengWh/woodwind-music/internal/audio/flac"
+	"github.com/HengWh/woodwind-music/internal/audio/mp4"
 )
 
 // downloadFile reads a download as a file, for MyGo's decoders: what's

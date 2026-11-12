@@ -1,8 +1,5 @@
-// Command tray draws internal/app/tray/tray-template.png, the app's icon in
-// the macOS menu bar: the record and tonearm of the app's icon, black on
-// transparent for macOS to tint, the tonearm knocked out of the record
-// around it. It draws from signed distances, supersampled, at 2× of the
-// menu bar's 18 points.
+// Command tray draws the WoodWind headphones and pine as a monochrome
+// macOS menu bar template, supersampled at 2× of the menu bar's 18 points.
 //
 // Run it from the repository root:
 //
@@ -25,60 +22,32 @@ import (
 
 type pt struct{ x, y float64 }
 
-func sub(a, b pt) pt              { return pt{a.x - b.x, a.y - b.y} }
-func dot(a, b pt) float64         { return a.x*b.x + a.y*b.y }
-func length(a pt) float64         { return math.Hypot(a.x, a.y) }
-func along(a, u pt, d float64) pt { return pt{a.x + u.x*d, a.y + u.y*d} }
+func sub(a, b pt) pt      { return pt{a.x - b.x, a.y - b.y} }
+func length(a pt) float64 { return math.Hypot(a.x, a.y) }
 
-// The glyph, in points, before it is fit to the square.
-var (
-	// The record, its label's edge cut as a ring, and the spindle's hole.
-	center    = pt{7.6, 10.6}
-	radius    = 7.0
-	labelEdge = 2.35
-	labelCut  = 0.8
-	spindle   = 0.85
+// Keep only the strong silhouettes at menu bar sizes; the leaves and
+// illustrated highlights belong to the full-color application icon.
+const fit = 15.6
 
-	// The tonearm: the stylus rests on the grooves, at tip, and the arm
-	// rises steeply from it to the pivot, past the record's edge.
-	tip       = along(center, pt{math.Cos(0.5), -math.Sin(0.5)}, 4.15)
-	toPivot   = pt{math.Cos(1.15), -math.Sin(1.15)}
-	pivot     = along(tip, toPivot, 7.2)
-	pivotR    = 1.45
-	armWidth  = 1.05
-	headLen   = 2.0
-	headWidth = 1.9
-	headR     = 0.45
-	// Knocked out of the record around the tonearm.
-	gap = 0.75
-
-	// The glyph's longer side, centred in the 18-point square.
-	fit = 15.6
-)
-
-// segDist is the distance from p to the segment ab.
-func segDist(p, a, b pt) float64 {
-	pa, ba := sub(p, a), sub(b, a)
-	h := math.Max(0, math.Min(1, dot(pa, ba)/dot(ba, ba)))
-	return length(sub(pa, pt{ba.x * h, ba.y * h}))
-}
-
-// headDist is the signed distance from p to the headshell, a rounded box
-// from the tip back along the arm.
-func headDist(p pt) float64 {
-	v := pt{-toPivot.y, toPivot.x}
-	d := sub(p, tip)
-	q := pt{math.Abs(dot(d, toPivot)-headLen/2) - (headLen/2 - headR), math.Abs(dot(d, v)) - (headWidth/2 - headR)}
-	return length(pt{math.Max(q.x, 0), math.Max(q.y, 0)}) + math.Min(math.Max(q.x, q.y), 0) - headR
+func roundedBox(p, center, half pt, radius float64) bool {
+	q := pt{math.Abs(p.x-center.x) - half.x + radius, math.Abs(p.y-center.y) - half.y + radius}
+	return length(pt{math.Max(q.x, 0), math.Max(q.y, 0)})+math.Min(math.Max(q.x, q.y), 0) <= radius
 }
 
 func inside(p pt) bool {
-	d := length(sub(p, center))
-	record := d < radius && math.Abs(d-labelEdge) > labelCut/2 && d > spindle
-	head := along(tip, toPivot, headLen/2)
-	arm, shell, hub := segDist(p, pivot, head), headDist(p), length(sub(p, pivot))
-	knocked := arm < armWidth/2+gap || shell < gap || hub < pivotR+gap
-	return record && !knocked || arm < armWidth/2 || shell < 0 || hub < pivotR
+	band := p.y <= 8.5 && math.Abs(length(sub(p, pt{9, 8.5}))-6.5) <= 0.8
+	cups := roundedBox(p, pt{2.5, 11}, pt{1.4, 2.4}, 0.9) ||
+		roundedBox(p, pt{15.5, 11}, pt{1.4, 2.4}, 0.9)
+	tree := p.y >= 14.3 && p.y <= 15.6 && math.Abs(p.x-9) <= 0.55
+	for _, tier := range []struct{ top, bottom, width float64 }{
+		{7.0, 10.0, 1.5}, {9.2, 12.1, 2.1}, {11.1, 14.4, 2.7},
+	} {
+		if p.y >= tier.top && p.y <= tier.bottom &&
+			math.Abs(p.x-9) <= tier.width*(p.y-tier.top)/(tier.bottom-tier.top) {
+			tree = true
+		}
+	}
+	return band || cups || tree
 }
 
 // frame is the scale and offset from the square to the glyph, which fit

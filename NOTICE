@@ -1,4 +1,4 @@
-MyGo Music · NSGo 复刻
+Woodwind Music · MyGo Music / NSGo 衍生项目
 =====================
 
 This project is a derivative of MyGo Music (https://github.com/egoist/mygo-music),
@@ -10,5 +10,5 @@ The audio engine in internal/audio is taken from MyGo
 licensed under the MIT License. See LICENSES/MyGo-MIT.txt.
 
 The user interface is written against NSGo
-(https://github.com/oneo-me/nsgo), Copyright the NSGo contributors,
+(https://github.com/nsgo-dev/nsgo), Copyright the NSGo contributors,
 licensed under the Apache License, version 2.0.

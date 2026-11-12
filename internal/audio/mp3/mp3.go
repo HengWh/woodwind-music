@@ -1,14 +1,14 @@
 // Package mp3 decodes MP3 files for package audio, with
 // github.com/hajimehoshi/go-mp3. Import it for its side effect:
 //
-//	import _ "nsgo-music/internal/audio/mp3"
+//	import _ "github.com/HengWh/woodwind-music/internal/audio/mp3"
 package mp3
 
 import (
 	"encoding/binary"
 	"io"
 
-	"nsgo-music/internal/audio"
+	"github.com/HengWh/woodwind-music/internal/audio"
 	gomp3 "github.com/hajimehoshi/go-mp3"
 )
 

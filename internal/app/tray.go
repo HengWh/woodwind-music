@@ -7,10 +7,10 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/desktop"
 
-	"nsgo-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/i18n"
 )
 
-// trayTemplate is the app's icon in the menu bar: the record and tonearm,
+// trayTemplate is the app's icon in the menu bar: headphones and a pine,
 // black on transparent for macOS to tint.
 //
 //go:embed tray/tray-template.png

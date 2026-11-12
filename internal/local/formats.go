@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	_ "nsgo-music/internal/audio/aac"  // AAC in MP4
-	_ "nsgo-music/internal/audio/flac" // FLAC in MP4
-	"nsgo-music/internal/audio/mp4"
+	_ "github.com/HengWh/woodwind-music/internal/audio/aac"  // AAC in MP4
+	_ "github.com/HengWh/woodwind-music/internal/audio/flac" // FLAC in MP4
+	"github.com/HengWh/woodwind-music/internal/audio/mp4"
 )
 
 // A WAV is chunks of RIFF: its format, its data, and maybe its tags, as an

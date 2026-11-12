@@ -1,4 +1,4 @@
-// Package app is nsgo-music, built on NSGo: the music files on this
+// Package app is Woodwind Music, built on NSGo: the music files on this
 // computer, with their tags, covers and lyrics, in one window.
 package app
 
@@ -14,14 +14,14 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/desktop"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/local"
-	"nsgo-music/internal/music"
-	"nsgo-music/internal/nowplaying"
-	"nsgo-music/internal/player"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/local"
+	"github.com/HengWh/woodwind-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/nowplaying"
+	"github.com/HengWh/woodwind-music/internal/player"
 )
 
-const appName = "nsgo-music"
+const appName = "Woodwind Music"
 
 // Run runs the app until it quits, its music playing on in the menu bar
 // when its window closes.
@@ -259,13 +259,7 @@ type app struct {
 
 // newApp makes the app and starts reading the library.
 func newApp(cx *core.Scope) *app {
-	dir := cx.DataDir()
-	if v := os.Getenv("NSGO_MUSIC_DATA_DIR"); v != "" {
-		dir = v
-	}
-	if dir == "" {
-		dir = filepath.Join(os.TempDir(), "nsgo-music")
-	}
+	dir := appDataDir(cx.DataDir())
 	a := &app{
 		cx:               cx,
 		dir:              dir,

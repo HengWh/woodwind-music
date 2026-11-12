@@ -4,8 +4,8 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/desktop"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/player"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/player"
 )
 
 // menu sets the application menu: the app's, the pages', playback's and

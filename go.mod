@@ -1,4 +1,4 @@
-module nsgo-music
+module github.com/HengWh/woodwind-music
 
 go 1.26.0
 

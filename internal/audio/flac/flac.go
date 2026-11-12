@@ -3,7 +3,7 @@
 // audio/mp4, as lossless DASH streams carry it. Import it for its side
 // effect:
 //
-//	import _ "nsgo-music/internal/audio/flac"
+//	import _ "github.com/HengWh/woodwind-music/internal/audio/flac"
 //
 // FLAC's frames stand alone, so a seek lands on the very frame of sound
 // asked for, without a seek table.
@@ -16,8 +16,8 @@ import (
 	"io"
 	"math"
 
-	"nsgo-music/internal/audio"
-	"nsgo-music/internal/audio/mp4"
+	"github.com/HengWh/woodwind-music/internal/audio"
+	"github.com/HengWh/woodwind-music/internal/audio/mp4"
 	"github.com/mewkiz/flac"
 	"github.com/mewkiz/flac/frame"
 	"github.com/mewkiz/flac/meta"

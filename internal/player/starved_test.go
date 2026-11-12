@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // onServer answers every track as the same song, of which the server sends a

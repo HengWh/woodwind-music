@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"nsgo-music/internal/audio"
+	"github.com/HengWh/woodwind-music/internal/audio"
 )
 
 // How long pausing and resuming fade the music out and in.

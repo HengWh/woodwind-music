@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 func TestParseLRC(t *testing.T) {

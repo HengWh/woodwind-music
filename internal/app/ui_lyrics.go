@@ -7,8 +7,8 @@ import (
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 
-	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/lyrics"
+	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/lyrics"
 )
 
 // lyricsPane keeps the sung line a third of the way down. Browsing the lyrics

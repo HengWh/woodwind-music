@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"nsgo-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // served answers each track as a song of its own address on a server, as a
