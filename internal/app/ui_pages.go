@@ -87,7 +87,7 @@ func (a *app) homePage(cx *core.Scope, p palette) core.Node {
 	var body []core.Node
 	body = append(body, a.titleBlock(p, greeting(time.Now()), i18n.Today(time.Now())))
 	for i, sec := range a.home.Sections {
-		body = append(body, a.browseSection(cx, p, sec, "", i)...)
+		body = append(body, a.browseSection(p, sec, "", i)...)
 	}
 	return a.pageScroll(p, body...)
 }
@@ -161,7 +161,7 @@ func (a *app) sectionPage(cx *core.Scope, p palette, r route) core.Node {
 }
 
 // browseSection is one heading of a source's page, and what it lists.
-func (a *app) browseSection(cx *core.Scope, p palette, sec music.Section, pageID string, index int) []core.Node {
+func (a *app) browseSection(p palette, sec music.Section, pageID string, index int) []core.Node {
 	var out []core.Node
 	first := index == 0
 	// The songs of a source's Home lead it with a card of their own.
@@ -216,8 +216,9 @@ func (a *app) browseSection(cx *core.Scope, p palette, sec music.Section, pageID
 	return out
 }
 
-// cardGrid lays n cards in as many columns as fit, the window's width making
-// the columns as it changes.
+// cardGrid lays n cards in as many columns as fit. The grid fills the page
+// it is on, its tracks at least 156 points wide, so a narrower window wraps
+// its cards instead of cutting them off.
 func (a *app) cardGrid(p palette, n int, card func(i int) core.Node) core.Node {
 	var cards []core.Node
 	for i := 0; i < n; i++ {
@@ -225,7 +226,7 @@ func (a *app) cardGrid(p palette, n int, card func(i int) core.Node) core.Node {
 	}
 	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{
 		core.View{Style: core.Style{Display: core.DisplayGrid, Width: core.Pct(100),
-			GridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+			GridTemplateColumns: "repeat(auto-fill, minmax(156px, 1fr))",
 			Gap:                 20, RowGap: cardRowGap, Margin: core.Edges{Top: 12, Bottom: 0}}, Children: cards},
 	}}
 }
@@ -753,7 +754,7 @@ func (a *app) browsePage(cx *core.Scope, p palette, id string) core.Node {
 		body = append(body, a.titleBlock(p, b.Title, b.Subtitle))
 	}
 	for i, sec := range b.Sections {
-		body = append(body, a.browseSection(cx, p, sec, id, i)...)
+		body = append(body, a.browseSection(p, sec, id, i)...)
 	}
 	return a.pageScroll(p, body...)
 }
