@@ -1,130 +1,35 @@
-# Woodwind Music
+<p align="center">
+  <img src="resources/icon.png" alt="木听风音乐 · Wood & Wind Music Logo" width="128" />
+</p>
+
+# 木听风音乐 · Wood & Wind Music
 
 基于 [NSGo](https://github.com/nsgo-dev/nsgo) 的原生桌面音乐播放器，由 [MyGo Music](https://github.com/egoist/mygo-music) 复刻与移植而来。
 
-NSGo 为本项目提供窗口、界面渲染和交互框架；MyGo Music 是界面设计、交互、文案及播放、曲库、歌词和队列等核心实现的来源。本项目将 UI 框架由 MyGo 迁移到 NSGo，并完成相应的平台适配与体验调整。
+这是一个持续开发中的个人自用项目，主要用于本地音乐播放，以及探索 NSGo 的桌面界面与交互。开发与功能取舍以个人使用需求为主，源码公开供参考。
 
-应用显示名称统一为 **Woodwind Music**，仓库名为 `woodwind-music`。感谢两个项目的作者与贡献者，详细说明见[致谢](#致谢)与[许可证](#许可证)。
+NSGo 提供窗口、界面渲染和交互框架；MyGo Music 是界面设计、交互、文案，以及播放、曲库、歌词和队列等核心实现的来源。项目在迁移 UI 框架的基础上，进行平台适配与体验调整。详见[致谢](#致谢)与[许可证](#许可证)。
 
-> 当前专注于本地音乐播放和已有 UI 的打磨，暂不扩展插件、播客等功能。主要播放流程已接通，界面仍在对照上游完善；具体范围见[已实现](#已实现)和[与上游的差距](#与上游的差距)。
-
-## 当前状态与进展
-
-- 设置：对齐侧栏入口、分组卡片、下拉菜单和外观切换控件；修复点击设置后窗口被侧栏刷新关闭的问题，支持重复打开时复用窗口、关闭后重新打开。
-- 歌词：调整字体、行距、翻译和当前行样式，加入逐字高亮、缩放与淡入淡出；手动浏览后约 4 秒恢复跟随，点击歌词跳转到对应位置。
-- 布局：修复长歌词把播放页撑高的问题，调整窄窗口下的封面、控制区和底部播放条，避免控件被挤出窗口。
-- 外观：播放页背景随封面取色，播放控制使用上游的实心图标；深浅主题切换会更新整个主窗口。
-
-当前 UI 验收重点是主要页面布局与交互一致，以及深浅主题、长文本、无歌词和窄窗口下的稳定显示。
+当前主要在 **macOS Apple Silicon（arm64）** 上开发与验证。
 
 ## 界面预览
 
-![首页](docs/home.png)
+以下截图来自本地曲库，界面仍在持续调整。
+
+![首页：最近播放与专辑](docs/home.png)
 
 <details>
 <summary>查看专辑、正在播放与设置界面</summary>
 
-![专辑](docs/album.png)
+![专辑页：周杰伦《魔杰座》](docs/album.png)
 
-![正在播放](docs/now-playing.png)
+![正在播放：歌词页](docs/now-playing.png)
 
-![设置](docs/settings.png)
+![设置：通用](docs/settings.png)
 
 </details>
 
 更多布局示例见[窄窗口歌词预览](docs/lyrics-narrow.png)。
-
-## 开发与运行
-
-从源码开发需要 Go 1.26 或更高版本。当前打包目标为 **macOS Apple Silicon（arm64）**；正式版与开发版统一使用木听风二次元图标，macOS 使用预生成的 `.icns`。
-
-### 环境准备
-
-NSGo 与本项目应放在同一级目录：
-
-```text
-workspace/
-├── nsgo/
-└── woodwind-music/
-```
-
-`go.mod` 使用 `github.com/nsgo-dev/nsgo`，并通过 `replace` 指向 `../nsgo`。首次准备目录时可以运行：
-
-```sh
-git clone https://github.com/nsgo-dev/nsgo.git
-git clone https://github.com/HengWh/woodwind-music.git
-cd woodwind-music
-```
-
-### 常用命令
-
-以下命令在项目根目录执行：
-
-```sh
-go tool nsgo dev        # 开发运行，保存后热重载
-go tool nsgo test       # 默认无窗口运行全部测试
-go tool nsgo check      # vet 并检查目录
-go tool nsgo build      # 按 nsgo.yaml 的目标打包
-```
-
-### 构建产物
-
-应用名、id、版本和构建目标在 `nsgo.yaml`，当前版本为 `0.1.23`。构建产物包括：
-
-```text
-dist/Woodwind Music-0.1.23-macos_arm64/Woodwind Music.app
-dist/releases/woodwind-music-0.1.23-macos-arm64.dmg
-```
-
-### 应用图标
-
-当前使用自有的耳机、松树与风吹叶子二次元图标，主图保存在 `assets/woodwind-icon-anime/`；此前的写实设计稿保留在 `assets/woodwind-icon-v2/`。
-
-更换主图后，在项目根目录刷新各平台资源：
-
-```sh
-go run ./icon       # 刷新应用 PNG 与 macOS ICNS
-go run ./icon/tray  # 刷新菜单栏的单色耳机与松树图标
-```
-
-`nsgo.yaml` 显式指定新的 `.icns`，正式版与开发版使用相同图标。仓库中保留的旧 `.icon` 文档不参与当前构建。图标打包无需 `actool`；需要完整 Xcode 的其他构建步骤仍可通过 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 指定工具链。
-
-## 测试与验证
-
-**日常回归优先使用 NSGo 的无窗口测试**，无需启动真实应用窗口：
-
-```sh
-go tool nsgo test
-go tool nsgo check
-```
-
-设置窗口的回归测试使用桌面多窗口模型，覆盖实际按钮事件、侧栏刷新、重复打开、隐藏后唤回和关闭后重开：
-
-```sh
-go tool nsgo test -run TestSettingsWindowSurvivesSidebarUpdates
-```
-
-其他 UI 测试覆盖设置菜单的鼠标与键盘操作、主题切换、歌词逐字高亮、手动浏览后恢复跟随、点击跳转，以及主窗口和播放条的尺寸变化。
-
-最近一次验证（2026-11-12）：无窗口测试 **123 项通过、0 项失败、2 项跳过**；跳过项为需手动启用的截图测试。静态检查、专项真实窗口验证和 macOS arm64 打包也已通过。
-
-### 真实窗口截图
-
-需要目视对照上游时再运行截图测试。`TestShots` 覆盖首页、专辑、歌手、播放页、舞台、封面墙、队列、搜索和歌单等页面：
-
-```sh
-WOODWIND_SHOTS=1 go tool nsgo test -target macos -run TestShots
-open .nsgo/test/screenshots/macos
-```
-
-设置与歌词的专项截图使用固定播放位置，覆盖深浅主题、下拉菜单、长文本、无歌词与窄窗口：
-
-```sh
-(cd internal/app && WOODWIND_UI_SHOTS=1 go tool nsgo test -target macos -run TestUIShots)
-open internal/app/.nsgo/test/screenshots/macos
-```
-
-测试使用独立的临时应用数据。仓库中保留了[设置预览](docs/settings.png)、[播放页预览](docs/now-playing.png)和[窄窗口歌词预览](docs/lyrics-narrow.png)。
 
 ## 功能与移植范围
 
@@ -144,9 +49,9 @@ open internal/app/.nsgo/test/screenshots/macos
 
 普通 LRC 的逐字进度沿用上游逻辑，将每行时长分配给行内文字。音质设置会传给支持音质选择的音乐源。
 
-### 与上游的差距
+### 当前范围
 
-这些上游能力还没移植：
+当前主要围绕本地播放与界面打磨。以下上游能力尚未移植，也不作为功能承诺：
 
 - 插件系统（JS 宿主、安装/更新、插件源、登录窗口、评论、播客、电台）
 - 播客字幕与本地语音识别（sherpa-onnx）
@@ -155,15 +60,85 @@ open internal/app/.nsgo/test/screenshots/macos
 
 刘海迷你播放器明确不在移植范围内。实验性功能面板中的雾效、进度条烟雾和封面飞入设置仍保留，相关效果尚未完成移植。
 
-移植约定：应用名称使用 `Woodwind Music`，其余交互、布局、文案和设置项以 mygo-music 为准；NSGo 缺少的能力先补 NSGo，再在 app 中使用。核心包只改 import path 与平台抽象，不顺手重构播放与解码逻辑。
+## 开发与运行
 
-## 更名与兼容
+需要 Go 1.26 或更高版本。NSGo 尚未发布，本项目与框架同步开发，通过 `go.mod` 中的 `replace` 使用相邻目录中的 NSGo 源码。
 
-本项目原名 `nsgo-music`，从 `0.1.23` 起使用 **Woodwind Music**；仓库与发布文件使用 `woodwind-music`，Go 模块为 `github.com/HengWh/woodwind-music`。
+### 环境准备
 
-应用内部 ID 保留为 `dev.oneo.nsgo.music`，因此现有用户的曲库、歌单、播放记录与设置继续使用原目录，无需搬迁。自定义数据目录优先读取 `WOODWIND_MUSIC_DATA_DIR`，并兼容旧的 `NSGO_MUSIC_DATA_DIR`。
+将 NSGo 与本项目放在同一级目录：
 
-完整的远端仓库、本地目录与发布检查步骤见 [更名记录](docs/rename-checklist.md)。
+```text
+workspace/
+├── nsgo/
+└── woodwind-music/
+```
+
+```sh
+git clone https://github.com/nsgo-dev/nsgo.git
+git clone https://github.com/HengWh/woodwind-music.git
+cd woodwind-music
+```
+
+### 常用命令
+
+在项目根目录执行：
+
+```sh
+go tool nsgo dev        # 开发运行，保存后热重载
+go tool nsgo test       # 无窗口运行全部测试
+go tool nsgo check      # 静态检查
+go tool nsgo build      # 按 nsgo.yaml 的目标本地打包
+```
+
+启动后，点击侧栏底部的“添加文件夹…”导入本地音乐。
+
+<details>
+<summary>本地打包与图标更新</summary>
+
+应用名称、ID、版本和构建目标在 `nsgo.yaml` 中配置。当前打包目标为 `macos_arm64`，产物保存在 `dist/`，安装镜像保存在 `dist/releases/`。
+
+开发运行与本地打包使用相同图标，macOS 使用预生成的 `resources/icon.icns`。更新图标后，在项目根目录执行：
+
+```sh
+go run ./icon       # 更新应用 PNG 与 macOS ICNS
+go run ./icon/tray  # 更新菜单栏图标
+```
+
+旧的 `.icon` 文档不参与当前构建。图标打包无需 `actool`；需要完整 Xcode 的其他构建步骤可通过 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 指定工具链。
+
+</details>
+
+## 测试与验证
+
+日常回归使用 `go tool nsgo test` 与 `go tool nsgo check`，无需启动真实应用窗口。现有 UI 测试覆盖设置窗口、主题切换、歌词交互，以及主窗口和播放条的尺寸变化。
+
+<details>
+<summary>专项回归与真实窗口截图</summary>
+
+设置窗口回归覆盖侧栏刷新、重复打开、隐藏后唤回和关闭后重开：
+
+```sh
+go tool nsgo test -run TestSettingsWindowSurvivesSidebarUpdates
+```
+
+页面截图覆盖首页、专辑、歌手、播放页、舞台、封面墙、队列、搜索和歌单等：
+
+```sh
+WOODWIND_SHOTS=1 go tool nsgo test -target macos -run TestShots
+open .nsgo/test/screenshots/macos
+```
+
+设置与歌词的专项截图使用固定播放位置，覆盖深浅主题、下拉菜单、长文本、无歌词与窄窗口：
+
+```sh
+(cd internal/app && WOODWIND_UI_SHOTS=1 go tool nsgo test -target macos -run TestUIShots)
+open internal/app/.nsgo/test/screenshots/macos
+```
+
+截图测试使用独立的临时应用数据。
+
+</details>
 
 ## 项目结构
 
@@ -183,12 +158,12 @@ open internal/app/.nsgo/test/screenshots/macos
 
 ## 致谢
 
-Woodwind Music 的实现离不开以下两个开源项目：
+木听风音乐（Wood & Wind Music）的实现离不开以下两个开源项目：
 
 - **[NSGo](https://github.com/nsgo-dev/nsgo)**：为本项目提供原生桌面应用框架，承载窗口、界面渲染和交互。感谢 NSGo 作者与贡献者的开发和维护，让使用 Go 构建原生应用成为可能。
 - **[MyGo Music](https://github.com/egoist/mygo-music)**：是本项目复刻与移植的基础。界面设计、交互、文案，以及音频播放、曲库、歌词和队列等核心实现均源自该项目。感谢其作者与贡献者对产品细节的打磨，以及开放源码供大家学习和继续构建。
 
-本项目的工作主要是将 MyGo Music 的界面迁移到 NSGo，并完成相应的平台适配与体验调整。感谢两个项目分享设计与实现，也欢迎大家了解、使用和支持原项目。
+本项目主要将 MyGo Music 的界面迁移到 NSGo，并根据个人使用需求进行平台适配与体验调整。感谢两个项目的作者与贡献者。
 
 ## 许可证
 
