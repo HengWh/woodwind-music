@@ -3,8 +3,8 @@ package app
 import (
 	"time"
 
-	"github.com/oneo-me/nsgo/base"
-	"github.com/oneo-me/nsgo/core"
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
 
 	"nsgo-music/internal/i18n"
 	"nsgo-music/internal/music"
@@ -52,11 +52,11 @@ func (a *app) playerBar(cx *core.Scope, p palette) core.Node {
 		JustifyContent: core.JustifyCenter, CornerRadius: 6, Hover: &core.Style{Background: p.hover}},
 		Children: []core.Node{icon(lucideVolume, 16, p.muted)}})
 	right = append(right, a.volumeSlider(p))
-	return core.View{Style: core.Style{Height: core.Pt(playerBarHeight), FlexShrink: 0, Direction: core.Row, AlignItems: core.AlignCenter,
-		Padding: core.Symmetric(0, 18), Gap: 16, Background: p.bg, BorderColors: core.EdgeColors{Top: p.hairline}, BorderWidth: 1,
+	return core.View{TestID: "player-bar", Style: core.Style{Height: core.Pt(playerBarHeight), FlexShrink: 0, Direction: core.Row, AlignItems: core.AlignCenter,
+		Padding: core.Symmetric(0, 18), Gap: 16, Background: p.bg, Borders: core.Edges{Top: 1},
 		BorderColor: p.hairline}, Children: []core.Node{
-		core.View{Style: core.Style{Width: core.Pt(280), FlexShrink: 0}, Children: []core.Node{left}},
-		core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Direction: core.Column, AlignItems: core.AlignCenter, Gap: 1}, Children: []core.Node{
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(150)}, Children: []core.Node{left}},
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(192), Direction: core.Column, AlignItems: core.AlignCenter, Gap: 1}, Children: []core.Node{
 			controls,
 			core.View{Style: core.Style{Width: core.Pct(100), MaxWidth: core.Pt(620), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8},
 				Children: []core.Node{
@@ -67,7 +67,7 @@ func (a *app) playerBar(cx *core.Scope, p palette) core.Node {
 						Style: core.Style{Width: core.Pt(36), FontSize: 10.5, Color: p.faint}},
 				}},
 		}},
-		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6, Width: core.Pt(250), JustifyContent: core.JustifyEnd},
+		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6, FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(194), JustifyContent: core.JustifyEnd},
 			Children: right},
 	}}
 }
@@ -136,23 +136,21 @@ func (a *app) transport(p palette, fg, accent core.Color, size core.Points) []co
 	if repeat == player.RepeatOne {
 		repeatIcon = lucideRepeatOne
 	}
-	var play core.Node
+	glyph := transportPlay
 	if playing {
-		play = icon(lucidePause, size+6, p.onAccent)
-	} else {
-		play = core.View{Style: core.Style{Margin: core.Edges{Left: 2}}, Children: []core.Node{icon(lucidePlay, size+6, p.onAccent)}}
+		glyph = transportPause
 	}
-	return []core.Node{
-		a.roundButton(nil, p, size-4, shuffleColor, i18n.T("Shuffle"), lucideShuffle, a.toggleShuffle),
-		a.roundButton(nil, p, size, fg, i18n.T("Previous"), lucidePrev, pl.Prev),
+	return []core.Node{core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: size * 0.5}, Children: []core.Node{
+		a.roundButton(nil, p, size*0.62, shuffleColor, i18n.T("Shuffle"), lucideShuffle, a.toggleShuffle),
+		a.roundButton(nil, p, size*0.85, p.text, i18n.T("Previous"), transportPrev, pl.Prev),
 		base.Button{Label: i18n.T("Play/Pause"), TestID: "play-pause", OnPress: func(core.PressEvent) { a.toggle() },
-			Style: core.Style{Width: core.Pt(size + 20), Height: core.Pt(size + 20), CornerRadius: 999, Background: p.accent,
-				Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
-				Hover: &core.Style{Background: blend(p.accent, core.RGB(0xffffff), 0.15)}, Active: &core.Style{Background: blend(p.accent, core.RGB(0x000000), 0.15)}},
-			Children: []core.Node{play}},
-		a.roundButton(nil, p, size, fg, i18n.T("Next"), lucideNext, pl.Next),
-		a.roundButton(nil, p, size-4, repeatColor, i18n.T("Repeat"), repeatIcon, a.cycleRepeat),
-	}
+			Style: core.Style{Width: core.Pt(size*1.25 + 16), Height: core.Pt(size*1.25 + 16), CornerRadius: 999,
+				AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+				Hover: &core.Style{Background: p.hover}, Active: &core.Style{Background: p.press}},
+			Children: []core.Node{icon(glyph, size*1.25, p.text)}},
+		a.roundButton(nil, p, size*0.85, p.text, i18n.T("Next"), transportNext, pl.Next),
+		a.roundButton(nil, p, size*0.62, repeatColor, i18n.T("Repeat"), repeatIcon, a.cycleRepeat),
+	}}}
 }
 
 // progress is the bar of what has played. On the Now Playing view it is
@@ -203,6 +201,7 @@ func (a *app) volumeSlider(p palette) core.Node {
 			a.set.save()
 		},
 		Label:      i18n.T("Volume"),
+		TestID:     "bar-volume",
 		Style:      core.Style{Width: core.Pt(92), Height: core.Pt(18)},
 		TrackStyle: core.Style{Height: core.Pt(18)},
 		IndicatorStyle: core.Style{Height: core.Pt(4), CornerRadius: 2,

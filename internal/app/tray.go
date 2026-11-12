@@ -4,8 +4,8 @@ import (
 	_ "embed"
 	"runtime"
 
-	"github.com/oneo-me/nsgo/core"
-	"github.com/oneo-me/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/desktop"
 
 	"nsgo-music/internal/i18n"
 )
@@ -53,10 +53,10 @@ func (a *app) windowOpen() bool {
 // makeTray adds the app's icon to the menu bar or the notification area,
 // which opens its window and plays.
 func (a *app) makeTray(cx *core.Scope) *desktop.Tray {
-	return desktop.NewTray(cx, desktop.TrayOptions{Icon: trayTemplate, Template: true, Tooltip: "MyGo Music",
+	return desktop.NewTray(cx, desktop.TrayOptions{Icon: trayTemplate, Template: true, Tooltip: appName,
 		Menu: func() []desktop.MenuItem {
 			return []desktop.MenuItem{
-				{Label: i18n.T("Open MyGo Music"), OnSelect: a.showMain},
+				{Label: i18n.Tf("Open %s", appName), OnSelect: a.showMain},
 				{Separator: true},
 				{Label: i18n.T("Play/Pause"), OnSelect: func() { a.pl.TogglePlay(); a.heartbeat() }},
 				{Label: i18n.T("Next"), OnSelect: a.pl.Next},
@@ -70,7 +70,7 @@ func (a *app) makeTray(cx *core.Scope) *desktop.Tray {
 				{Label: i18n.T("Now Playing"), OnSelect: func() { a.showMain(); a.openNowPlaying() }},
 				{Label: i18n.T("Settings…"), OnSelect: a.openSettings},
 				{Separator: true},
-				{Label: i18n.Tf("Quit %s", "MyGo Music"), OnSelect: func() { a.saveSession(); a.cx.Quit() }},
+				{Label: i18n.Tf("Quit %s", appName), OnSelect: func() { a.saveSession(); a.cx.Quit() }},
 			}
 		}})
 }

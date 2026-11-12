@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/oneo-me/nsgo/core"
-	"github.com/oneo-me/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/desktop"
 
 	"nsgo-music/internal/i18n"
 	"nsgo-music/internal/player"
@@ -11,8 +11,8 @@ import (
 // menu sets the application menu: the app's, the pages', playback's and
 // the window's.
 func (a *app) menu(cx *core.Scope) {
-	appMenu := desktop.MenuItem{Label: "MyGo Music", Items: []desktop.MenuItem{
-		{Label: i18n.Tf("About %s", "MyGo Music"), Role: desktop.MenuAbout},
+	appMenu := desktop.MenuItem{Label: appName, Items: []desktop.MenuItem{
+		{Label: i18n.Tf("About %s", appName), Role: desktop.MenuAbout},
 		{Separator: true},
 		{Label: i18n.T("Settings…"), Shortcut: "mod+,", OnSelect: a.openSettings},
 		{Separator: true},
@@ -20,7 +20,7 @@ func (a *app) menu(cx *core.Scope) {
 		{Role: desktop.MenuHideOthers},
 		{Role: desktop.MenuShowAll},
 		{Separator: true},
-		{Label: i18n.Tf("Quit %s", "MyGo Music"), Shortcut: "mod+q", Role: desktop.MenuQuit},
+		{Label: i18n.Tf("Quit %s", appName), Shortcut: "mod+q", Role: desktop.MenuQuit},
 	}}
 	file := desktop.MenuItem{Label: i18n.T("File"), Items: []desktop.MenuItem{
 		{Label: i18n.T("New Playlist"), Shortcut: "mod+n", OnSelect: a.newPlaylist},

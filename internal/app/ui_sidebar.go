@@ -3,8 +3,8 @@ package app
 import (
 	"strings"
 
-	"github.com/oneo-me/nsgo/base"
-	"github.com/oneo-me/nsgo/core"
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
 
 	"nsgo-music/internal/i18n"
 	"nsgo-music/internal/music"
@@ -230,17 +230,22 @@ func (a *app) playlistRow(p palette, pl music.Playlist, selected bool) core.Node
 
 // sidebarFooter is the settings and the folders.
 func (a *app) sidebarFooter(p palette) core.Node {
-	return core.View{Style: core.Style{Direction: core.Column, Gap: 2, Padding: core.Edges{Top: 8}, BorderWidth: 1, BorderColor: p.hairline,
-		BorderColors: core.EdgeColors{Top: p.hairline}}, Children: []core.Node{
-		a.footerRow(p, "add-folder", lucideFolder, i18n.T("Add Folder…"), func() { a.pickFolders() }),
-		a.footerRow(p, "open-settings", lucideSettings, i18n.T("Settings"), func() { a.openSettings() }),
+	return core.View{Style: core.Style{Direction: core.Column, Gap: 2, Padding: core.Edges{Top: 8}}, Children: []core.Node{
+		base.Button{Label: i18n.T("Settings"), TestID: "open-settings", OnPress: func(core.PressEvent) { a.openSettings() },
+			Style: core.Style{Height: core.Pt(40), Padding: core.Symmetric(0, 8), Gap: 10, Direction: core.Row,
+				AlignItems: core.AlignCenter, CornerRadius: 10, Hover: &core.Style{Background: p.hover},
+				Active: &core.Style{Background: p.press}}, Children: []core.Node{
+				core.View{Style: core.Style{Width: core.Pt(26), Height: core.Pt(26), AlignItems: core.AlignCenter,
+					JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideSettings, 15, p.muted)}},
+				text(i18n.T("Settings"), 13, core.FontWeightMedium, p.muted),
+			}},
 	}}
 }
 
+// footerRow is the compact folder action used by an empty library page.
 func (a *app) footerRow(p palette, id string, svg *core.SVG, label string, onPress func()) core.Node {
 	return base.Button{Label: label, TestID: id, OnPress: func(core.PressEvent) { onPress() },
-		StyleFunc: func() core.Style {
-			return core.Style{Height: core.Pt(32), Padding: core.Symmetric(0, 10), Gap: 10, Direction: core.Row,
-				AlignItems: core.AlignCenter, CornerRadius: 8, Hover: &core.Style{Background: p.hover}}
-		}, Children: []core.Node{icon(svg, 15, p.muted), text(label, 13, core.FontWeightNormal, p.muted)}}
+		Style: core.Style{Height: core.Pt(32), Padding: core.Symmetric(0, 10), Gap: 10, Direction: core.Row,
+			AlignItems: core.AlignCenter, CornerRadius: 8, Hover: &core.Style{Background: p.hover}},
+		Children: []core.Node{icon(svg, 15, p.muted), text(label, 13, core.FontWeightNormal, p.muted)}}
 }

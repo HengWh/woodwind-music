@@ -1,4 +1,4 @@
-// Package app is MyGo Music, built on NSGo: the music files on this
+// Package app is nsgo-music, built on NSGo: the music files on this
 // computer, with their tags, covers and lyrics, in one window.
 package app
 
@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oneo-me/nsgo"
-	"github.com/oneo-me/nsgo/core"
-	"github.com/oneo-me/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/desktop"
 
 	"nsgo-music/internal/i18n"
 	"nsgo-music/internal/local"
@@ -20,6 +20,8 @@ import (
 	"nsgo-music/internal/nowplaying"
 	"nsgo-music/internal/player"
 )
+
+const appName = "nsgo-music"
 
 // Run runs the app until it quits, its music playing on in the menu bar
 // when its window closes.
@@ -231,8 +233,6 @@ type app struct {
 	reloadGen  int
 	mutedFrom  float64
 	nowPlaying bool
-	lyricTrack string
-	lyricAt    int
 	queueAt    int
 	scroll     map[string]core.Points
 
@@ -297,7 +297,6 @@ func newApp(cx *core.Scope) *app {
 		artists:          map[string]*artistData{},
 		browses:          map[string]*browseData{},
 		searches:         map[route]*searchData{},
-		lyricAt:          -1,
 		queueAt:          -1,
 		scroll:           map[string]core.Points{},
 	}
@@ -928,30 +927,32 @@ func (a *app) openSettings() {
 // view is the window.
 func (a *app) view(cx *core.Scope) core.Node {
 	a.setupWindow(cx)
-	p := a.palette(cx)
-	titlebar := desktop.TitleBar(cx)
-	top := titlebar.Top
-	if top <= 0 {
-		top = 40
-	}
-	root := core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), Direction: core.Row,
-		Background: p.bg, Color: p.text, FontSize: 13}}
-	root.Children = []core.Node{
-		core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); a.route.Get(); return a.sidebar(cx, top) }),
-		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0),
-			Direction: core.Column, Background: p.bg}, Children: []core.Node{
-			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
-				core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); a.route.Get(); return a.pageTop(cx, p, top) }),
-				core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); return a.page(cx, p) }),
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		p := a.palette(cx)
+		titlebar := desktop.TitleBar(cx)
+		top := titlebar.Top
+		if top <= 0 {
+			top = 40
+		}
+		root := core.View{TestID: "app-root", Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), Direction: core.Row,
+			Background: p.bg, Color: p.text, FontSize: 13}}
+		root.Children = []core.Node{
+			core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); a.route.Get(); return a.sidebar(cx, top) }),
+			core.View{TestID: "app-content", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0),
+				Direction: core.Column, Background: p.bg}, Children: []core.Node{
+				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
+					core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); a.route.Get(); return a.pageTop(cx, p, top) }),
+					core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); return a.page(cx, p) }),
+				}},
+				a.playerBar(cx, p),
 			}},
-			a.playerBar(cx, p),
-		}},
-		core.Show{When: a.np.Get, Then: func(cx *core.Scope) core.Node { return a.nowPlayingView(cx, p) }},
-		a.nameDialog(cx, p),
-		a.deleteDialog(cx, p),
-		core.Show{When: func() bool { return a.toast.Get() != "" }, Then: a.toastView},
-	}
-	return root
+			core.Show{When: a.np.Get, Then: func(cx *core.Scope) core.Node { return a.nowPlayingView(cx, p) }},
+			a.nameDialog(cx, p),
+			a.deleteDialog(cx, p),
+			core.Show{When: func() bool { return a.toast.Get() != "" }, Then: a.toastView},
+		}
+		return root
+	})
 }
 
 // setup sets the theme and the appearance once.

@@ -1,14 +1,18 @@
-# MyGo Music · NSGo 复刻
+# nsgo-music · NSGo 原生音乐播放器
 
-用 [NSGo](https://github.com/oneo-me/nsgo) 复刻 [MyGo Music](https://github.com/egoist/mygo-music) 的原生桌面音乐播放器：界面、交互和文案以 mygo-music 为准，UI 框架由 MyGo 换成 NSGo，音频、曲库、歌词与播放队列沿用上游实现。
+用 [NSGo](https://github.com/nsgo-dev/nsgo) 复刻 [MyGo Music](https://github.com/egoist/mygo-music) 的原生桌面音乐播放器：界面、交互和文案以 mygo-music 为准，UI 框架由 MyGo 换成 NSGo，音频、曲库、歌词与播放队列沿用上游实现。
 
 > 状态：可持续运行的本地音乐播放器，界面仍在按上游继续复刻。播放、曲库、歌词、队列、设置、中英文、菜单栏与媒体键已接通；插件、播客与评论尚未移植，刘海迷你播放器按要求不移植，详见[与上游的差距](#与上游的差距)。
+
+当前优先打磨已有 UI，暂不扩展插件等功能。应用显示名称统一为 `nsgo-music`；MyGo Music 仅用于说明上游来源。
 
 ![首页](docs/home.png)
 
 ![专辑](docs/album.png)
 
 ![正在播放](docs/now-playing.png)
+
+![设置](docs/settings.png)
 
 ## 运行
 
@@ -44,6 +48,14 @@ NSGO_SHOTS=1 go tool nsgo test -target macos -run TestShots
 open .nsgo/test/screenshots/macos
 ```
 
+设置与歌词的专项截图使用固定播放位置，覆盖深浅主题、下拉菜单、长文本、无歌词与窄窗口：
+
+```sh
+cd internal/app
+NSGO_UI_SHOTS=1 go tool nsgo test -target macos -run TestUIShots
+open .nsgo/test/screenshots/macos
+```
+
 ## 已实现
 
 - 本地文件：MP3、FLAC、Ogg Vorbis、WAV、M4A（ALAC/FLAC/AAC）与 AAC，含标签、内嵌封面、同目录封面、`.lrc` 歌词
@@ -51,7 +63,7 @@ open .nsgo/test/screenshots/macos
 - 歌单：新建、重命名、删除、添加/移除歌曲、上下移动
 - 喜欢的音乐
 - 播放器：队列、随机、单曲/列表循环、进度拖动、音量、暂停淡出、响度归一化、磁盘缓存、会话恢复
-- Now Playing：封面、歌词、舞台（Flow / Steps / Tilt 与 Sparks）、接下来、封面墙，点击歌词跳转
+- Now Playing：封面、歌词、舞台（Flow / Steps / Tilt 与 Sparks）、接下来、封面墙；歌词逐字高亮、当前行缩放与淡入淡出、点击跳转、手动浏览后恢复跟随，背景随封面取色
 - 首页主推卡片、专辑/歌手/歌单卡片、歌手页歌曲/专辑切换、查看全部、搜索历史下拉与设置页侧栏/搜索
 - 侧栏、返回/前进、搜索历史、空状态
 - 设置窗口：侧栏分页与搜索（通用、播放、资料库、缓存、实验性功能）、跟随系统/English/简体中文、外观、应用图标（程序坞与菜单栏）、音质、音量均衡、重新扫描与添加/移除目录、缓存上限与清除
@@ -71,7 +83,7 @@ open .nsgo/test/screenshots/macos
 | `internal/lyrics` | LRC 解析与逐字歌词 |
 | `internal/nowplaying` | macOS 的 MPNowPlayingInfoCenter 与 MPRemoteCommandCenter |
 | `internal/i18n` | 英文 / 简体中文 |
-| `assets`、`icon` | 应用图标与生成工具 |
+| `resources`、`icon` | 应用图标与生成工具 |
 
 ## 与上游的差距
 
@@ -80,7 +92,7 @@ open .nsgo/test/screenshots/macos
 - 插件系统（JS 宿主、安装/更新、插件源、登录窗口、评论、播客、电台）
 - 刘海迷你播放器（按要求不移植）
 - 播客字幕与本地语音识别（sherpa-onnx）
-- 封面取色、雾效、进度条烟雾、封面飞入与封面墙的自由拖动等细节动画
+- 雾效、进度条烟雾、封面飞入与封面墙的自由拖动等细节动画
 - 自动更新与勾选通知等发布相关功能
 
 移植约定：交互、布局、文案和设置项以 mygo-music 为准；NSGo 缺少的能力先补 NSGo，再在 app 中使用。核心包只改 import path 与平台抽象，不顺手重构播放与解码逻辑。
@@ -90,4 +102,4 @@ open .nsgo/test/screenshots/macos
 上游 mygo-music 为 AGPL-3.0，本项目作为其复刻/衍生作品同样以 AGPL-3.0 发布，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。NSGo 为 Apache-2.0；`internal/audio` 来自 MIT 许可的 MyGo，见 [LICENSES/MyGo-MIT.txt](LICENSES/MyGo-MIT.txt)。
 
 - 上游：<https://github.com/egoist/mygo-music>
-- 框架：<https://github.com/oneo-me/nsgo>
+- 框架：<https://github.com/nsgo-dev/nsgo>

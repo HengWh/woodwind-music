@@ -8,7 +8,7 @@ import (
 	_ "image/png"
 	"math"
 
-	"github.com/oneo-me/nsgo/core"
+	"github.com/nsgo-dev/nsgo/core"
 	_ "golang.org/x/image/webp"
 
 	"nsgo-music/internal/music"
@@ -144,5 +144,6 @@ func hsvColor(h, s, v float64) core.Color {
 	default:
 		r, b = c, x
 	}
-	return core.RGB(rgbHex(r, g, b))
+	m := v - c
+	return core.RGB(rgbHex(r+m, g+m, b+m))
 }

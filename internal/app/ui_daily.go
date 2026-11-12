@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oneo-me/nsgo/base"
-	"github.com/oneo-me/nsgo/core"
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
 
 	"nsgo-music/internal/i18n"
 	"nsgo-music/internal/music"

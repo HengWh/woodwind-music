@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/oneo-me/nsgo/base"
-	"github.com/oneo-me/nsgo/core"
-	"github.com/oneo-me/nsgo/ui"
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 
 	"nsgo-music/internal/i18n"
-	"nsgo-music/internal/lyrics"
 	"nsgo-music/internal/music"
 )
 
@@ -21,97 +20,100 @@ func (a *app) nowPlayingView(cx *core.Scope, p palette) core.Node {
 		a.playRev.Get()
 		return a.nowPlayingBody(cx, p, white)
 	})
-	var backdrop []core.Node
-	if t := a.pl.Current(); t != nil && t.Album.ImageURL != "" {
-		backdrop = append(backdrop, core.Image{Source: core.Src(t.Album.ImageURL), ResizeMode: core.Cover, BlurRadius: 90,
-			Style: core.Style{Position: core.Absolute, Top: core.Pt(-60), Right: core.Pt(-60), Bottom: core.Pt(-60), Left: core.Pt(-60),
-				Opacity: core.Alpha(0.30)}})
-	}
-	topbar := core.View{Style: core.Style{Height: core.Pt(44), Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 18), Gap: 8},
+	backdrop := core.Dynamic(func(cx *core.Scope) core.Node {
+		a.playRev.Get()
+		if t := a.pl.Current(); t != nil && t.Album.ImageURL != "" {
+			return core.Image{Source: core.Src(t.Album.ImageURL), ResizeMode: core.Cover, BlurRadius: 90,
+				Style: core.Style{Position: core.Absolute, Top: core.Pt(-60), Right: core.Pt(-60), Bottom: core.Pt(-60), Left: core.Pt(-60),
+					Opacity: core.Alpha(0.16)}}
+		}
+		return core.Group{}
+	})
+	topbar := core.View{Style: core.Style{Height: core.Pt(40), FlexShrink: 0, Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 		Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn}, Children: []core.Node{
 			base.Button{Label: i18n.T("Close"), TestID: "np-close", OnPress: func(core.PressEvent) { a.closeNowPlaying() },
 				Style: core.Style{Width: core.Pt(32), Height: core.Pt(32), Direction: core.Row, AlignItems: core.AlignCenter,
 					JustifyContent: core.JustifyCenter, CornerRadius: 16, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.1)}},
 				Children: []core.Node{icon(lucideChevronDown, 18, core.RGBA(0xffffff, 0.7))}},
 		}}
-	children := append(backdrop, topbar, body)
+	children := []core.Node{backdrop, topbar, body}
 	fade := core.NewAnimatedValue(cx, 0)
 	cx.StartAnimation(core.Timing(fade, 1, core.TimingConfig{Duration: 200 * time.Millisecond}), nil)
 	return core.View{Style: core.Style{Animated: &core.AnimatedStyle{Opacity: fade}, Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0),
-		ZIndex: 10, Direction: core.Column, Color: white,
-		Gradients: []core.Gradient{
-			core.LinearGradient(160, core.RGB(0x2a2327), core.RGB(0x0b0b0d)),
-		}, Background: core.RGB(0x0b0b0d)}, Children: children}
+		ZIndex: 10, Direction: core.Column, Color: white, Background: core.RGB(0x0b0b0d)},
+		StyleFunc: func() core.Style {
+			a.playRev.Get()
+			a.artRev.Get()
+			tint := core.RGB(0x787882)
+			if t := a.pl.Current(); t != nil {
+				if c := a.coverTint(t.Album.ImageURL); c != 0 {
+					tint = c
+				}
+			}
+			top, foot := nowPlayingColors(tint)
+			return core.Style{Gradients: []core.Gradient{core.LinearGradient(180, top, foot)}}
+		}, Children: children}
 }
 
+// nowPlayingBody shares a bounded viewport between the cover and the lyrics.
+// A zero flex basis is essential: a long lyric list must not size the window.
 func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.Node {
 	tr := a.pl.Current()
 	if tr == nil {
-		return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+		return core.View{Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 			Children: []core.Node{text(i18n.T("Not Playing"), 22, core.FontWeightBold, core.RGBA(0xffffff, 0.5))}}
 	}
-	// The stage and the wall take the whole view; lyrics and the queue sit
-	// beside the cover.
 	if a.npPane.GetUntracked() == 3 {
 		return a.stageView(cx, p, white)
 	}
-	side := core.View{Style: core.Style{Width: core.Pt(380), FlexShrink: 0, Direction: core.Column, Gap: 0, Padding: core.Edges{Bottom: 32}},
-		Children: []core.Node{
-			core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{
-				core.View{Style: core.Style{Width: core.Pt(300), Height: core.Pt(300), CornerRadius: 16,
-					ShadowColor: core.RGBA(0x000000, 0.5), ShadowRadius: 22, ShadowOffset: core.Point{Y: 10}}, Children: []core.Node{
-					a.cover(palette{faint: core.RGBA(0xffffff, 0.3), hover: core.RGBA(0xffffff, 0.08)}, tr.Album.ImageURL, 300, 16),
-				}},
+	size := cx.Env().Window()
+	pad := max(core.Points(72), (size.Width-1280)/2)
+	gap := core.Points(72)
+	coverSize := min(size.Width*0.36, max(140, size.Height-436), 440)
+	sideWidth := max(coverSize, 280)
+	coverPal := palette{sidebar: core.RGBA(0xffffff, 0.08), faint: core.RGBA(0xffffff, 0.3), hover: core.RGBA(0xffffff, 0.08)}
+	side := core.View{TestID: "np-controls", Style: core.Style{Width: core.Pt(sideWidth), FlexShrink: 0,
+		Direction: core.Column, JustifyContent: core.JustifyCenter}, Children: []core.Node{
+		core.View{TestID: "np-cover", Style: core.Style{Width: core.Pt(coverSize), Height: core.Pt(coverSize), FlexShrink: 0, CornerRadius: 12,
+			ShadowColor: core.RGBA(0x000000, 0.4), ShadowRadius: 22, ShadowOffset: core.Point{Y: 10}},
+			Children: []core.Node{a.cover(coverPal, tr.Album.ImageURL, coverSize, 12)}},
+		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Margin: core.Edges{Top: 36, Bottom: 18}}, Children: []core.Node{
+			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Direction: core.Column, Gap: 4}, Children: []core.Node{
+				core.Text{TestID: "np-title", Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 22, FontWeight: core.FontWeightBold, LetterSpacing: -0.3, Color: white}},
+				core.Text{Spans: a.artistSpans(palette{white: white}, *tr, 15, core.RGBA(0xffffff, 0.6)), MaxLines: 1,
+					Style: core.Style{FontSize: 15, Color: core.RGBA(0xffffff, 0.6)}},
 			}},
-			core.View{Style: core.Style{Gap: 16, Padding: core.Symmetric(0, 24)}, Children: []core.Node{
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
-					core.View{Style: core.Style{FlexShrink: 1, MinWidth: core.Pt(0), MaxWidth: core.Pt(250), Direction: core.Column, Gap: 4}, Children: []core.Node{
-						core.Text{Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 22, FontWeight: core.FontWeightBold, LetterSpacing: -0.3, Color: white}},
-						core.Text{Spans: a.artistSpans(palette{white: white}, *tr, 15, core.RGBA(0xffffff, 0.6)), MaxLines: 1,
-							Style: core.Style{FontSize: 15, Color: core.RGBA(0xffffff, 0.6)}},
-					}},
-					a.npLikeButton(tr.ID),
-				}},
-				a.progress(palette{accent: white, press: core.RGBA(0xffffff, 0.18)}, true),
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter}, Children: []core.Node{
-					core.Text{ContentFunc: func() string { a.tick.Get(); return clock(a.pl.Position()) },
-						Style: core.Style{FontSize: 11, Color: core.RGBA(0xffffff, 0.5)}},
-					core.View{Style: core.Style{FlexGrow: 1}},
-					core.Text{ContentFunc: func() string {
-						a.tick.Get()
-						if a.pl.Loading() {
-							return i18n.T("Buffering…")
-						}
-						return "-" + clock(a.pl.Duration()-a.pl.Position())
-					}, Style: core.Style{FontSize: 11, Color: core.RGBA(0xffffff, 0.5)}},
-				}},
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Margin: core.Edges{Top: 8}},
-					Children: a.transport(palette{accent: p.accent, hover: core.RGBA(0xffffff, 0.1), press: core.RGBA(0xffffff, 0.16), text: white,
-						muted: core.RGBA(0xffffff, 0.5), onAccent: p.onAccent}, core.RGBA(0xffffff, 0.55), p.accent, 26)},
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 8}, Children: []core.Node{
-					icon(lucideVolume, 14, core.RGBA(0xffffff, 0.55)),
-					base.Slider{
-						Value: func() base.SliderValue { a.tick.Get(); return base.SingleValue(a.pl.Volume() * 100) },
-						Min:   func() float64 { return 0 },
-						Max:   func() float64 { return 100 },
-						OnChange: func(v base.SliderValue) {
-							a.set.Volume = v.End / 100
-							a.pl.SetVolume(a.set.Volume)
-							a.set.save()
-						},
-						Label:          i18n.T("Volume"),
-						Style:          core.Style{Width: core.Pt(190), Height: core.Pt(18)},
-						TrackStyle:     core.Style{Height: core.Pt(18)},
-						IndicatorStyle: core.Style{Height: core.Pt(4), CornerRadius: 2, Margin: core.Edges{Top: 7}, Background: core.RGBA(0xffffff, 0.18)},
-						RangeStyle:     core.Style{Height: core.Pt(4), CornerRadius: 2, Background: core.RGBA(0xffffff, 0.7)},
-						ThumbStyle:     core.Style{Width: core.Pt(8), Height: core.Pt(8), CornerRadius: 4, Background: white},
-					},
-				}},
-			}},
-		}}
-	pane := core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Direction: core.Column, Padding: core.Edges{Top: 6, Right: 44, Bottom: 28}}, Children: []core.Node{
-		a.paneTabs(nil, white),
-		core.Dynamic(func(cx *core.Scope) core.Node {
+			a.npLikeButton(tr.ID),
+			ui.Menu{Trigger: ui.Button{Label: i18n.T("More"), Variant: ui.ButtonGhost, Side: 30},
+				Face: icon(lucideMore, 22, core.RGBA(0xffffff, 0.7)), Children: a.trackMenu(*tr, "", -1)},
+		}},
+		a.progress(palette{accent: white, press: core.RGBA(0xffffff, 0.18)}, true),
+		core.View{Style: core.Style{Height: core.Pt(16), Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween}, Children: []core.Node{
+			core.Text{ContentFunc: func() string { a.tick.Get(); return clock(a.pl.Position()) }, Style: core.Style{FontSize: 11, Color: core.RGBA(0xffffff, 0.5)}},
+			core.Text{ContentFunc: func() string {
+				a.tick.Get()
+				if a.pl.Loading() {
+					return i18n.T("Buffering…")
+				}
+				return "-" + clock(a.pl.Duration()-a.pl.Position())
+			}, Style: core.Style{FontSize: 11, Color: core.RGBA(0xffffff, 0.5)}},
+		}},
+		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Margin: core.Edges{Top: 14, Bottom: 18}},
+			Children: a.transport(palette{text: white, hover: core.RGBA(0xffffff, 0.10), press: core.RGBA(0xffffff, 0.16)},
+				core.RGBA(0xffffff, 0.45), p.accent, 28)},
+		core.View{TestID: "np-volume", Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 8}, Children: []core.Node{
+			icon(lucideVolume, 14, core.RGBA(0xffffff, 0.55)),
+			base.Slider{Value: func() base.SliderValue { a.tick.Get(); return base.SingleValue(a.pl.Volume() * 100) },
+				Min: func() float64 { return 0 }, Max: func() float64 { return 100 },
+				OnChange: func(v base.SliderValue) { a.set.Volume = v.End / 100; a.pl.SetVolume(a.set.Volume); a.set.save() }, Label: i18n.T("Volume"),
+				Style: core.Style{Width: core.Pt(180), Height: core.Pt(18)}, TrackStyle: core.Style{Height: core.Pt(18)},
+				IndicatorStyle: core.Style{Height: core.Pt(4), CornerRadius: 2, Margin: core.Edges{Top: 7}, Background: core.RGBA(0xffffff, 0.18)},
+				RangeStyle:     core.Style{Height: core.Pt(4), CornerRadius: 2, Background: core.RGBA(0xffffff, 0.7)},
+				ThumbStyle:     core.Style{Width: core.Pt(8), Height: core.Pt(8), CornerRadius: 4, Background: white}},
+		}},
+	}}
+	pane := core.View{TestID: "np-pane", Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Column},
+		Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
 			a.npPane.Get()
 			switch a.npPane.GetUntracked() {
 			case 1:
@@ -121,10 +123,12 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 			default:
 				return a.lyricsPane(cx, white)
 			}
-		}),
+		})}}
+	return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
+		core.View{Style: core.Style{Height: core.Pt(28), FlexShrink: 0, Padding: core.Symmetric(0, pad)}, Children: []core.Node{a.paneTabs(nil, white)}},
+		core.View{TestID: "np-body", Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Row, Gap: gap,
+			Padding: core.Edges{Top: 8, Right: pad, Bottom: 44, Left: pad}}, Children: []core.Node{side, pane}},
 	}}
-	return core.View{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0), Direction: core.Row, Gap: 24, Padding: core.Edges{Left: 44}},
-		Children: []core.Node{side, pane}}
 }
 
 // npLikeButton is the heart of Now Playing.
@@ -159,70 +163,7 @@ func (a *app) paneTabs(_ *core.Scope, white core.Color) core.Node {
 				Hover: &core.Style{Background: core.RGBA(0xffffff, 0.08)}},
 			Children: []core.Node{text(t.label, 13, core.FontWeightSemibold, fg)}})
 	}
-	return core.View{Style: core.Style{Direction: core.Row, Gap: 6, Margin: core.Edges{Bottom: 14}}, Children: buttons}
-}
-
-// lyricsPane follows the lyrics of what plays, the line sung lit and kept
-// a third of the way down.
-func (a *app) lyricsPane(cx *core.Scope, white core.Color) core.Node {
-	lines, loaded := a.pl.Lyrics()
-	if !loaded {
-		return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
-			Children: []core.Node{text(i18n.T("Loading…"), 15, core.FontWeightNormal, core.RGBA(0xffffff, 0.4))}}
-	}
-	if len(lines) == 0 {
-		return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
-			Children: []core.Node{text(i18n.T("No lyrics. Enjoy the music."), 24, core.FontWeightBold, core.RGBA(0xffffff, 0.4))}}
-	}
-	list := &core.Ref{}
-	// Scroll to the line sung when it changes.
-	last := -1
-	cx.Effect(func() {
-		a.tick.Get()
-		cur := lyrics.Index(lines, a.pl.Position())
-		if cur != last && cur >= 0 {
-			if _, ready := list.Bounds(); !ready {
-				return // not laid out yet: the next tick scrolls
-			}
-			last = cur
-			list.ScrollToIndexAt(cur, 0.34, 0, true)
-		}
-	})
-	return core.List{Ref: list, Count: func() int { return len(lines) }, Key: func(i int) any { return i },
-		EstimatedSize: 64, Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Gap: 2,
-		Row: func(cx *core.Scope, row core.ListRow) core.Node {
-			i := row.Index()
-			l := lines[i]
-			return base.Button{Label: l.Text, OnPress: func(core.PressEvent) { a.pl.Seek(l.At) },
-				StyleFunc: func() core.Style {
-					a.tick.Get()
-					cur := lyrics.Index(lines, a.pl.Position())
-					alpha := float32(0.30)
-					if i == cur {
-						alpha = 1
-					}
-					s := core.Style{Padding: core.Symmetric(8, 14), CornerRadius: 10, Direction: core.Column, Gap: 4,
-						AlignItems: core.AlignStart, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.06)}}
-					if i == cur {
-						s.Background = core.RGBA(0xffffff, 0.05)
-					}
-					_ = alpha
-					return s
-				}, Children: []core.Node{
-					core.Text{Content: l.Text, StyleFunc: func() core.Style {
-						a.tick.Get()
-						cur := lyrics.Index(lines, a.pl.Position())
-						alpha := float32(0.30)
-						if i == cur {
-							alpha = 1
-						}
-						return core.Style{FontSize: 25, FontWeight: core.FontWeightBold, LetterSpacing: -0.4, Color: core.RGBA(0xffffff, alpha)}
-					}},
-					core.Show{When: func() bool { return l.Translation != "" }, Then: func(*core.Scope) core.Node {
-						return core.Text{Content: l.Translation, Style: core.Style{FontSize: 15, FontWeight: core.FontWeightMedium, Color: core.RGBA(0xffffff, 0.5)}}
-					}},
-				}}
-		}}
+	return core.View{Style: core.Style{Direction: core.Row, Gap: 6}, Children: buttons}
 }
 
 // queuePane lists the whole queue in play order, the track playing marked.

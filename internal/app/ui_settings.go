@@ -7,11 +7,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/oneo-me/nsgo/base"
-	"github.com/oneo-me/nsgo/core"
-	"github.com/oneo-me/nsgo/desktop"
-	"github.com/oneo-me/nsgo/icons/lucide"
-	"github.com/oneo-me/nsgo/ui"
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
+	"github.com/nsgo-dev/nsgo/ui"
 
 	"nsgo-music/internal/i18n"
 	"nsgo-music/internal/player"
@@ -103,7 +103,7 @@ func (a *app) settingsLayout(cx *core.Scope, p palette, cats []settingsCatDef) c
 			}),
 		}}
 
-	main := core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Direction: core.Column, Background: p.bg},
+	main := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Column, Background: p.bg},
 		Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
 			a.settingsQueryRev.Get()
 			p := a.palette(cx)
@@ -127,15 +127,22 @@ func (a *app) settingsLayout(cx *core.Scope, p palette, cats []settingsCatDef) c
 			if query != "" {
 				title = i18n.T("Search Results")
 			}
-			return core.View{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
-				core.View{Style: core.Style{Height: core.Pt(top), FlexShrink: 0, Direction: core.Row, AlignItems: core.AlignCenter,
-					Padding: core.Edges{Left: 28, Right: 28}, BorderWidth: 1, BorderColors: core.EdgeColors{Bottom: p.hairline}},
-					Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn}, Children: []core.Node{
-						text(title, 15, core.FontWeightBold, p.text),
+			under := core.NewSignal(cx, false)
+			return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
+				core.Scroll{TestID: "settings-content", Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0)},
+					OnScroll: func(e core.ScrollEvent) { under.Set(e.Offset.Y > 6) }, Children: []core.Node{
+						core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: max(24, top+6), Right: 28, Bottom: 32, Left: 28}, Gap: 8},
+							Children: page},
 					}},
-				core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-					core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 28, Right: 28, Bottom: 32, Left: 28}, Gap: 8},
-						Children: page},
+				core.View{StyleFunc: func() core.Style {
+					s := core.Style{Position: core.Absolute, Top: core.Pt(0), Left: core.Pt(0), Right: core.Pt(0), Height: core.Pt(top),
+						Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 32), Background: p.bg}
+					if under.Get() {
+						s.Borders, s.BorderColor = core.Edges{Bottom: 1}, p.hairline
+					}
+					return s
+				}, Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn}, Children: []core.Node{
+					core.Text{Content: title, MaxLines: 1, Style: core.Style{FontSize: 15, FontWeight: core.FontWeightBold, Color: p.text}},
 				}},
 			}}
 		})}}
@@ -148,7 +155,8 @@ func (a *app) settingsLayout(cx *core.Scope, p palette, cats []settingsCatDef) c
 func (a *app) settingsSearchField(p palette) core.Node {
 	return core.View{Style: core.Style{Height: core.Pt(30), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6,
 		Padding: core.Symmetric(0, 8), CornerRadius: 8, Background: p.hover, BorderWidth: 1, BorderColor: p.hairline,
-		Margin: core.Edges{Bottom: 10}}, Children: []core.Node{
+		Margin: core.Edges{Bottom: 10}, FocusWithin: &core.Style{Background: p.bg, BorderColor: p.accent,
+			OutlineWidth: 3, OutlineColor: ui.Alpha(p.accent, 0.25)}}, OnPress: func(core.PressEvent) { a.settingsRef.Focus() }, Children: []core.Node{
 		icon(lucideSearch, 13, p.muted),
 		core.Input{Ref: a.settingsRef, TestID: "settings-search", Value: func() string { return a.settingsQuery },
 			OnChange: func(v string) {
@@ -234,24 +242,21 @@ func (a *app) settingsGroupCard(p palette, g settingsGroupDef) core.Node {
 		row := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 16,
 			MinHeight: core.Pt(48), Padding: core.Symmetric(12, 16)}, Children: children}
 		if i < len(g.rows)-1 {
-			row.Style.BorderWidth = 1
+			row.Style.Borders = core.Edges{Bottom: 1}
 			row.Style.BorderColor = p.hairline
-			row.Style.BorderColors = core.EdgeColors{Bottom: p.hairline}
 		}
 		rows = append(rows, row)
 	}
 	children = append(children, core.View{Style: core.Style{Direction: core.Column, Background: p.bg, CornerRadius: 12,
-		BorderWidth: 1, BorderColor: p.hairline}, Children: rows})
+		BorderWidth: 1, BorderColor: p.hairline, Overflow: core.Hidden}, Children: rows})
 	return core.View{Style: core.Style{Direction: core.Column}, Children: children}
 }
 
 // info is what a row says: its name, and what it means.
 func (r settingsRowDef) info(p palette) core.Node {
 	label := text(r.label, 13.5, core.FontWeightMedium, p.text)
-	label.MaxLines = 1
 	if r.small {
 		label = text(r.label, 12.5, core.FontWeightNormal, p.text)
-		label.MaxLines = 1
 	}
 	children := []core.Node{label}
 	if r.sub != "" {
@@ -396,7 +401,7 @@ func (a *app) languageControl(p palette) core.Node {
 	for _, l := range i18n.Languages {
 		options = append(options, ui.Option[string]{Value: l.Code, Label: l.Name})
 	}
-	return ui.Select[string]{Options: options, Value: func() string {
+	return settingsChoice[string]{palette: p, Options: options, Value: func() string {
 		if a.set.Language == "" {
 			return i18n.System
 		}
@@ -412,22 +417,35 @@ func (a *app) languageControl(p palette) core.Node {
 		}
 		a.menu(a.cx)
 		a.bump()
-	}, Label: i18n.T("Language"), Style: core.Style{Width: core.Pt(170)}}
+	}, TestID: "settings-language", Label: i18n.T("Language"), Style: core.Style{Width: core.Pt(170)}}
 }
 
 func (a *app) appearanceControl(p palette) core.Node {
 	var buttons []core.Node
+	width := core.Points(70)
+	if i18n.Language() == i18n.Chinese {
+		width = 78
+	}
 	for _, o := range []struct{ value, label string }{
 		{"system", i18n.T("System")}, {"light", i18n.T("Light")}, {"dark", i18n.T("Dark")},
 	} {
 		value := o.value
 		selected := a.set.Appearance == value
-		bg := core.Color(0)
-		fg := p.muted
+		bg := core.Transparent
+		fg := p.text
 		if selected {
-			bg, fg = p.hover, p.text
+			bg = p.white
+			if p.dark {
+				bg = core.RGBA(0xffffff, 0.24)
+			}
 		}
-		buttons = append(buttons, base.Button{Label: o.label, OnPress: func(core.PressEvent) {
+		style := core.Style{Width: core.Pt(width), Height: core.Pt(20), CornerRadius: 5, Background: bg,
+			AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+			Active: &core.Style{Background: p.press}}
+		if selected && !p.dark {
+			style.ShadowColor, style.ShadowRadius, style.ShadowOffset = core.RGBA(0x000000, 0.15), 2, core.Point{Y: 1}
+		}
+		buttons = append(buttons, base.Button{Label: o.label, TestID: "settings-appearance-" + value, Selected: func() bool { return selected }, OnPress: func(core.PressEvent) {
 			a.set.Appearance = value
 			a.set.save()
 			switch value {
@@ -439,10 +457,10 @@ func (a *app) appearanceControl(p palette) core.Node {
 				a.cx.SetAppearance(core.AppearanceSystem)
 			}
 			a.bump()
-		}, Style: core.Style{Padding: core.Symmetric(5, 12), CornerRadius: 7, Background: bg,
-			Hover: &core.Style{Background: p.hover}}, Children: []core.Node{text(o.label, 12.5, core.FontWeightMedium, fg)}})
+		}, Style: style, Children: []core.Node{text(o.label, 13, core.FontWeightNormal, fg)}})
 	}
-	return core.View{Style: core.Style{Direction: core.Row, Gap: 2, Background: p.hover, Padding: core.All(2), CornerRadius: 8}, Children: buttons}
+	return core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(24), FlexShrink: 0,
+		Background: p.hover, Padding: core.All(2), CornerRadius: 6}, Children: buttons}
 }
 
 func (a *app) appIconControl(p palette) core.Node {
@@ -450,7 +468,7 @@ func (a *app) appIconControl(p palette) core.Node {
 	for _, ic := range appIcons {
 		options = append(options, ui.Option[string]{Value: ic.id, Label: i18n.T(ic.label)})
 	}
-	return ui.Select[string]{Options: options, Value: func() string {
+	return settingsChoice[string]{palette: p, Options: options, Value: func() string {
 		if a.set.AppIcon == "" {
 			return "dock-and-menubar"
 		}
@@ -460,7 +478,7 @@ func (a *app) appIconControl(p palette) core.Node {
 		a.set.save()
 		a.applyAppIcon()
 		a.bump()
-	}, Label: i18n.T("App Icon"), Style: core.Style{Width: core.Pt(170)}}
+	}, TestID: "settings-app-icon", Label: i18n.T("App Icon"), Style: core.Style{Width: core.Pt(170)}}
 }
 
 func (a *app) qualityControl(p palette) core.Node {
@@ -468,23 +486,23 @@ func (a *app) qualityControl(p palette) core.Node {
 	for _, q := range qualityLevels {
 		options = append(options, ui.Option[string]{Value: q.level, Label: i18n.T(q.label)})
 	}
-	return ui.Select[string]{Options: options, Value: func() string { return a.set.Quality }, OnChange: func(v string) {
+	return settingsChoice[string]{palette: p, Options: options, Value: func() string { return a.set.Quality }, OnChange: func(v string) {
 		a.set.Quality = v
 		a.set.save()
 		a.bump()
-	}, Label: i18n.T("Quality"), Style: core.Style{Width: core.Pt(140)}}
+	}, TestID: "settings-quality", Label: i18n.T("Quality"), Style: core.Style{Width: core.Pt(140)}}
 }
 
 func (a *app) normalizeControl(p palette) core.Node {
-	return ui.Switch{Checked: func() bool { return a.set.Normalize }, OnChange: func(on bool) {
+	return settingsSwitch{palette: p, Checked: func() bool { return a.set.Normalize }, OnChange: func(on bool) {
 		a.set.Normalize = on
 		a.set.save()
 		a.bump()
-	}, Label: i18n.T("Even Out Loudness")}
+	}, TestID: "settings-normalize", Label: i18n.T("Even Out Loudness")}
 }
 
 func (a *app) smokeControl(p palette) core.Node {
-	return ui.Switch{Checked: func() bool { return a.set.Smoke }, OnChange: func(on bool) {
+	return settingsSwitch{palette: p, Checked: func() bool { return a.set.Smoke }, OnChange: func(on bool) {
 		a.set.Smoke = on
 		a.set.save()
 		a.bump()
@@ -492,7 +510,7 @@ func (a *app) smokeControl(p palette) core.Node {
 }
 
 func (a *app) fogControl(p palette) core.Node {
-	return ui.Switch{Checked: func() bool { return a.set.Fog }, OnChange: func(on bool) {
+	return settingsSwitch{palette: p, Checked: func() bool { return a.set.Fog }, OnChange: func(on bool) {
 		a.set.Fog = on
 		a.set.save()
 		a.bump()
@@ -500,7 +518,7 @@ func (a *app) fogControl(p palette) core.Node {
 }
 
 func (a *app) growFromCoverControl(p palette) core.Node {
-	return ui.Switch{Checked: func() bool { return a.set.GrowFromCover }, OnChange: func(on bool) {
+	return settingsSwitch{palette: p, Checked: func() bool { return a.set.GrowFromCover }, OnChange: func(on bool) {
 		a.set.GrowFromCover = on
 		a.set.save()
 		a.bump()
@@ -531,7 +549,7 @@ func (a *app) cacheControl(p palette) core.Node {
 	for _, mb := range sizes {
 		options = append(options, ui.Option[int]{Value: mb, Label: cacheLabel(mb)})
 	}
-	return ui.Select[int]{Options: options, Value: func() int { return a.set.CacheMB }, OnChange: func(v int) {
+	return settingsChoice[int]{palette: p, Options: options, Value: func() int { return a.set.CacheMB }, OnChange: func(v int) {
 		a.set.CacheMB = v
 		a.set.save()
 		if cache := a.pl.Cache; cache != nil {
@@ -549,7 +567,7 @@ func (a *app) cacheControl(p palette) core.Node {
 			a.cacheUsed = 0
 		}
 		a.bump()
-	}, Label: i18n.T("Song Cache"), Style: core.Style{Width: core.Pt(130)}}
+	}, TestID: "settings-cache", Label: i18n.T("Song Cache"), Style: core.Style{Width: core.Pt(130)}}
 }
 
 func (a *app) clearCacheControl(p palette) core.Node {

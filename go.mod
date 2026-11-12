@@ -8,7 +8,7 @@ require (
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/jfreymuth/oggvorbis v1.0.5
 	github.com/mewkiz/flac v1.0.14
-	github.com/oneo-me/nsgo v0.0.0
+	github.com/nsgo-dev/nsgo v0.0.0
 	github.com/tphakala/go-aac v0.7.1
 	golang.org/x/text v0.43.0
 )
@@ -33,7 +33,7 @@ require (
 	rsc.io/qr v0.2.0 // indirect
 )
 
-tool github.com/oneo-me/nsgo/cmd/nsgo
+tool github.com/nsgo-dev/nsgo/cmd/nsgo
 
 // NSGo is developed beside this app: see README.md.
-replace github.com/oneo-me/nsgo => ../nsgo
+replace github.com/nsgo-dev/nsgo => ../nsgo

@@ -1,4 +1,4 @@
-// Command mygo-music is a native music player for files on disk and the
+// Command nsgo-music is a native music player for files on disk and the
 // sources plugins add, written against NSGo.
 package main
 
