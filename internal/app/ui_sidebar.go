@@ -1,8 +1,6 @@
 package app
 
 import (
-	"strings"
-
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 
@@ -15,8 +13,10 @@ const sidebarWidth = 232
 // sidebar is the app's navigation: the source, a search field, the app's
 // pages, the listener's playlists, and the settings at the foot.
 func (a *app) sidebar(cx *core.Scope, top core.Points) core.Node {
+	// Keep the search input mounted across navigation and library updates.
+	// Rebuild the shell only when its appearance or language changes.
+	cx.Env().Locale()
 	p := a.palette(cx)
-	r := a.route.Get()
 	return core.View{Style: core.Style{Width: core.Pt(sidebarWidth), Height: core.Pct(100), Background: p.sidebar,
 		Direction: core.Column, Padding: core.Edges{Top: top + 4, Right: 14, Bottom: 14, Left: 14}, Gap: 4}, Children: []core.Node{
 		// The top strip moves the window where the source row is not.
@@ -26,6 +26,7 @@ func (a *app) sidebar(cx *core.Scope, top core.Points) core.Node {
 		core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 			core.Dynamic(func(cx *core.Scope) core.Node {
 				a.rev.Get()
+				r := a.route.Get()
 				return core.View{Style: core.Style{Direction: core.Column, Gap: 2, Padding: core.Symmetric(2, 0)}, Children: []core.Node{
 					core.Group{
 						a.navItem(p, "nav-home", lucideHome, i18n.T("Home"), r.page == pageHome, func() { a.open(route{page: pageHome}) }),
@@ -76,93 +77,6 @@ func (a *app) sourceRow(p palette) core.Node {
 		}},
 		icon(lucideChevronDown, 12, p.faint),
 	}}
-}
-
-// searchField is the sidebar's search box. It suggests the searches before,
-// and what is typed, as NSSearchField's menu does; Return searches.
-func (a *app) searchField(p palette) core.Node {
-	items := func() []base.SelectItem {
-		q := strings.TrimSpace(a.query.Get())
-		if q == "" {
-			var out []base.SelectItem
-			for _, h := range a.set.SearchHistory {
-				out = append(out, base.SelectItem{Value: "history:" + h, Title: h})
-			}
-			if len(out) > 0 {
-				out = append(out, base.SelectItem{Value: "clear", Title: i18n.T("Clear Recent Searches")})
-			}
-			return out
-		}
-		out := []base.SelectItem{{Value: "query", Title: i18n.Tf("Search for “%s”", q)}}
-		for _, h := range a.set.SearchHistory {
-			if strings.Contains(strings.ToLower(h), strings.ToLower(q)) {
-				out = append(out, base.SelectItem{Value: "history:" + h, Title: h})
-			}
-		}
-		return out
-	}
-	return base.Combobox{Items: items, Query: func() *string { return &a.searchText },
-		Open: func() bool { return a.searchOpen && (a.query.Get() != "" || len(a.set.SearchHistory) > 0) }, OnOpenChange: func(open bool, _ base.Reason) {
-			a.searchOpen = open
-			a.bump()
-		}, OnQueryChange: func(q string) {
-			a.searchText = q
-			a.query.Set(q)
-		}, OnChange: func(values []string) {
-			if len(values) == 0 {
-				return
-			}
-			key := values[0]
-			switch {
-			case key == "clear":
-				a.set.SearchHistory = nil
-				a.set.save()
-				a.searchOpen = false
-				a.bump()
-			case key == "query":
-				a.search(a.searchText)
-			case strings.HasPrefix(key, "history:"):
-				q := strings.TrimPrefix(key, "history:")
-				a.searchText = q
-				a.query.Set(q)
-				a.search(q)
-			}
-		}, Placeholder: i18n.T("Search"), Label: i18n.T("Search"), TestID: "search-input", Cleanable: false,
-		Style: core.Style{Height: core.Pt(32), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6, Padding: core.Symmetric(0, 8),
-			CornerRadius: 8, Background: p.hover, BorderWidth: 1, BorderColor: p.hairline, Margin: core.Edges{Top: 4, Bottom: 8}},
-		InputStyle: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(24), Background: core.Color(0), Color: p.text,
-			PlaceholderColor: p.faint, FontSize: 12.5, BorderWidth: 0, OutlineWidth: 0},
-		Field: func(in core.Input) core.Node {
-			in.Ref = a.searchRef
-			prev := in.OnFocus
-			in.OnFocus = func() {
-				if prev != nil {
-					prev()
-				}
-				a.searchOpen = true
-				a.bump()
-			}
-			return in
-		},
-		Prefix: icon(lucideSearch, 14, p.muted),
-		Suffix: core.Show{When: func() bool { return a.query.Get() != "" || a.lastSearch.query != "" },
-			Then: func(*core.Scope) core.Node {
-				return base.Button{Label: i18n.T("Clear"), OnPress: func(core.PressEvent) { a.closeSearch() },
-					Style: core.Style{Width: core.Pt(18), Height: core.Pt(18), Direction: core.Row, AlignItems: core.AlignCenter,
-						JustifyContent: core.JustifyCenter, CornerRadius: 9, Background: p.faint},
-					Children: []core.Node{icon(lucideX, 10, p.bg)}}
-			}},
-		PopupStyle: core.Style{Background: p.bg, BorderWidth: 1, BorderColor: p.hairline, CornerRadius: 10, Padding: core.All(4),
-			ShadowColor: p.cardShade, ShadowRadius: 18, ShadowOffset: core.Point{Y: -8}},
-		ItemStyle: core.Style{MinHeight: core.Pt(26), Padding: core.Symmetric(0, 8), CornerRadius: 6},
-		Empty:     text(i18n.T("Recent Searches"), 11.5, core.FontWeightNormal, p.faint),
-		RenderItem: func(e base.SelectEntry) core.Node {
-			w := core.FontWeightNormal
-			if e.Value == "query" {
-				w = core.FontWeightSemibold
-			}
-			return text(e.Title, 13, w, p.text)
-		}}
 }
 
 // navItem is a page in the sidebar.

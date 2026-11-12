@@ -773,7 +773,7 @@ func (a *app) searchPage(cx *core.Scope, p palette, r route) core.Node {
 	if d == nil || d.loading && !d.loaded {
 		return a.pageScroll(p, a.searchHeader(p, r), a.loadingPage(p))
 	}
-	if d.err != "" {
+	if d.err != "" && !d.loaded {
 		return a.pageScroll(p, a.searchHeader(p, r), a.emptyNote(p, i18n.T("The search failed"), d.err))
 	}
 	var body []core.Node
@@ -803,6 +803,19 @@ func (a *app) searchPage(cx *core.Scope, p palette, r route) core.Node {
 			body = append(body, a.cardGrid(p, len(d.res.Playlists), func(i int) core.Node { return a.playlistCard(p, d.res.Playlists[i]) }))
 		}
 	}
+	if d.err != "" {
+		body = append(body, a.emptyNote(p, i18n.T("The search failed"), d.err))
+	}
+	if d.more {
+		label := i18n.T("Load More")
+		if d.loading {
+			label = i18n.T("Loading…")
+		}
+		body = append(body, base.Button{TestID: "search-load-more", Label: label,
+			Disabled: func() bool { return d.loading }, OnPress: func(core.PressEvent) { a.loadMoreSearch(r) },
+			Style:    core.Style{Padding: core.Symmetric(10, 16), Margin: core.Edges{Top: 16}, CornerRadius: 8, Background: p.hover},
+			Children: []core.Node{text(label, 13, core.FontWeightMedium, p.text)}})
+	}
 	return a.pageScroll(p, append([]core.Node{a.searchHeader(p, r)}, body...)...)
 }
 
@@ -827,12 +840,11 @@ func (a *app) searchHeader(p palette, r route) core.Node {
 		if selected {
 			fg, bg = p.text, p.hover
 		}
-		tabs = append(tabs, base.Button{Label: i18n.T(k.label), OnPress: func(core.PressEvent) {
+		tabs = append(tabs, base.Button{TestID: "search-tab-" + string(kind), Label: i18n.T(k.label), OnPress: func(core.PressEvent) {
 			a.open(route{page: pageSearch, query: r.query, kind: kind})
 		}, Style: core.Style{Padding: core.Symmetric(6, 14), CornerRadius: 999, Background: bg, Hover: &core.Style{Background: p.sidebar}},
 			Children: []core.Node{text(i18n.T(k.label), 13, core.FontWeightSemibold, fg)}})
 	}
-	// A long search locks the field, so its results can be chosen.
 	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12), Gap: 14, Margin: core.Edges{Bottom: 18}}, Children: []core.Node{
 		core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
 			text(i18n.T("Search"), 12, core.FontWeightSemibold, p.muted),
@@ -861,7 +873,7 @@ func (a *app) searchHistoryPage(p palette) core.Node {
 	for _, q := range a.set.SearchHistory {
 		query := q
 		rows = append(rows, base.Button{Label: query, OnPress: func(core.PressEvent) {
-			a.open(route{page: pageSearch, query: query, kind: music.SearchTracks})
+			a.search(query)
 		}, StyleFunc: func() core.Style {
 			return core.Style{Height: core.Pt(38), Padding: core.Symmetric(0, 12), Gap: 10, Direction: core.Row, AlignItems: core.AlignCenter,
 				CornerRadius: 8, Hover: &core.Style{Background: p.sidebar}}

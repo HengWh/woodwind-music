@@ -186,8 +186,7 @@ type app struct {
 	route      *core.Signal[route]
 	tick       *core.Signal[int]
 	query      *core.Signal[string]
-	searchText string
-	searchOpen bool
+	searchOpen *core.Signal[bool]
 	np         *core.Signal[bool]
 	npPane     *core.Signal[int]
 	stageTick  *core.Signal[int]
@@ -270,6 +269,7 @@ func newApp(cx *core.Scope) *app {
 		route:            core.NewSignal(cx, route{page: pageHome}),
 		tick:             core.NewSignal(cx, 0),
 		query:            core.NewSignal(cx, ""),
+		searchOpen:       core.NewSignal(cx, false),
 		np:               core.NewSignal(cx, false),
 		npPane:           core.NewSignal(cx, 0),
 		stageTick:        core.NewSignal(cx, 0),
@@ -445,7 +445,7 @@ func (a *app) reloadPage(r route) {
 	case pageBrowse:
 		a.loadBrowse(r.id, false)
 	case pageSearch:
-		a.loadSearch(r, true)
+		a.loadSearch(r, false)
 	case pageSection:
 		// Read from the page the section is on.
 	}
@@ -548,6 +548,9 @@ func (a *app) loadBrowse(id string, again bool) {
 }
 
 func (a *app) loadSearch(r route, again bool) {
+	if strings.TrimSpace(r.query) == "" {
+		return
+	}
 	d := a.searches[r]
 	if d == nil {
 		d = &searchData{}
@@ -560,6 +563,9 @@ func (a *app) loadSearch(r route, again bool) {
 	go func() {
 		res, err := a.local.Search(r.query, r.kind, 0)
 		a.post(func() {
+			if a.searches[r] != d {
+				return
+			}
 			d.loading = false
 			if err != nil {
 				d.err = err.Error()
@@ -569,6 +575,35 @@ func (a *app) loadSearch(r route, again bool) {
 			d.res = *res
 			d.loaded = true
 			d.more = res.More
+			a.bump()
+		})
+	}()
+}
+
+func (a *app) loadMoreSearch(r route) {
+	d := a.searches[r]
+	if d == nil || !d.loaded || d.loading || !d.more {
+		return
+	}
+	d.loading, d.err = true, ""
+	offset := d.res.Len()
+	a.bump()
+	go func() {
+		res, err := a.local.Search(r.query, r.kind, offset)
+		a.post(func() {
+			if a.searches[r] != d {
+				return
+			}
+			d.loading = false
+			if err != nil {
+				d.err = err.Error()
+			} else {
+				d.res.Tracks = append(d.res.Tracks, res.Tracks...)
+				d.res.Albums = append(d.res.Albums, res.Albums...)
+				d.res.Artists = append(d.res.Artists, res.Artists...)
+				d.res.Playlists = append(d.res.Playlists, res.Playlists...)
+				d.res.More, d.more = res.More, res.More
+			}
 			a.bump()
 		})
 	}()
@@ -587,6 +622,11 @@ func (a *app) open(r route) {
 
 func (a *app) show(r route) {
 	a.closeNowPlaying()
+	a.searchOpen.Set(false)
+	if r.page == pageSearch && r.query != "" {
+		a.query.Set(r.query)
+		a.lastSearch = r
+	}
 	a.route.Set(r)
 	a.reloadPage(r)
 	a.bump()
@@ -603,9 +643,7 @@ func (a *app) back() {
 	a.forward = append(a.forward, a.route.GetUntracked())
 	r := a.history[len(a.history)-1]
 	a.history = a.history[:len(a.history)-1]
-	a.route.Set(r)
-	a.reloadPage(r)
-	a.bump()
+	a.show(r)
 }
 
 func (a *app) goForward() {
@@ -615,9 +653,7 @@ func (a *app) goForward() {
 	a.history = append(a.history, a.route.GetUntracked())
 	r := a.forward[len(a.forward)-1]
 	a.forward = a.forward[:len(a.forward)-1]
-	a.route.Set(r)
-	a.reloadPage(r)
-	a.bump()
+	a.show(r)
 }
 
 func (a *app) closeNowPlaying() {
@@ -813,11 +849,12 @@ func (a *app) removeFolder(path string) {
 func (a *app) search(q string) {
 	q = strings.TrimSpace(q)
 	if q == "" {
+		a.query.Set("")
+		a.searchOpen.Set(false)
 		return
 	}
 	a.query.Set(q)
-	a.searchText = q
-	a.searchOpen = false
+	a.searchOpen.Set(false)
 	kind := music.SearchTracks
 	if r := a.route.GetUntracked(); r.page == pageSearch && r.query == q {
 		kind = r.kind
@@ -827,6 +864,7 @@ func (a *app) search(q string) {
 	a.rememberSearch(q)
 	if r == a.route.GetUntracked() {
 		a.loadSearch(r, true)
+		a.bump()
 	} else {
 		a.open(r)
 	}
@@ -847,7 +885,7 @@ func (a *app) rememberSearch(q string) {
 
 func (a *app) closeSearch() {
 	a.query.Set("")
-	a.searchText, a.searchOpen = "", false
+	a.searchOpen.Set(false)
 	if a.route.GetUntracked().page == pageSearch {
 		a.open(route{page: pageHome})
 	}
@@ -937,7 +975,7 @@ func (a *app) view(cx *core.Scope) core.Node {
 		root := core.View{TestID: "app-root", Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), Direction: core.Row,
 			Background: p.bg, Color: p.text, FontSize: 13}}
 		root.Children = []core.Node{
-			core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); a.route.Get(); return a.sidebar(cx, top) }),
+			core.Dynamic(func(cx *core.Scope) core.Node { return a.sidebar(cx, top) }),
 			core.View{TestID: "app-content", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0),
 				Direction: core.Column, Background: p.bg}, Children: []core.Node{
 				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
@@ -982,11 +1020,7 @@ func (a *app) setupWindow(cx *core.Scope) {
 // shortcuts binds the keys of Music.
 func (a *app) shortcuts(cx *core.Scope) {
 	cx.OnKeyWith("space", core.KeyOptions{When: core.KeyNotEditing}, a.toggle)
-	cx.OnKey("mod+f", func() {
-		if a.route.GetUntracked().page != pageSearch {
-			a.searchFieldFocus(cx)
-		}
-	})
+	cx.OnKey("mod+f", func() { a.searchFieldFocus(cx) })
 	cx.OnKey("mod+[", a.back)
 	cx.OnKey("mod+]", a.goForward)
 	cx.OnKey("mod+n", a.newPlaylist)
@@ -1010,8 +1044,11 @@ func (a *app) shortcuts(cx *core.Scope) {
 
 // searchFieldFocus focuses the sidebar's search field.
 func (a *app) searchFieldFocus(cx *core.Scope) {
-	a.open(route{page: pageSearch})
+	if a.route.GetUntracked().page != pageSearch {
+		a.open(route{page: pageSearch})
+	}
 	a.searchRef.Focus()
+	a.searchOpen.Set(true)
 }
 
 // pageTop is the strip along the top of a page: it moves the window, and
