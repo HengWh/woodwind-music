@@ -159,7 +159,7 @@ func (a *app) sidebarFooter(p palette) core.Node {
 // footerRow is the compact folder action used by an empty library page.
 func (a *app) footerRow(p palette, id string, svg *core.SVG, label string, onPress func()) core.Node {
 	return base.Button{Label: label, TestID: id, OnPress: func(core.PressEvent) { onPress() },
-		Style: core.Style{Height: core.Pt(32), Padding: core.Symmetric(0, 10), Gap: 10, Direction: core.Row,
+		Style: core.Style{Height: core.Pt(a.headingSize(32, 48)), Padding: core.Symmetric(0, 10), Gap: 10, Direction: core.Row,
 			AlignItems: core.AlignCenter, CornerRadius: 8, Hover: &core.Style{Background: p.hover}},
 		Children: []core.Node{icon(svg, 15, p.muted), text(label, 13, core.FontWeightNormal, p.muted)}}
 }

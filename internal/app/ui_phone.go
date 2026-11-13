@@ -36,7 +36,7 @@ func (a *app) selectPhoneTab(tab int) {
 
 func (a *app) phoneView(cx *core.Scope, p palette) core.Node {
 	return core.View{TestID: "app-root", Style: core.Style{Width: core.Pct(100), Height: core.Pct(100),
-		Direction: core.Column, Background: p.bg, Color: p.text, FontSize: 15, PaddingEnv: core.EnvAll(core.EnvSafeArea)}, Children: []core.Node{
+		Direction: core.Column, Background: p.bg, Color: p.text, FontSize: phoneFontBody, PaddingEnv: core.EnvAll(core.EnvSafeArea)}, Children: []core.Node{
 		a.phoneHeader(cx, p),
 		core.View{TestID: "app-content", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), MinWidth: core.Pt(0), Background: p.bg}, Children: []core.Node{
 			core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); return a.page(cx, p) }),
@@ -91,7 +91,7 @@ func (a *app) phoneHeader(cx *core.Scope, p palette) core.Node {
 						children = append(children, core.View{Style: core.Style{Width: core.Pt(40), Height: core.Pt(40), CornerRadius: 14, Background: p.accent,
 							AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideNote, 21, p.onAccent)}})
 					}
-					children = append(children, core.Text{Content: title, MaxLines: 1, Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 20, FontWeight: core.FontWeightBold, Color: p.text}})
+					children = append(children, core.Text{Content: title, MaxLines: 1, Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: phoneFontTitle, FontWeight: core.FontWeightSemibold, Color: p.text}})
 					children = append(children, a.phoneIcon(p, "phone-add-folder", i18n.T("Add Folder…"), lucideFolder, p.text, a.pickFolders))
 					if a.phoneTab == 1 {
 						children = append(children, a.phoneIcon(p, "open-settings", i18n.T("Settings"), lucideSettings, p.text, a.openSettings))
@@ -111,7 +111,7 @@ func (a *app) phoneSearchField(p palette) core.Node {
 		core.Input{Ref: a.searchRef, TestID: "search-input", Label: i18n.T("Search"), Placeholder: i18n.T("Search your library"), Value: a.query.Get,
 			NoAutoCorrect: true, ReturnKeyType: core.ReturnKeySearch, SubmitBehavior: core.SubmitBehaviorSubmit,
 			OnChange: a.query.Set, OnSubmit: func(q string) { a.search(q); a.cx.DismissKeyboard() },
-			Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Height: core.Pt(48), FontSize: 16, Color: p.text, PlaceholderColor: p.muted, Background: core.Color(0)}},
+			Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Height: core.Pt(48), FontSize: phoneFontBody, Color: p.text, PlaceholderColor: p.muted, Background: core.Color(0)}},
 		a.phoneIcon(p, "clear-search", i18n.T("Clear Search"), lucideX, p.muted, func() {
 			a.query.Set("")
 			a.open(route{page: pageSearch})
@@ -162,16 +162,16 @@ func (a *app) phonePlayerBar(cx *core.Scope, p palette) core.Node {
 			if tr != nil {
 				title, art = tr.Name, tr.Album.ImageURL
 			}
-			return core.View{Style: core.Style{Height: core.Pt(64), Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 12), Gap: 4}, Children: []core.Node{
+			return core.View{Style: core.Style{Height: core.Pt(phoneTwoLineHeight(cx, phoneFontBody)), Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 12), Gap: 4}, Children: []core.Node{
 				base.Button{TestID: "bar-open", Label: i18n.T("Now Playing"), OnPress: func(core.PressEvent) {
 					if tr != nil {
 						a.openNowPlaying()
 					}
 				},
-					Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Height: core.Pt(56), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12}, Children: []core.Node{
+					Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Height: core.Pt(phoneTwoLineHeight(cx, phoneFontBody) - 8), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12}, Children: []core.Node{
 						a.cover(p, art, 44, 22),
 						core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 3}, Children: []core.Node{
-							core.Text{Content: title, MaxLines: 1, Style: core.Style{FontSize: 14, FontWeight: core.FontWeightSemibold, Color: p.text}},
+							core.Text{Content: title, MaxLines: 1, Style: core.Style{FontSize: phoneFontBody, FontWeight: core.FontWeightMedium, Color: p.text}},
 							core.Text{TestID: "playback-status", ContentFunc: func() string {
 								a.tick.Get()
 								a.rev.Get()
@@ -214,11 +214,11 @@ func (a *app) phonePlayButton(p palette, id string, large bool) core.Node {
 
 func (a *app) phoneTrackRow(p palette, tracks []music.Track, i int, playlist string) core.Node {
 	tr := tracks[i]
-	return core.View{TestID: "phone-row-" + tr.ID, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, MinWidth: core.Pt(0), Height: core.Pt(68)}, Children: []core.Node{
+	return core.View{TestID: "phone-row-" + tr.ID, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, MinWidth: core.Pt(0), Height: core.Pt(a.trackRowHeight())}, Children: []core.Node{
 		base.Button{TestID: "track-" + tr.ID, Label: tr.Name, Disabled: func() bool { return tr.Unavailable }, OnPress: func(core.PressEvent) { a.playTracks(tracks, i) },
-			Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Height: core.Pt(68), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12,
+			Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Height: core.Pt(a.trackRowHeight()), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12,
 				Padding: core.Symmetric(8, 0), CornerRadius: 10, Active: &core.Style{Background: p.hover}}, Children: []core.Node{
-				a.cover(p, tr.Album.ImageURL, 48, 9),
+				a.cover(p, tr.Album.ImageURL, 44, 9),
 				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 5}, Children: []core.Node{
 					core.Text{Content: tr.Name, MaxLines: 1, StyleFunc: func() core.Style {
 						a.playRev.Get()
@@ -226,9 +226,9 @@ func (a *app) phoneTrackRow(p palette, tracks []music.Track, i int, playlist str
 						if a.currentID() == tr.ID {
 							color = p.accent
 						}
-						return core.Style{FontSize: 16, FontWeight: core.FontWeightMedium, Color: color}
+						return core.Style{FontSize: phoneFontSong, FontWeight: core.FontWeightMedium, Color: color}
 					}},
-					core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: 12.5, Color: p.muted}},
+					core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: phoneFontCaption, Color: p.muted}},
 				}},
 			}},
 		a.phoneIcon(p, "track-more-"+tr.ID, i18n.T("More"), lucideMore, p.muted, func() { a.openPhoneTrack(tr, playlist, i) }),
@@ -241,7 +241,7 @@ func phoneScrollKey(r route) string {
 
 func (a *app) trackRowHeight() core.Points {
 	if a.phoneLayout(a.cx) {
-		return 68
+		return phoneTwoLineHeight(a.cx, phoneFontSong)
 	}
 	return 54
 }

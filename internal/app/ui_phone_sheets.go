@@ -27,7 +27,7 @@ func (a *app) phoneSheets(cx *core.Scope, p palette) core.Node {
 		BackdropStyle: core.Style{Background: core.RGBA(0x000000, 0.45)},
 		PopupStyleFunc: func() core.Style {
 			return core.Style{Direction: core.Column, Background: p.bg,
-				CornerRadii: core.Corners{TopLeft: 24, TopRight: 24}, Padding: core.Edges{Top: 10, Left: 20, Right: 20, Bottom: cx.Env().SafeArea().Bottom + 12},
+				CornerRadii: core.Corners{TopLeft: 24, TopRight: 24}, Padding: core.Edges{Top: 10, Left: 16, Right: 16, Bottom: cx.Env().SafeArea().Bottom + 12},
 				MaxHeight: core.Pt(cx.Env().Window().Height - cx.Env().SafeArea().Top - 24)}
 		},
 		Children: []core.Node{
@@ -57,9 +57,9 @@ func (a *app) phoneSheets(cx *core.Scope, p palette) core.Node {
 
 func (a *app) phoneSheetAction(p palette, id, label string, svg *core.SVG, action func()) core.Node {
 	return base.Button{TestID: id, Label: label, OnPress: func(core.PressEvent) { action() },
-		Style: core.Style{Height: core.Pt(56), FlexShrink: 0, Direction: core.Row, AlignItems: core.AlignCenter, Gap: 16,
+		Style: core.Style{MinHeight: core.Pt(52), FlexShrink: 0, Direction: core.Row, AlignItems: core.AlignCenter, Gap: 16,
 			CornerRadius: 10, Active: &core.Style{Background: p.hover}}, Children: []core.Node{
-			icon(svg, 22, p.muted), core.Text{Content: label, MaxLines: 1, Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 16, Color: p.text}},
+			icon(svg, 22, p.muted), core.Text{Content: label, MaxLines: 1, Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: phoneFontBody, Color: p.text}},
 		}}
 }
 
@@ -67,7 +67,7 @@ func (a *app) phoneQueue(cx *core.Scope, p palette) core.Node {
 	order, at := a.pl.PlayOrder()
 	tracks := a.pl.Queue()
 	heading := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, FlexShrink: 0}, Children: []core.Node{
-		core.Text{Content: i18n.T("Queue") + fmt.Sprintf(" · %d", len(order)), Style: core.Style{FlexGrow: 1, FontSize: 21, FontWeight: core.FontWeightBold, Color: p.text}},
+		core.Text{Content: i18n.T("Queue") + fmt.Sprintf(" · %d", len(order)), Style: core.Style{FlexGrow: 1, FontSize: phoneFontTitle, FontWeight: core.FontWeightSemibold, Color: p.text}},
 		a.phoneIcon(p, "phone-sheet-close", i18n.T("Close"), lucideX, p.muted, func() { a.phoneSheet.Set("") }),
 	}}
 	if len(order) == 0 {
@@ -81,7 +81,7 @@ func (a *app) phoneQueue(cx *core.Scope, p palette) core.Node {
 	})
 	return core.View{TestID: "phone-queue", Style: core.Style{Direction: core.Column, MinHeight: core.Pt(0)}, Children: []core.Node{
 		heading,
-		core.List{Ref: list, TestID: "phone-queue-list", Count: func() int { return len(order) }, Key: func(i int) any { return order[i] }, EstimatedSize: 64,
+		core.List{Ref: list, TestID: "phone-queue-list", Count: func() int { return len(order) }, Key: func(i int) any { return order[i] }, EstimatedSize: phoneTwoLineHeight(cx, phoneFontSong),
 			Style: core.Style{Height: core.Pt(min(420, cx.Env().Window().Height*0.52)), MinHeight: core.Pt(0)},
 			Row: func(cx *core.Scope, row core.ListRow) core.Node {
 				return core.Dynamic(func(cx *core.Scope) core.Node {
@@ -92,7 +92,7 @@ func (a *app) phoneQueue(cx *core.Scope, p palette) core.Node {
 						color = p.accent
 					}
 					return base.Button{TestID: fmt.Sprintf("phone-queue-%d", index), Label: tr.Name, OnPress: func(core.PressEvent) { a.cancelFocusResume(); a.pl.Jump(index); a.heartbeat() },
-						Style: core.Style{Height: core.Pt(64), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, CornerRadius: 10, Active: &core.Style{Background: p.hover}}, Children: []core.Node{
+						Style: core.Style{Height: core.Pt(phoneTwoLineHeight(cx, phoneFontSong)), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, CornerRadius: 10, Active: &core.Style{Background: p.hover}}, Children: []core.Node{
 							a.cover(p, tr.Album.ImageURL, 44, 8),
 							core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 4}, Children: []core.Node{
 								core.Text{Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 15, FontWeight: core.FontWeightMedium, Color: color}},
@@ -121,20 +121,20 @@ func (a *app) phoneActions(cx *core.Scope, p palette, kind string) core.Node {
 				break
 			}
 		}
-		body = append(body, text(list.Name, 20, core.FontWeightBold, p.text),
+		body = append(body, text(list.Name, phoneFontTitle, core.FontWeightSemibold, p.text),
 			a.phoneSheetAction(p, "phone-playlist-rename", i18n.T("Rename Playlist…"), lucidePencil, close(func() { a.renamePlaylist(list.ID, list.Name) })),
 			a.phoneSheetAction(p, "phone-playlist-delete", i18n.T("Delete Playlist"), lucideTrash, close(func() { a.confirmDelete(list.ID, list.Name) })))
 	} else {
 		body = append(body, core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, Padding: core.Edges{Top: 8, Bottom: 16}, Borders: core.Edges{Bottom: 1}, BorderColor: p.hairline}, Children: []core.Node{
 			a.cover(p, tr.Album.ImageURL, 52, 10),
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 5}, Children: []core.Node{
-				core.Text{Content: tr.Name, MaxLines: 2, Style: core.Style{FontSize: 17, FontWeight: core.FontWeightSemibold, Color: p.text}},
+				core.Text{Content: tr.Name, MaxLines: 2, Style: core.Style{FontSize: phoneFontSong, FontWeight: core.FontWeightMedium, Color: p.text}},
 				core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: 13, Color: p.muted}},
 			}},
 		}})
 		switch kind {
 		case "add":
-			body = append(body, text(i18n.T("Add to Playlist"), 19, core.FontWeightBold, p.text))
+			body = append(body, text(i18n.T("Add to Playlist"), phoneFontSection, core.FontWeightSemibold, p.text))
 			for _, list := range a.mine {
 				pl := list
 				body = append(body, a.phoneSheetAction(p, "phone-add-to-"+pl.ID, pl.Name, lucideListPlus, close(func() { a.addToPlaylist(pl.ID, []string{tr.ID}) })))
@@ -149,10 +149,10 @@ func (a *app) phoneActions(cx *core.Scope, p palette, kind string) core.Node {
 				a.reload()
 			})))
 		case "info":
-			body = append(body, text(i18n.T("Song Info"), 19, core.FontWeightBold, p.text),
-				text(i18n.T("Album")+" · "+tr.Album.Name, 15, core.FontWeightNormal, p.text),
-				text(i18n.T("Artists")+" · "+tr.ArtistNames(), 15, core.FontWeightNormal, p.text),
-				text(i18n.T("Duration")+" · "+clock(tr.Length()), 15, core.FontWeightNormal, p.muted),
+			body = append(body, text(i18n.T("Song Info"), phoneFontSection, core.FontWeightSemibold, p.text),
+				text(i18n.T("Album")+" · "+tr.Album.Name, phoneFontBody, core.FontWeightNormal, p.text),
+				text(i18n.T("Artists")+" · "+tr.ArtistNames(), phoneFontBody, core.FontWeightNormal, p.text),
+				text(i18n.T("Duration")+" · "+clock(tr.Length()), phoneFontBody, core.FontWeightNormal, p.muted),
 				a.phoneSheetAction(p, "phone-copy-title", i18n.T("Copy Title"), lucideNote, close(func() { a.cx.SetClipboard(tr.Name) })))
 		default:
 			label := i18n.T("Like")

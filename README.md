@@ -22,7 +22,7 @@ NSGo 提供窗口、界面渲染和交互框架；MyGo Music 是界面设计、�
 
 ### 安卓移动端
 
-以下为 **荣耀 GT · Android 16** 上的实际应用截图。播放示例选用本地歌曲《Legends Never Die 传奇永不熄》，展示封面取色背景、歌词与迷你播放条。
+以下为 **荣耀 GT · Android 16 · 0.1.26** 上的实际应用截图，保留手机 115% 系统字体设置。播放示例选用本地歌曲《Legends Never Die 传奇永不熄》，展示封面取色背景、歌词与迷你播放条。
 
 <table>
   <tr><th>首页</th><th>正在播放</th><th>歌词</th></tr>
@@ -145,7 +145,7 @@ go run ./cmd/android -install -run
 
 ```sh
 go run ./cmd/android
-.tools/android/platform-tools/adb install -r "dist/releases/woodwind-music-0.1.25-android-arm64.apk"
+.tools/android/platform-tools/adb install -r "dist/releases/woodwind-music-0.1.26-android-arm64.apk"
 ```
 
 APK 位于 `dist/releases/`，版本号跟随 `nsgo.yaml`。安卓安装后统一显示中文名称“木听风音乐”，桌面图标和系统应用信息使用 `android/AndroidManifest.xml` 中的名称，媒体会话也沿用该名称。本地构建沿用 NSGo 的调试签名，保留安装后的数据。`-device <序列号>` 选择手机，`-debug` 允许开发检查。工具优先使用 `ANDROID_HOME`、`JAVA_HOME`、`R8_JAR` 和 `ADB`，否则使用项目 `.tools/android/` 下的工具。

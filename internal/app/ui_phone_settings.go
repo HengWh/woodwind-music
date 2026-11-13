@@ -29,13 +29,13 @@ func (a *app) phoneSettings(cx *core.Scope, p palette, cats []settingsCatDef) co
 		PaddingEnv: core.EnvAll(core.EnvSafeArea)}, Children: []core.Node{
 		core.View{Style: core.Style{Height: core.Pt(56), FlexShrink: 0, Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 12)}, Children: []core.Node{
 			a.phoneIcon(p, "settings-back", i18n.T("Back"), lucideChevronLeft, p.text, a.closeSettings),
-			text(i18n.T("Settings"), 21, core.FontWeightBold, p.text),
+			text(i18n.T("Settings"), phoneFontTitle, core.FontWeightSemibold, p.text),
 		}},
 		core.Scroll{Horizontal: true, HideIndicator: true, Style: core.Style{FlexShrink: 0}, Children: []core.Node{
-			core.View{Style: core.Style{Direction: core.Row, Gap: 8, Padding: core.Symmetric(8, 20)}, Children: tabs},
+			core.View{Style: core.Style{Direction: core.Row, Gap: 8, Padding: core.Symmetric(8, 16)}, Children: tabs},
 		}},
 		core.Scroll{TestID: "settings-content", Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-			core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 8, Left: 20, Right: 20, Bottom: 24}, Gap: 12}, Children: groups},
+			core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 8, Left: 16, Right: 16, Bottom: 24}, Gap: 12}, Children: groups},
 		}},
 	}}
 }

@@ -59,7 +59,7 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 				return a.emptyNote(ink, i18n.T("Not Playing"), i18n.T("Choose a song to start listening"))
 			}
 			safe, size := cx.Env().SafeArea(), cx.Env().Window()
-			coverSize := min(size.Width-safe.Left-safe.Right-64, max(100, size.Height-safe.Top-safe.Bottom-370), 340)
+			coverSize := min(size.Width-safe.Left-safe.Right-64, max(100, size.Height-safe.Top-safe.Bottom-370-core.Points(max(0, cx.Env().FontScale()-1))*100), 340)
 			return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Padding: core.Edges{Left: 24, Right: 24, Bottom: 8}, Direction: core.Column}, Children: []core.Node{
 				core.View{TestID: "phone-player-stage", Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0), Overflow: core.Hidden}, Children: []core.Node{
 					core.Show{When: lyrics.Get, Then: func(cx *core.Scope) core.Node { return a.lyricsPane(cx, white) }, Else: func(cx *core.Scope) core.Node {
@@ -75,10 +75,10 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 							}}
 					}},
 				}},
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, FlexShrink: 0, Padding: core.Edges{Top: 16, Bottom: 12}}, Children: []core.Node{
+				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, FlexShrink: 0, Padding: core.Edges{Top: 12, Bottom: 8}}, Children: []core.Node{
 					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 6}, Children: []core.Node{
-						core.Text{TestID: "np-title", Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 23, FontWeight: core.FontWeightBold, Color: white}},
-						core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: 14, Color: ink.muted}},
+						core.Text{TestID: "np-title", Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: phoneFontTitle, FontWeight: core.FontWeightSemibold, Color: white}},
+						core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: phoneFontTranslation, Color: ink.muted}},
 					}},
 					a.phoneIcon(ink, "np-like", i18n.T("Like"), lucideHeart, func() core.Color {
 						a.rev.Get()

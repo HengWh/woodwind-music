@@ -54,7 +54,7 @@ func (a *app) pageScroll(p palette, children ...core.Node) core.Node {
 			OnScroll: func(e core.ScrollEvent) { a.scroll[key] = e.Offset.Y },
 			Behavior: core.ScrollBehavior{KeyboardDismissMode: core.KeyboardDismissOnDrag},
 			Style:    core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-				core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 8, Left: 20, Right: 20, Bottom: 24}}, Children: children},
+				core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 8, Left: 16, Right: 16, Bottom: 24}}, Children: children},
 			}}
 	}
 	return core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
@@ -70,8 +70,8 @@ func (a *app) titleBlock(p palette, title, sub string) core.Node {
 		children = append(children, core.Text{Content: sub, Style: core.Style{FontSize: 12, FontWeight: core.FontWeightSemibold,
 			LetterSpacing: 0.4, Color: p.muted}})
 	}
-	children = append(children, core.Text{Content: title, Style: core.Style{FontSize: 30, FontWeight: core.FontWeightBold,
-		LetterSpacing: -0.6, Color: p.text}})
+	children = append(children, core.Text{Content: title, Style: core.Style{FontSize: a.headingSize(30, phoneFontDisplay), FontWeight: a.headingWeight(),
+		LetterSpacing: a.headingSize(-0.6, 0), Color: p.text}})
 	padding := core.Points(12)
 	if a.phoneLayout(a.cx) {
 		padding = 0
@@ -119,12 +119,12 @@ func (a *app) emptyHome(p palette) core.Node {
 	if a.local != nil && a.local.Scanning() {
 		title, sub = i18n.T("Looking for music…"), i18n.T("Songs will show here as they're found.")
 	}
-	return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(40), Gap: 10},
+	return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(a.headingSize(40, 24)), Gap: 10},
 		Children: []core.Node{
 			core.View{Style: core.Style{Width: core.Pt(72), Height: core.Pt(72), CornerRadius: 20, Background: p.sidebar,
 				Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Margin: core.Edges{Bottom: 8}},
 				Children: []core.Node{icon(lucideFolder, 32, p.muted)}},
-			text(title, 22, core.FontWeightBold, p.text),
+			text(title, a.headingSize(22, 18), a.headingWeight(), p.text),
 			core.Text{Content: sub, Style: core.Style{MaxWidth: core.Pt(420), FontSize: 13.5, Color: p.muted, TextAlign: core.TextAlignCenter}},
 			a.pillButton(p, lucideFolder, i18n.T("Add Folder…"), p.accent, p.onAccent, a.pickFolders),
 		}}
@@ -564,9 +564,9 @@ func (a *app) hero(p palette, pic core.Node, kind, title, sub string, tracks []m
 // heroNode is hero with a line of the app's own under the title.
 func (a *app) heroNode(p palette, pic core.Node, kind, title string, sub core.Node, tracks []music.Track) core.Node {
 	if a.phoneLayout(a.cx) {
-		return core.View{Style: core.Style{Direction: core.Column, Gap: 16, Margin: core.Edges{Top: 8, Bottom: 20}}, Children: []core.Node{
+		return core.View{Style: core.Style{Direction: core.Column, Gap: 12, Margin: core.Edges{Top: 8, Bottom: 16}}, Children: []core.Node{
 			core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), AlignSelf: core.AlignCenter}, Children: []core.Node{pic}},
-			core.Text{Content: title, MaxLines: 3, Style: core.Style{FontSize: 25, FontWeight: core.FontWeightBold, Color: p.text}},
+			core.Text{Content: title, MaxLines: 3, Style: core.Style{FontSize: phoneFontDisplay, FontWeight: core.FontWeightSemibold, Color: p.text}},
 			sub,
 			core.Show{When: func() bool { return len(tracks) > 0 }, Then: func(*core.Scope) core.Node { return a.playButtons(p, tracks) }},
 		}}
@@ -593,7 +593,7 @@ func (a *app) likedPage(cx *core.Scope, p palette) core.Node {
 			a.hero(p, pic, i18n.T("Playlist"), i18n.T("Liked Songs"), i18n.Songs(0), nil),
 			core.View{Style: core.Style{Direction: core.Column, AlignItems: core.AlignCenter, Gap: 8, Padding: core.Symmetric(48, 0)}, Children: []core.Node{
 				icon(lucideHeart, 32, p.faint),
-				text(i18n.T("Songs you like will show here"), 20, core.FontWeightBold, p.text),
+				text(i18n.T("Songs you like will show here"), a.headingSize(20, 18), a.headingWeight(), p.text),
 				text(i18n.T("Touch the heart of a song to keep it."), 13, core.FontWeightNormal, p.muted),
 			}})
 	}
@@ -760,7 +760,7 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 				bg, fg = p.bg, p.text
 			}
 			buttons = append(buttons, base.Button{Label: label, OnPress: func(core.PressEvent) { setTab(index)() },
-				Style: core.Style{Padding: core.Symmetric(5, 12), CornerRadius: 7, Background: bg,
+				Style: core.Style{MinHeight: core.Pt(a.headingSize(0, 48)), JustifyContent: core.JustifyCenter, Padding: core.Symmetric(5, 12), CornerRadius: 7, Background: bg,
 					Hover: &core.Style{Background: p.sidebar}},
 				Children: []core.Node{text(label, 12.5, core.FontWeightMedium, fg)}})
 		}
@@ -773,9 +773,9 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 		if tab == 1 {
 			label = i18n.T("Albums")
 		}
-		body = append(body, core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 12), Margin: core.Edges{Top: 34, Bottom: 14}},
+		body = append(body, core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 12), Margin: core.Edges{Top: a.headingSize(34, 20), Bottom: 14}},
 			Children: []core.Node{
-				core.Text{Content: label, Style: core.Style{FlexGrow: 1, FontSize: 19, FontWeight: core.FontWeightBold,
+				core.Text{Content: label, Style: core.Style{FlexGrow: 1, FontSize: a.headingSize(19, phoneFontSection), FontWeight: a.headingWeight(),
 					LetterSpacing: -0.3, Color: p.text}},
 				tabs,
 			}})

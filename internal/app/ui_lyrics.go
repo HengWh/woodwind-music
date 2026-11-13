@@ -27,7 +27,7 @@ func (a *app) lyricsPane(cx *core.Scope, white core.Color) core.Node {
 	if len(lines) == 0 {
 		return core.View{TestID: "lyrics-empty", Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0),
 			AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
-			Children: []core.Node{text(i18n.T("No lyrics. Enjoy the music."), 24, core.FontWeightBold, core.RGBA(0xffffff, 0.4))}}
+			Children: []core.Node{text(i18n.T("No lyrics. Enjoy the music."), a.headingSize(24, phoneFontSection), a.headingWeight(), core.RGBA(0xffffff, 0.4))}}
 	}
 	list := new(core.Ref)
 	frame := core.NewSignal(cx, 0)
@@ -130,7 +130,15 @@ func (a *app) lyricsPane(cx *core.Scope, white core.Color) core.Node {
 func (a *app) lyricLine(cx *core.Scope, line lyrics.Line, index int, current *core.Memo[int], frame *core.Signal[int], seek func()) core.Node {
 	fontSize, translationSize := core.Points(30), core.Points(17)
 	if a.phoneLayout(cx) {
-		fontSize, translationSize = 25, 14
+		fontSize, translationSize = phoneFontLyrics, phoneFontTranslation
+	}
+	weight, translationWeight := core.FontWeight(800), core.FontWeightSemibold
+	padding := core.Symmetric(10, 12)
+	lineHeight, spacing, minHeight := float32(1.25), core.Points(-0.4), core.Points(0)
+	if a.phoneLayout(cx) {
+		weight, translationWeight = core.FontWeightSemibold, core.FontWeightNormal
+		lineHeight, spacing, minHeight = 1.35, 0, 48
+		padding = core.Symmetric(8, 8)
 	}
 	hover := core.NewSignal(cx, false)
 	active := core.NewMemo(cx, func() bool { return current.Get() == index })
@@ -148,7 +156,7 @@ func (a *app) lyricLine(cx *core.Scope, line lyrics.Line, index int, current *co
 	})
 	return core.View{OnMouseEnter: func(core.MouseEvent) { hover.Set(true) }, OnMouseLeave: func(core.MouseEvent) { hover.Set(false) }, Children: []core.Node{
 		base.Button{TestID: fmt.Sprintf("lyric-line-%d", index), Label: line.Text, OnPress: func(core.PressEvent) { seek() },
-			Style: core.Style{Padding: core.Symmetric(10, 12), CornerRadius: 12, Direction: core.Column, AlignItems: core.AlignStart,
+			Style: core.Style{MinHeight: core.Pt(minHeight), Padding: padding, CornerRadius: 12, Direction: core.Column, AlignItems: core.AlignStart,
 				TransformOrigin: core.ObjectPosition{X: core.PositionAxis{Offset: core.Pt(0)}, Y: core.PositionAxis{Offset: core.Pct(50)}},
 				Animated:        &core.AnimatedStyle{Scale: scale}, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.06)},
 				FocusVisible: &core.Style{OutlineWidth: 2, OutlineColor: core.RGBA(0xffffff, 0.4)}},
@@ -179,9 +187,9 @@ func (a *app) lyricLine(cx *core.Scope, line lyrics.Line, index int, current *co
 						spans[i] = core.Span{Content: w.Text, Style: core.Style{Color: core.RGBA(0xffffff, float32(0.38+0.62*lit))}}
 					}
 					return spans
-				}, Style: core.Style{FontSize: fontSize, FontWeight: 800, LineHeightMultiple: 1.25, LetterSpacing: -0.4, Color: core.RGB(0xffffff)}},
+				}, Style: core.Style{FontSize: fontSize, FontWeight: weight, LineHeightMultiple: lineHeight, LetterSpacing: spacing, Color: core.RGB(0xffffff)}},
 				core.Show{When: func() bool { return line.Translation != "" }, Then: func(*core.Scope) core.Node {
-					return core.Text{Content: line.Translation, Style: core.Style{FontSize: translationSize, FontWeight: core.FontWeightSemibold,
+					return core.Text{Content: line.Translation, Style: core.Style{FontSize: translationSize, FontWeight: translationWeight,
 						Color: core.RGBA(0xffffff, 0.7), LineHeightMultiple: 1.4}}
 				}},
 			}}}},

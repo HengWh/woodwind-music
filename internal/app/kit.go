@@ -310,8 +310,8 @@ func (a *app) likeButton(p palette, id string, size core.Points, color core.Colo
 
 // sectionTitle is the heading of a row of cards.
 func (a *app) sectionTitle(p palette, title string) core.Node {
-	return core.Text{Content: title, Style: core.Style{FontSize: 19, FontWeight: core.FontWeightBold, LetterSpacing: -0.3,
-		Color: p.text, Margin: core.Edges{Top: 34, Bottom: 14}}}
+	return core.Text{Content: title, Style: core.Style{FontSize: a.headingSize(19, phoneFontSection), FontWeight: a.headingWeight(), LetterSpacing: -0.3,
+		Color: p.text, Margin: core.Edges{Top: a.headingSize(34, 20), Bottom: a.headingSize(14, 10)}}}
 }
 
 // sectionHeader is a section's title, with See All at its end when the
@@ -323,13 +323,13 @@ func (a *app) sectionHeader(p palette, title, more string) core.Node {
 // sectionHeaderAt is a section's title, the first of its page with no room
 // above it, and See All at its end when the section has a page of its own.
 func (a *app) sectionHeaderAt(p palette, title, more string, first bool) core.Node {
-	top := core.Points(34)
+	top := a.headingSize(34, 20)
 	if first {
 		top = 0
 	}
 	var children []core.Node
 	if title != "" {
-		children = append(children, core.Text{Content: title, Style: core.Style{FontSize: 19, FontWeight: core.FontWeightBold,
+		children = append(children, core.Text{Content: title, Style: core.Style{FontSize: a.headingSize(19, phoneFontSection), FontWeight: a.headingWeight(),
 			LetterSpacing: -0.3, Color: p.text, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}})
 	} else {
 		children = append(children, core.View{Style: core.Style{FlexGrow: 1}})
@@ -338,7 +338,7 @@ func (a *app) sectionHeaderAt(p palette, title, more string, first bool) core.No
 		page := more
 		children = append(children, base.Button{Label: i18n.T("See All"), OnPress: func(core.PressEvent) {
 			a.open(route{page: pageBrowse, id: page})
-		}, Style: core.Style{Padding: core.Symmetric(2, 8), Direction: core.Row, AlignItems: core.AlignCenter,
+		}, Style: core.Style{MinHeight: core.Pt(a.headingSize(0, 48)), Padding: core.Symmetric(2, 8), Direction: core.Row, AlignItems: core.AlignCenter,
 			CornerRadius: 6, Hover: &core.Style{Background: p.hover}},
 			Children: []core.Node{text(i18n.T("See All"), 13, core.FontWeightNormal, p.muted)}})
 	}
@@ -352,15 +352,15 @@ func (a *app) pageTitle(p palette, title, sub string) core.Node {
 	if sub != "" {
 		children = append(children, text(sub, 12, core.FontWeightSemibold, p.muted))
 	}
-	children = append(children, text(title, 30, core.FontWeightBold, p.text))
+	children = append(children, text(title, a.headingSize(30, phoneFontDisplay), a.headingWeight(), p.text))
 	return core.View{Style: core.Style{Gap: 4, Margin: core.Edges{Bottom: 18}}, Children: []core.Node{core.Group(children)}}
 }
 
 // emptyNote is a page with nothing to show.
 func (a *app) emptyNote(p palette, big, small string) core.Node {
-	return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(40), Gap: 8},
+	return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.All(a.headingSize(40, 24)), Gap: 8},
 		Children: []core.Node{
-			text(big, 22, core.FontWeightBold, p.text),
+			text(big, a.headingSize(22, 18), a.headingWeight(), p.text),
 			text(small, 13.5, core.FontWeightNormal, p.muted),
 		}}
 }

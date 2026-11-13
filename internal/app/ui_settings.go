@@ -257,7 +257,8 @@ func (a *app) settingsGroupCard(p palette, g settingsGroupDef) core.Node {
 		if a.settingsInMain && a.phoneLayout(a.cx) {
 			row.Style.Direction = core.Column
 			row.Style.AlignItems = core.AlignStretch
-			row.Style.Gap = 12
+			row.Style.Gap = 8
+			row.Style.Padding = core.Symmetric(10, 12)
 		}
 		if i < len(g.rows)-1 {
 			row.Style.Borders = core.Edges{Bottom: 1}
@@ -461,7 +462,7 @@ func (a *app) appearanceControl(p palette) core.Node {
 			AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 			Active: &core.Style{Background: p.press}}
 		if a.settingsInMain && a.phoneLayout(a.cx) {
-			style.Height = core.Pt(44)
+			style.Height = core.Pt(48)
 			style.Width = core.Pct(33.333)
 		}
 		if selected && !p.dark {
@@ -483,7 +484,7 @@ func (a *app) appearanceControl(p palette) core.Node {
 	}
 	height := core.Points(24)
 	if a.settingsInMain && a.phoneLayout(a.cx) {
-		height = 48
+		height = 52
 	}
 	return core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(height), FlexShrink: 0,
 		Background: p.hover, Padding: core.All(2), CornerRadius: 6}, Children: buttons}
