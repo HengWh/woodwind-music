@@ -16,6 +16,9 @@ const playerBarHeight core.Points = 84
 // playerBar is the strip along the foot: what plays, the transport, its
 // progress and the volume.
 func (a *app) playerBar(cx *core.Scope, p palette) core.Node {
+	if a.phoneLayout(cx) {
+		return a.phonePlayerBar(cx, p)
+	}
 	left := core.Dynamic(func(cx *core.Scope) core.Node {
 		a.playRev.Get()
 		return a.barTrack(p)

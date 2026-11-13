@@ -182,8 +182,11 @@ type app struct {
 	dataDir string
 	set     settings
 
-	local *local.Source
-	pl    *player.Player
+	local        *local.Source
+	pl           *player.Player
+	video        *videoOutput
+	importing    bool
+	androidMedia *androidMedia
 
 	// Signals: rev changes when any data the pages show does; route is
 	// the page shown; tick moves as what plays does, for the clock.
@@ -305,6 +308,10 @@ func newApp(cx *core.Scope) *app {
 	a.local = local.New(dir)
 	a.local.OnChange(func() { a.post(a.reload) })
 	a.pl = player.New(func(fn func()) { a.post(fn) })
+	if cx.Env().OS() == core.OSAndroid {
+		a.video = newVideoOutput(cx)
+		a.pl.Native = a.video
+	}
 	a.pl.Source = func(string) music.Source { return a.local }
 	a.pl.Quality = func() string { return a.set.Quality }
 	a.pl.Normalize = func() bool { return a.set.Normalize }
@@ -319,6 +326,9 @@ func newApp(cx *core.Scope) *app {
 	}
 	player.System.Position = func(pos time.Duration, playing bool) { nowplaying.Position(pos, playing) }
 	player.System.Clear = nowplaying.Clear
+	if a.video != nil {
+		a.setupAndroidMedia()
+	}
 	nowplaying.OnCommand = func(cmd nowplaying.Command, pos time.Duration) {
 		a.post(func() {
 			switch cmd {
@@ -387,7 +397,10 @@ func (a *app) heartbeat() {
 		a.ticking = false
 		a.tick.Update(func(n int) int { return n + 1 })
 	}
-	a.cx.AfterFunc(200*time.Millisecond, beat)
+	// A transport button is rebuilt when playRev changes. Its event scope
+	// must not own this timer, or disposing that button freezes the clock
+	// with ticking still true. Keep the heartbeat on the app's scope.
+	a.cx.Run(func() { a.cx.AfterFunc(200*time.Millisecond, beat) })
 }
 
 // applyLanguage speaks the chosen language, or the system's.
@@ -686,6 +699,7 @@ func (a *app) openNowPlaying() {
 
 // playTracks replaces the queue and plays the one at i.
 func (a *app) playTracks(tracks []music.Track, i int) {
+	a.cancelFocusResume()
 	if len(tracks) == 0 {
 		return
 	}
@@ -694,6 +708,7 @@ func (a *app) playTracks(tracks []music.Track, i int) {
 }
 
 func (a *app) toggle() {
+	a.cancelFocusResume()
 	a.pl.TogglePlay()
 	a.heartbeat()
 }
@@ -836,20 +851,34 @@ func (a *app) removeFromPlaylist(id string, ids []string) {
 
 // pickFolders asks for folders with the system's picker and adds them.
 func (a *app) pickFolders() {
+	if a.importing {
+		a.say(i18n.T("Importing music…"))
+		return
+	}
 	a.cx.PickDirectories(core.PickDirectoriesOptions{Multiple: true}, func(dirs []core.Directory, err error) {
-		if err != nil || len(dirs) == 0 {
+		if err != nil {
+			a.say(err.Error())
+			return
+		}
+		if len(dirs) == 0 {
 			return
 		}
 		var paths []string
+		var documents []core.Directory
 		for _, d := range dirs {
 			if d.Path != "" {
 				paths = append(paths, d.Path)
+			} else {
+				documents = append(documents, d)
 			}
 		}
 		if len(paths) > 0 {
 			a.local.AddFolders(paths...)
 			a.reload()
 			a.bump()
+		}
+		if len(documents) > 0 {
+			a.importFolders(documents)
 		}
 	})
 }
@@ -988,8 +1017,9 @@ func (a *app) showSettings() {
 // view is the window.
 func (a *app) view(cx *core.Scope) core.Node {
 	a.setupWindow(cx)
-	return core.Dynamic(func(cx *core.Scope) core.Node {
+	content := core.Dynamic(func(cx *core.Scope) core.Node {
 		p := a.palette(cx)
+		mobile := a.phoneLayout(cx)
 		titlebar := desktop.TitleBar(cx)
 		top := titlebar.Top
 		if top <= 0 {
@@ -997,12 +1027,27 @@ func (a *app) view(cx *core.Scope) core.Node {
 		}
 		root := core.View{TestID: "app-root", Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), Direction: core.Row,
 			Background: p.bg, Color: p.text, FontSize: 13}}
+		var navigation core.Node = core.Dynamic(func(cx *core.Scope) core.Node { return a.sidebar(cx, top) })
+		if a.video != nil {
+			root.Style.PaddingEnv = core.EnvAll(core.EnvSafeArea)
+		}
+		if mobile {
+			root.Style.Direction = core.Column
+			navigation = a.phoneNavigation(cx, p)
+		}
 		root.Children = []core.Node{
-			core.Dynamic(func(cx *core.Scope) core.Node { return a.sidebar(cx, top) }),
+			navigation,
 			core.View{TestID: "app-content", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0),
 				Direction: core.Column, Background: p.bg}, Children: []core.Node{
 				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
-					core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); a.route.Get(); return a.pageTop(cx, p, top) }),
+					core.Dynamic(func(cx *core.Scope) core.Node {
+						if mobile {
+							return core.Group{}
+						}
+						a.rev.Get()
+						a.route.Get()
+						return a.pageTop(cx, p, top)
+					}),
 					core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); return a.page(cx, p) }),
 				}},
 				a.playerBar(cx, p),
@@ -1019,10 +1064,32 @@ func (a *app) view(cx *core.Scope) core.Node {
 		}
 		return root
 	})
+	if a.video != nil {
+		// Keep the media node and the UI under one stable attached root,
+		// independently of the content's redraw scopes.
+		return core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pct(100)},
+			Children: []core.Node{a.video.view(), content}}
+	}
+	return content
 }
 
 // setup sets the theme and the appearance once.
 func (a *app) setup(cx *core.Scope) {
+	if a.video != nil {
+		cx.OnBackPress(func() bool {
+			switch {
+			case a.settingsInMain:
+				a.closeSettings()
+			case a.nowPlaying:
+				a.closeNowPlaying()
+			case len(a.history) > 0:
+				a.back()
+			default:
+				return false
+			}
+			return true
+		})
+	}
 	t := core.DefaultTheme()
 	p := a.palette(cx)
 	t.Light.Accent, t.Dark.Accent = p.accent, p.accent

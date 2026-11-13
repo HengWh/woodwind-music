@@ -4,6 +4,7 @@
 
 # NSGo tooling
 .nsgo/
+.tools/
 
 # Go
 *.test

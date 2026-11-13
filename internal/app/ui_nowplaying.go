@@ -71,6 +71,13 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 	gap := core.Points(72)
 	coverSize := min(size.Width*0.36, max(140, size.Height-436), 440)
 	sideWidth := max(coverSize, 280)
+	mobile := a.phoneLayout(cx)
+	direction := core.Row
+	if mobile {
+		pad, gap, direction = 16, 12, core.Column
+		coverSize = min(size.Width-64, max(100, size.Height*0.18), 200)
+		sideWidth = max(0, size.Width-2*pad)
+	}
 	coverPal := palette{sidebar: core.RGBA(0xffffff, 0.08), faint: core.RGBA(0xffffff, 0.3), hover: core.RGBA(0xffffff, 0.08)}
 	side := core.View{TestID: "np-controls", Style: core.Style{Width: core.Pt(sideWidth), FlexShrink: 0,
 		Direction: core.Column, JustifyContent: core.JustifyCenter}, Children: []core.Node{
@@ -126,7 +133,7 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 		})}}
 	return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
 		core.View{Style: core.Style{Height: core.Pt(28), FlexShrink: 0, Padding: core.Symmetric(0, pad)}, Children: []core.Node{a.paneTabs(nil, white)}},
-		core.View{TestID: "np-body", Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Row, Gap: gap,
+		core.View{TestID: "np-body", Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0), Direction: direction, Gap: gap,
 			Padding: core.Edges{Top: 8, Right: pad, Bottom: 44, Left: pad}}, Children: []core.Node{side, pane}},
 	}}
 }

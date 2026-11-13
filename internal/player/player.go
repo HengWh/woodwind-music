@@ -76,6 +76,9 @@ type Player struct {
 	// Changed, if set, hears that what plays, where it is or whether it
 	// plays changed.
 	Changed func()
+	// Native delegates playback to the platform's media player when set
+	// before loading a queue. Desktop playback continues through audio.
+	Native NativeOutput
 
 	queue   []music.Track
 	order   []int // the queue's indices in play order: shuffled or not
@@ -118,6 +121,7 @@ type Player struct {
 	// remote is set while the current track is a PlaybackRemote source's,
 	// which plays it elsewhere: see remote.go.
 	remote *remote
+	native *nativePlayback
 	// after runs fn after d, on another goroutine; tests replace it.
 	after func(d time.Duration, fn func())
 	now   func() time.Time
@@ -193,6 +197,13 @@ func (p *Player) announce(t *music.Track, artwork []byte) {
 
 func (p *Player) ended() {
 	if p.repeat == RepeatOne {
+		if p.native != nil {
+			// A completed MediaPlayer does not resume on seek alone.
+			// Reopen even the same URL: coalesced pause/resume props can
+			// otherwise leave core.Video unchanged and the song stopped.
+			p.load(p.at)
+			return
+		}
 		p.out.Seek(0)
 		p.out.Play()
 		return
@@ -400,7 +411,9 @@ func (p *Player) Loading() bool {
 }
 
 // Ready reports whether the current track has loaded, to play.
-func (p *Player) Ready() bool { return p.out != nil || p.remote != nil && p.remote.started }
+func (p *Player) Ready() bool {
+	return p.out != nil || p.native != nil && p.native.ready || p.remote != nil && p.remote.started
+}
 
 // Err returns why the current track did not play, or "".
 func (p *Player) Err() string { return p.err }
@@ -476,6 +489,10 @@ func (p *Player) TogglePlay() {
 		p.remoteToggle()
 		return
 	}
+	if p.native != nil {
+		p.nativeToggle()
+		return
+	}
 	if p.out == nil {
 		switch {
 		case p.loading:
@@ -525,6 +542,10 @@ const seekGap = 30 * time.Millisecond
 func (p *Player) Seek(t time.Duration) {
 	if p.remote != nil && p.remote.started {
 		p.remoteSeek(t)
+		return
+	}
+	if p.native != nil {
+		p.nativeSeek(t)
 		return
 	}
 	if p.out == nil {
@@ -580,6 +601,9 @@ func (p *Player) applyGain() {
 		g *= p.gain
 	}
 	p.fade.setGain(g)
+	if p.Native != nil {
+		p.Native.SetVolume(min(1, max(0, g)))
+	}
 }
 
 // normPreamp lifts normalized tracks, which their gains bring to the quiet
@@ -601,6 +625,8 @@ func normGain(st *music.Stream) float64 {
 
 func (p *Player) Position() time.Duration {
 	switch {
+	case p.native != nil:
+		return p.native.position
 	case p.remote != nil && p.remote.started:
 		return p.remotePosition()
 	case p.out == nil:
@@ -615,6 +641,8 @@ func (p *Player) Duration() time.Duration {
 	switch {
 	case p.track == nil:
 		return 0
+	case p.native != nil && p.native.duration > 0:
+		return p.native.duration
 	case p.remote != nil && p.remote.duration > 0:
 		return p.remote.duration
 	case p.track.Duration > 0 || p.out == nil:
@@ -634,6 +662,10 @@ func (p *Player) Levels() ([Bands]float32, bool) {
 }
 
 func (p *Player) stop() {
+	if p.Native != nil {
+		p.Native.Close()
+	}
+	p.native = nil
 	if out := p.out; out != nil {
 		// Paused first, it fades out over a few milliseconds, rather than
 		// stopping with a click.
@@ -722,6 +754,11 @@ func (p *Player) loadSkipping(at, skipped, dir int, play bool, from time.Duratio
 	quality := music.Qualities[len(music.Qualities)/2]
 	if p.Quality != nil {
 		quality = p.Quality()
+	}
+	if p.Native != nil {
+		p.dropAhead()
+		p.loadNative(gen, src, t, quality, at, skipped, dir)
+		return
 	}
 	pre := p.takeAhead(t, quality)
 	go func() {

@@ -157,6 +157,19 @@ func (a *app) settingsLayout(cx *core.Scope, p palette, cats []settingsCatDef) c
 			}}
 		})}}
 	divider := core.View{Style: core.Style{Width: core.Pt(1), FlexShrink: 0, Background: p.hairline}}
+	if a.phoneLayout(cx) {
+		options := make([]ui.Option[string], len(cats))
+		for i, cat := range cats {
+			options[i] = ui.Option[string]{Value: cat.id, Label: cat.label}
+		}
+		return core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), Direction: core.Column,
+			PaddingEnv: core.EnvAll(core.EnvSafeArea), Background: p.bg, Color: p.text}, Children: []core.Node{
+			core.View{Style: core.Style{Padding: core.Symmetric(8, 16), FlexShrink: 0}, Children: []core.Node{
+				settingsChoice[string]{palette: p, Options: options, Value: func() string { return a.settingsPage },
+					OnChange: func(id string) { a.settingsPage = id; a.bump() }, Label: i18n.T("Settings"), TestID: "phone-settings-page"},
+			}}, main,
+		}}
+	}
 	return core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), Direction: core.Row,
 		Background: p.bg, Color: p.text}, Children: []core.Node{side, divider, main}}
 }

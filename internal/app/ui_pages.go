@@ -405,6 +405,9 @@ func artistsOf(list []music.Artist) string {
 // trackList is tracks as rows that play, in a page that scrolls with its
 // heading.
 func (a *app) trackList(p palette, tracks []music.Track, covers, showAlbum bool, current string) core.Node {
+	if a.phoneLayout(a.cx) {
+		showAlbum = false
+	}
 	return core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
 		EstimatedSize: 54, Viewport: core.ListViewportParent,
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
