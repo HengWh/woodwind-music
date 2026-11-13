@@ -78,6 +78,9 @@ func (a *app) settingsView(cx *core.Scope) core.Node {
 }
 
 func (a *app) settingsLayout(cx *core.Scope, p palette, cats []settingsCatDef) core.Node {
+	if a.settingsInMain && a.phoneLayout(cx) {
+		return a.phoneSettings(cx, p, cats)
+	}
 	top := desktop.TitleBar(cx).Top
 	if top <= 0 {
 		top = 40
@@ -157,19 +160,6 @@ func (a *app) settingsLayout(cx *core.Scope, p palette, cats []settingsCatDef) c
 			}}
 		})}}
 	divider := core.View{Style: core.Style{Width: core.Pt(1), FlexShrink: 0, Background: p.hairline}}
-	if a.phoneLayout(cx) {
-		options := make([]ui.Option[string], len(cats))
-		for i, cat := range cats {
-			options[i] = ui.Option[string]{Value: cat.id, Label: cat.label}
-		}
-		return core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), Direction: core.Column,
-			PaddingEnv: core.EnvAll(core.EnvSafeArea), Background: p.bg, Color: p.text}, Children: []core.Node{
-			core.View{Style: core.Style{Padding: core.Symmetric(8, 16), FlexShrink: 0}, Children: []core.Node{
-				settingsChoice[string]{palette: p, Options: options, Value: func() string { return a.settingsPage },
-					OnChange: func(id string) { a.settingsPage = id; a.bump() }, Label: i18n.T("Settings"), TestID: "phone-settings-page"},
-			}}, main,
-		}}
-	}
 	return core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), Direction: core.Row,
 		Background: p.bg, Color: p.text}, Children: []core.Node{side, divider, main}}
 }
@@ -264,6 +254,11 @@ func (a *app) settingsGroupCard(p palette, g settingsGroupDef) core.Node {
 		children = append([]core.Node{info}, children...)
 		row := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 16,
 			MinHeight: core.Pt(48), Padding: core.Symmetric(12, 16)}, Children: children}
+		if a.settingsInMain && a.phoneLayout(a.cx) {
+			row.Style.Direction = core.Column
+			row.Style.AlignItems = core.AlignStretch
+			row.Style.Gap = 12
+		}
 		if i < len(g.rows)-1 {
 			row.Style.Borders = core.Edges{Bottom: 1}
 			row.Style.BorderColor = p.hairline
@@ -328,7 +323,7 @@ func (a *app) generalRows() []settingsRowDef {
 		{label: i18n.T("Language"), control: a.languageControl},
 		{label: i18n.T("Appearance"), control: a.appearanceControl},
 	}
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" && a.cx.Env().OS() != core.OSAndroid {
 		rows = append(rows, settingsRowDef{label: i18n.T("App Icon"),
 			sub:     i18n.T("Shown in the menu bar, it opens the window again after you close it"),
 			control: a.appIconControl})
@@ -424,7 +419,7 @@ func (a *app) languageControl(p palette) core.Node {
 	for _, l := range i18n.Languages {
 		options = append(options, ui.Option[string]{Value: l.Code, Label: l.Name})
 	}
-	return settingsChoice[string]{palette: p, Options: options, Value: func() string {
+	return settingsChoice[string]{palette: p, Touch: a.settingsInMain && a.phoneLayout(a.cx), Options: options, Value: func() string {
 		if a.set.Language == "" {
 			return i18n.System
 		}
@@ -465,6 +460,10 @@ func (a *app) appearanceControl(p palette) core.Node {
 		style := core.Style{Width: core.Pt(width), Height: core.Pt(20), CornerRadius: 5, Background: bg,
 			AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 			Active: &core.Style{Background: p.press}}
+		if a.settingsInMain && a.phoneLayout(a.cx) {
+			style.Height = core.Pt(44)
+			style.Width = core.Pct(33.333)
+		}
 		if selected && !p.dark {
 			style.ShadowColor, style.ShadowRadius, style.ShadowOffset = core.RGBA(0x000000, 0.15), 2, core.Point{Y: 1}
 		}
@@ -482,7 +481,11 @@ func (a *app) appearanceControl(p palette) core.Node {
 			a.bump()
 		}, Style: style, Children: []core.Node{text(o.label, 13, core.FontWeightNormal, fg)}})
 	}
-	return core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(24), FlexShrink: 0,
+	height := core.Points(24)
+	if a.settingsInMain && a.phoneLayout(a.cx) {
+		height = 48
+	}
+	return core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(height), FlexShrink: 0,
 		Background: p.hover, Padding: core.All(2), CornerRadius: 6}, Children: buttons}
 }
 
@@ -491,7 +494,7 @@ func (a *app) appIconControl(p palette) core.Node {
 	for _, ic := range appIcons {
 		options = append(options, ui.Option[string]{Value: ic.id, Label: i18n.T(ic.label)})
 	}
-	return settingsChoice[string]{palette: p, Options: options, Value: func() string {
+	return settingsChoice[string]{palette: p, Touch: a.settingsInMain && a.phoneLayout(a.cx), Options: options, Value: func() string {
 		if a.set.AppIcon == "" {
 			return "dock-and-menubar"
 		}
@@ -509,7 +512,7 @@ func (a *app) qualityControl(p palette) core.Node {
 	for _, q := range qualityLevels {
 		options = append(options, ui.Option[string]{Value: q.level, Label: i18n.T(q.label)})
 	}
-	return settingsChoice[string]{palette: p, Options: options, Value: func() string { return a.set.Quality }, OnChange: func(v string) {
+	return settingsChoice[string]{palette: p, Touch: a.settingsInMain && a.phoneLayout(a.cx), Options: options, Value: func() string { return a.set.Quality }, OnChange: func(v string) {
 		a.set.Quality = v
 		a.set.save()
 		a.bump()
@@ -517,7 +520,7 @@ func (a *app) qualityControl(p palette) core.Node {
 }
 
 func (a *app) normalizeControl(p palette) core.Node {
-	return settingsSwitch{palette: p, Checked: func() bool { return a.set.Normalize }, OnChange: func(on bool) {
+	return settingsSwitch{palette: p, Touch: a.settingsInMain && a.phoneLayout(a.cx), Checked: func() bool { return a.set.Normalize }, OnChange: func(on bool) {
 		a.set.Normalize = on
 		a.set.save()
 		a.bump()
@@ -525,7 +528,7 @@ func (a *app) normalizeControl(p palette) core.Node {
 }
 
 func (a *app) smokeControl(p palette) core.Node {
-	return settingsSwitch{palette: p, Checked: func() bool { return a.set.Smoke }, OnChange: func(on bool) {
+	return settingsSwitch{palette: p, Touch: a.settingsInMain && a.phoneLayout(a.cx), Checked: func() bool { return a.set.Smoke }, OnChange: func(on bool) {
 		a.set.Smoke = on
 		a.set.save()
 		a.bump()
@@ -533,7 +536,7 @@ func (a *app) smokeControl(p palette) core.Node {
 }
 
 func (a *app) fogControl(p palette) core.Node {
-	return settingsSwitch{palette: p, Checked: func() bool { return a.set.Fog }, OnChange: func(on bool) {
+	return settingsSwitch{palette: p, Touch: a.settingsInMain && a.phoneLayout(a.cx), Checked: func() bool { return a.set.Fog }, OnChange: func(on bool) {
 		a.set.Fog = on
 		a.set.save()
 		a.bump()
@@ -541,7 +544,7 @@ func (a *app) fogControl(p palette) core.Node {
 }
 
 func (a *app) growFromCoverControl(p palette) core.Node {
-	return settingsSwitch{palette: p, Checked: func() bool { return a.set.GrowFromCover }, OnChange: func(on bool) {
+	return settingsSwitch{palette: p, Touch: a.settingsInMain && a.phoneLayout(a.cx), Checked: func() bool { return a.set.GrowFromCover }, OnChange: func(on bool) {
 		a.set.GrowFromCover = on
 		a.set.save()
 		a.bump()
@@ -572,7 +575,7 @@ func (a *app) cacheControl(p palette) core.Node {
 	for _, mb := range sizes {
 		options = append(options, ui.Option[int]{Value: mb, Label: cacheLabel(mb)})
 	}
-	return settingsChoice[int]{palette: p, Options: options, Value: func() int { return a.set.CacheMB }, OnChange: func(v int) {
+	return settingsChoice[int]{palette: p, Touch: a.settingsInMain && a.phoneLayout(a.cx), Options: options, Value: func() int { return a.set.CacheMB }, OnChange: func(v int) {
 		a.set.CacheMB = v
 		a.set.save()
 		if cache := a.pl.Cache; cache != nil {
@@ -603,6 +606,11 @@ func (a *app) clearCacheControl(p palette) core.Node {
 func (a *app) settingsAction(p palette, label, testID string, disabled bool, onPress func()) core.Node {
 	fg := p.text
 	style := core.Style{Padding: core.Symmetric(4, 10), CornerRadius: 7, Background: p.hover}
+	if a.settingsInMain && a.phoneLayout(a.cx) {
+		style.MinHeight = core.Pt(48)
+		style.AlignItems = core.AlignCenter
+		style.JustifyContent = core.JustifyCenter
+	}
 	if disabled {
 		fg = p.faint
 		style.Background = core.Color(0)

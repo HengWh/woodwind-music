@@ -68,6 +68,7 @@ const (
 	pageSearch
 	pageBrowse
 	pageSection
+	pageLibrary
 )
 
 // route is the page shown. A page is of the one source, the local files.
@@ -177,10 +178,11 @@ type searchData struct {
 // app is the state the window shows. Everything in it is read and
 // changed on the engine goroutine; goroutines reach it through post.
 type app struct {
-	cx      *core.Scope
-	dir     string
-	dataDir string
-	set     settings
+	cx       *core.Scope
+	dir      string
+	dataDir  string
+	location *time.Location
+	set      settings
 
 	local        *local.Source
 	pl           *player.Player
@@ -234,15 +236,22 @@ type app struct {
 	searches  map[route]*searchData
 
 	// Layout state.
-	volumeOpen bool
-	ticking    bool
-	lastSaved  time.Time
-	lastSearch route
-	reloadGen  int
-	mutedFrom  float64
-	nowPlaying bool
-	queueAt    int
-	scroll     map[string]core.Points
+	volumeOpen      bool
+	ticking         bool
+	lastSaved       time.Time
+	lastSearch      route
+	reloadGen       int
+	mutedFrom       float64
+	nowPlaying      bool
+	queueAt         int
+	scroll          map[string]core.Points
+	phoneTab        int
+	compact         bool
+	phoneTabs       [3]phoneTabState
+	phoneSheet      *core.Signal[string]
+	phoneTrack      music.Track
+	phonePlaylist   string
+	phoneTrackIndex int
 
 	// Dialogs.
 	naming           bool
@@ -284,6 +293,8 @@ func newApp(cx *core.Scope) *app {
 		npPane:           core.NewSignal(cx, 0),
 		stageTick:        core.NewSignal(cx, 0),
 		toast:            core.NewSignal(cx, ""),
+		phoneSheet:       core.NewSignal(cx, ""),
+		phoneTabs:        [3]phoneTabState{{route: route{page: pageHome}}, {route: route{page: pageLibrary}}, {route: route{page: pageSearch}}},
 		artRev:           core.NewSignal(cx, 0),
 		dailyHover:       core.NewSignal(cx, false),
 		dailyTick:        core.NewSignal(cx, 0),
@@ -305,6 +316,8 @@ func newApp(cx *core.Scope) *app {
 		scroll:           map[string]core.Points{},
 	}
 	a.applyLanguage()
+	zone, _ := cx.HostParams()["woodwind.timeZone"].(string)
+	a.location = deviceLocation(zone)
 	a.local = local.New(dir)
 	a.local.OnChange(func() { a.post(a.reload) })
 	a.pl = player.New(func(fn func()) { a.post(fn) })
@@ -649,6 +662,7 @@ func (a *app) open(r route) {
 
 func (a *app) show(r route) {
 	a.closeNowPlaying()
+	a.phoneSheet.Set("")
 	a.searchOpen.Set(false)
 	if r.page == pageSearch && r.query != "" {
 		a.query.Set(r.query)
@@ -851,6 +865,11 @@ func (a *app) removeFromPlaylist(id string, ids []string) {
 
 // pickFolders asks for folders with the system's picker and adds them.
 func (a *app) pickFolders() {
+	// Picker callbacks and the import context must outlive a page redraw.
+	a.post(a.pickFoldersStable)
+}
+
+func (a *app) pickFoldersStable() {
 	if a.importing {
 		a.say(i18n.T("Importing music…"))
 		return
@@ -985,7 +1004,8 @@ func (a *app) openSettings() {
 func (a *app) showSettings() {
 	// NSGo's current Windows backend has one native surface. Keep settings
 	// within it until additional native windows are supported there.
-	if a.cx.Env().OS() == core.OSWindows {
+	if a.cx.Env().OS() == core.OSWindows || a.cx.Env().OS() == core.OSAndroid || a.compact {
+		a.phoneSheet.Set("")
 		a.settingsInMain = true
 		a.measureCache()
 		a.showMain()
@@ -1019,7 +1039,10 @@ func (a *app) view(cx *core.Scope) core.Node {
 	a.setupWindow(cx)
 	content := core.Dynamic(func(cx *core.Scope) core.Node {
 		p := a.palette(cx)
-		mobile := a.phoneLayout(cx)
+		a.compact = a.phoneLayout(cx)
+		if a.compact {
+			return a.phoneView(cx, p)
+		}
 		titlebar := desktop.TitleBar(cx)
 		top := titlebar.Top
 		if top <= 0 {
@@ -1031,19 +1054,12 @@ func (a *app) view(cx *core.Scope) core.Node {
 		if a.video != nil {
 			root.Style.PaddingEnv = core.EnvAll(core.EnvSafeArea)
 		}
-		if mobile {
-			root.Style.Direction = core.Column
-			navigation = a.phoneNavigation(cx, p)
-		}
 		root.Children = []core.Node{
 			navigation,
 			core.View{TestID: "app-content", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0),
 				Direction: core.Column, Background: p.bg}, Children: []core.Node{
 				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
 					core.Dynamic(func(cx *core.Scope) core.Node {
-						if mobile {
-							return core.Group{}
-						}
 						a.rev.Get()
 						a.route.Get()
 						return a.pageTop(cx, p, top)
@@ -1076,8 +1092,25 @@ func (a *app) view(cx *core.Scope) core.Node {
 // setup sets the theme and the appearance once.
 func (a *app) setup(cx *core.Scope) {
 	if a.video != nil {
+		cx.Effect(func() {
+			a.rev.Get()
+			playingPage := a.np.Get()
+			foreground := core.StatusBarDark
+			if cx.Dark() || playingPage && !a.settingsInMain {
+				foreground = core.StatusBarLight
+			}
+			cx.SetStatusBar(core.StatusBarSetting{Foreground: foreground})
+		})
 		cx.OnBackPress(func() bool {
 			switch {
+			case a.naming:
+				a.naming = false
+				a.bump()
+			case a.deleting:
+				a.deleting = false
+				a.bump()
+			case a.phoneSheet.GetUntracked() != "":
+				a.phoneSheet.Set("")
 			case a.settingsInMain:
 				a.closeSettings()
 			case a.nowPlaying:
@@ -1130,6 +1163,10 @@ func (a *app) shortcuts(cx *core.Scope) {
 	cx.OnKey("mod+left", a.pl.Prev)
 	cx.OnKey("mod+right", a.pl.Next)
 	cx.OnKey("escape", func() {
+		if a.phoneSheet.GetUntracked() != "" {
+			a.phoneSheet.Set("")
+			return
+		}
 		if a.settingsInMain {
 			a.closeSettings()
 			return
@@ -1152,6 +1189,11 @@ func (a *app) closeSettings() { a.settingsInMain = false; a.bump() }
 
 // searchFieldFocus focuses the sidebar's search field.
 func (a *app) searchFieldFocus(cx *core.Scope) {
+	if a.phoneLayout(cx) {
+		a.selectPhoneTab(2)
+		a.searchRef.Focus()
+		return
+	}
 	if a.route.GetUntracked().page != pageSearch {
 		a.open(route{page: pageSearch})
 	}

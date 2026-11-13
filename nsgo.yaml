@@ -1,7 +1,7 @@
 name: Woodwind Music
 # Stable identity: preserves existing library, playlists and settings.
 id: dev.oneo.nsgo.music
-version: 0.1.23
+version: 0.1.25
 
 icon:
   apple: resources/icon.icns

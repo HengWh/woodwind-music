@@ -128,6 +128,10 @@ func (a *app) lyricsPane(cx *core.Scope, white core.Color) core.Node {
 }
 
 func (a *app) lyricLine(cx *core.Scope, line lyrics.Line, index int, current *core.Memo[int], frame *core.Signal[int], seek func()) core.Node {
+	fontSize, translationSize := core.Points(30), core.Points(17)
+	if a.phoneLayout(cx) {
+		fontSize, translationSize = 25, 14
+	}
 	hover := core.NewSignal(cx, false)
 	active := core.NewMemo(cx, func() bool { return current.Get() == index })
 	scale := core.NewAnimatedValue(cx, 0.94)
@@ -175,9 +179,9 @@ func (a *app) lyricLine(cx *core.Scope, line lyrics.Line, index int, current *co
 						spans[i] = core.Span{Content: w.Text, Style: core.Style{Color: core.RGBA(0xffffff, float32(0.38+0.62*lit))}}
 					}
 					return spans
-				}, Style: core.Style{FontSize: 30, FontWeight: 800, LineHeightMultiple: 1.25, LetterSpacing: -0.4, Color: core.RGB(0xffffff)}},
+				}, Style: core.Style{FontSize: fontSize, FontWeight: 800, LineHeightMultiple: 1.25, LetterSpacing: -0.4, Color: core.RGB(0xffffff)}},
 				core.Show{When: func() bool { return line.Translation != "" }, Then: func(*core.Scope) core.Node {
-					return core.Text{Content: line.Translation, Style: core.Style{FontSize: 17, FontWeight: core.FontWeightSemibold,
+					return core.Text{Content: line.Translation, Style: core.Style{FontSize: translationSize, FontWeight: core.FontWeightSemibold,
 						Color: core.RGBA(0xffffff, 0.7), LineHeightMultiple: 1.4}}
 				}},
 			}}}},

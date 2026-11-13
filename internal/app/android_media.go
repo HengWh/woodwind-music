@@ -28,7 +28,15 @@ func (a *app) setupAndroidMedia() {
 		a.publishAndroidMedia(false)
 	}
 	player.System.Clear = func() { a.cx.PostHost("playback.update", map[string]any{"hasTrack": false}) }
-	a.cx.OnHostEvent("android.lifecycle", func(any) { a.saveSession() })
+	a.cx.OnHostEvent("android.lifecycle", func(data any) {
+		if event, ok := data.(map[string]any); ok {
+			if zone, ok := event["timeZone"].(string); ok && zone != "" && (a.location == nil || a.location.String() != zone) {
+				a.location = deviceLocation(zone)
+				a.bump()
+			}
+		}
+		a.saveSession()
+	})
 	a.cx.OnHostEvent("android.media.command", func(data any) {
 		m, ok := data.(map[string]any)
 		if !ok {

@@ -10,6 +10,7 @@ import android.util.Log;
 import android.view.ViewGroup;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TimeZone;
 
 /** One Go engine and one core.Video, retained by the playback service. */
 final class PlaybackRuntime {
@@ -24,7 +25,7 @@ final class PlaybackRuntime {
         if (view == null) {
             context = new MutableContextWrapper(host);
             view = new NsgoView(context);
-            view.setParams(Map.of("woodwind.android", true));
+            view.setParams(Map.of("woodwind.android", true, "woodwind.timeZone", TimeZone.getDefault().getID()));
             view.handle("playback.update", (data, reply) -> {
                 if (data instanceof Map) update((Map<String, Object>) data);
                 reply.resolve(null);
@@ -74,7 +75,7 @@ final class PlaybackRuntime {
     }
 
     static void lifecycle() {
-        if (view != null) view.send("android.lifecycle", Map.of("background", true));
+        if (view != null) view.send("android.lifecycle", Map.of("background", true, "timeZone", TimeZone.getDefault().getID()));
     }
 
     static void releaseIfIdle() {

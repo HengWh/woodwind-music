@@ -129,6 +129,10 @@ func (a *app) roundButton(cx *core.Scope, p palette, size core.Points, color cor
 
 // pillButton is a rounded button with an icon and a label.
 func (a *app) pillButton(p palette, svg *core.SVG, label string, bg, fg core.Color, onPress func()) core.Node {
+	height := core.Points(36)
+	if a.phoneLayout(a.cx) {
+		height = 48
+	}
 	var children []core.Node
 	if svg != nil {
 		children = append(children, icon(svg, 14, fg))
@@ -139,7 +143,7 @@ func (a *app) pillButton(p palette, svg *core.SVG, label string, bg, fg core.Col
 			onPress()
 		}
 	}, StyleFunc: func() core.Style {
-		return core.Style{Height: core.Pt(36), Padding: core.Symmetric(0, 18), Gap: 8, Direction: core.Row, AlignItems: core.AlignCenter,
+		return core.Style{Height: core.Pt(height), Padding: core.Symmetric(0, 18), Gap: 8, Direction: core.Row, AlignItems: core.AlignCenter,
 			CornerRadius: 999, Background: bg, Color: fg, Hover: &core.Style{Background: blend(bg, core.RGB(0xffffff), 0.12)},
 			Active: &core.Style{Background: blend(bg, core.RGB(0x000000), 0.12)}}
 	}, Children: children}
@@ -161,7 +165,7 @@ func (a *app) cover(p palette, url string, size core.Points, radius core.Points)
 			Children: []core.Node{icon(lucideNote, size*0.32, p.faint)}}
 	}
 	return core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
-		Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: radius, Background: p.sidebar}}
+		Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: radius, Overflow: core.Hidden, Background: p.sidebar}}
 }
 
 // clock says a length as m:ss, or h:mm:ss when it takes an hour.
@@ -183,6 +187,9 @@ const trackRowGroup = "track-row"
 // trackRow is a row of a track list: its number, cover, title, artist, album
 // and length.
 func (a *app) trackRow(p palette, tracks []music.Track, i int, showCover bool, showAlbum bool, playing bool, _ bool) core.Node {
+	if a.phoneLayout(a.cx) {
+		return a.phoneTrackRow(p, tracks, i, "")
+	}
 	tr := tracks[i]
 	isCurrent := func() bool {
 		if t := a.pl.Current(); t != nil {

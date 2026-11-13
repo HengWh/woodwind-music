@@ -92,7 +92,7 @@ func TestAndroidImportAndNativePlayback(t *testing.T) {
 	}
 	app.Find("id:np-close")
 	app.Press("id:np-close")
-	for _, selector := range []string{"id:phone-header", "id:player-bar", "id:play-pause", "id:progress"} {
+	for _, selector := range []string{"id:phone-header", "id:player-bar", "id:play-pause", "id:mini-progress"} {
 		v := app.Find(selector)
 		if v.Frame.Size.Width > 390 {
 			t.Fatalf("%s exceeds phone width: %v", selector, v.Frame)

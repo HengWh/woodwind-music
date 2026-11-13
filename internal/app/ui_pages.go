@@ -21,7 +21,12 @@ func (a *app) page(cx *core.Scope, p palette) core.Node {
 	r := a.route.Get()
 	switch r.page {
 	case pageHome:
+		if a.phoneLayout(cx) {
+			return a.phoneHome(cx, p)
+		}
 		return a.homePage(cx, p)
+	case pageLibrary:
+		return a.phoneLibrary(cx, p)
 	case pageLiked:
 		return a.likedPage(cx, p)
 	case pagePlaylist:
@@ -43,6 +48,15 @@ func (a *app) page(cx *core.Scope, p palette) core.Node {
 // pageScroll is a page that scrolls, its content padded from the window's
 // edges.
 func (a *app) pageScroll(p palette, children ...core.Node) core.Node {
+	if a.phoneLayout(a.cx) {
+		key := phoneScrollKey(a.route.GetUntracked())
+		return core.Scroll{TestID: "phone-page-scroll", ContentOffset: core.Point{Y: a.scroll[key]},
+			OnScroll: func(e core.ScrollEvent) { a.scroll[key] = e.Offset.Y },
+			Behavior: core.ScrollBehavior{KeyboardDismissMode: core.KeyboardDismissOnDrag},
+			Style:    core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
+				core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 8, Left: 20, Right: 20, Bottom: 24}}, Children: children},
+			}}
+	}
 	return core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 		core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 12, Right: pagePad - 8, Bottom: 48, Left: pagePad - 8}},
 			Children: children},
@@ -58,7 +72,11 @@ func (a *app) titleBlock(p palette, title, sub string) core.Node {
 	}
 	children = append(children, core.Text{Content: title, Style: core.Style{FontSize: 30, FontWeight: core.FontWeightBold,
 		LetterSpacing: -0.6, Color: p.text}})
-	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12), Gap: 4, Margin: core.Edges{Bottom: 18}},
+	padding := core.Points(12)
+	if a.phoneLayout(a.cx) {
+		padding = 0
+	}
+	return core.View{Style: core.Style{Padding: core.Symmetric(0, padding), Gap: 4, Margin: core.Edges{Bottom: 18}},
 		Children: []core.Node{core.Group(children)}}
 }
 
@@ -85,7 +103,7 @@ func (a *app) homePage(cx *core.Scope, p palette) core.Node {
 		return a.emptyHome(p)
 	}
 	var body []core.Node
-	body = append(body, a.titleBlock(p, greeting(time.Now()), i18n.Today(time.Now())))
+	body = append(body, a.titleBlock(p, greeting(a.localTime()), i18n.Today(a.localTime())))
 	for i, sec := range a.home.Sections {
 		body = append(body, a.browseSection(p, sec, "", i)...)
 	}
@@ -139,7 +157,14 @@ func (a *app) sectionPage(cx *core.Scope, p palette, r route) core.Node {
 	if title == "" {
 		title = sec.Title
 	}
-	now := time.Now()
+	if a.phoneLayout(cx) {
+		var pic core.Node = a.cover(p, "", 212, 14)
+		if len(tracks) > 0 {
+			pic = a.cover(p, tracks[0].Album.ImageURL, 212, 14)
+		}
+		return a.pageScroll(p, a.hero(p, pic, i18n.T("Songs"), title, i18n.Songs(len(tracks)), tracks), a.trackList(p, tracks, true, false, a.currentID()))
+	}
+	now := a.localTime()
 	about := i18n.Songs(len(tracks))
 	if sec.Subtitle != "" {
 		about += " · " + sec.Subtitle
@@ -172,7 +197,7 @@ func (a *app) browseSection(p palette, sec music.Section, pageID string, index i
 			below = cardRowGap
 		}
 		out = append(out, core.View{Style: core.Style{Padding: core.Edges{Right: 12, Bottom: below, Left: 12}},
-			Children: []core.Node{a.featureCard(p, sec, pageID, index, time.Now())}})
+			Children: []core.Node{a.featureCard(p, sec, pageID, index, a.localTime())}})
 	} else if sec.Title != "" || sec.MorePage != "" {
 		out = append(out, core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{
 			a.sectionHeaderAt(p, sec.Title, sec.MorePage, first)}})
@@ -189,8 +214,11 @@ func (a *app) browseSection(p palette, sec music.Section, pageID string, index i
 		} else {
 			out = append(out, core.View{Style: core.Style{}, Children: []core.Node{
 				core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
-					EstimatedSize: 54, Viewport: core.ListViewportParent,
+					EstimatedSize: a.trackRowHeight(), Viewport: core.ListViewportParent,
 					Row: func(cx *core.Scope, row core.ListRow) core.Node {
+						if a.phoneLayout(cx) {
+							return core.Dynamic(func(cx *core.Scope) core.Node { return a.phoneTrackRow(p, tracks, row.Index(), "") })
+						}
 						i := row.Index()
 						cur := a.pl.Current()
 						return a.trackRow(p, tracks, i, true, false, true, cur != nil && cur.ID == tracks[i].ID)
@@ -223,6 +251,9 @@ func (a *app) cardGrid(p palette, n int, card func(i int) core.Node) core.Node {
 	var cards []core.Node
 	for i := 0; i < n; i++ {
 		cards = append(cards, card(i))
+	}
+	if a.phoneLayout(a.cx) {
+		return core.View{Style: core.Style{Display: core.DisplayGrid, Width: core.Pct(100), GridTemplateColumns: "repeat(2, minmax(0, 1fr))", Gap: 14, RowGap: 24, Margin: core.Edges{Top: 12}}, Children: cards}
 	}
 	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{
 		core.View{Style: core.Style{Display: core.DisplayGrid, Width: core.Pct(100),
@@ -313,6 +344,9 @@ func (a *app) artistCard(p palette, ar music.Artist) core.Node {
 // with a button that plays it on the cover under the pointer.
 func (a *app) playlistCard(p palette, pl music.Playlist) core.Node {
 	id := pl.ID
+	if a.phoneLayout(a.cx) {
+		return a.cardFrame(p, pl.Name, playlistLine(pl), 12, a.coverArt(p, pl.ImageURL, 12, lucideList), func() { a.open(route{page: pagePlaylist, id: id}) })
+	}
 	art := core.View{Style: core.Style{Width: core.Pct(100), Height: core.Pct(100)}, Children: []core.Node{
 		a.coverArt(p, pl.ImageURL, 10, lucideNote),
 		a.coverPlayButton(p, func() { a.playPlaylist(id) }),
@@ -409,8 +443,11 @@ func (a *app) trackList(p palette, tracks []music.Track, covers, showAlbum bool,
 		showAlbum = false
 	}
 	return core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
-		EstimatedSize: 54, Viewport: core.ListViewportParent,
+		EstimatedSize: a.trackRowHeight(), Viewport: core.ListViewportParent,
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
+			if a.phoneLayout(cx) {
+				return core.Dynamic(func(cx *core.Scope) core.Node { return a.phoneTrackRow(p, tracks, row.Index(), "") })
+			}
 			i := row.Index()
 			tr := tracks[i]
 			r := a.trackRow(p, tracks, i, covers, showAlbum, false, current == tr.ID)
@@ -526,6 +563,14 @@ func (a *app) hero(p palette, pic core.Node, kind, title, sub string, tracks []m
 
 // heroNode is hero with a line of the app's own under the title.
 func (a *app) heroNode(p palette, pic core.Node, kind, title string, sub core.Node, tracks []music.Track) core.Node {
+	if a.phoneLayout(a.cx) {
+		return core.View{Style: core.Style{Direction: core.Column, Gap: 16, Margin: core.Edges{Top: 8, Bottom: 20}}, Children: []core.Node{
+			core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), AlignSelf: core.AlignCenter}, Children: []core.Node{pic}},
+			core.Text{Content: title, MaxLines: 3, Style: core.Style{FontSize: 25, FontWeight: core.FontWeightBold, Color: p.text}},
+			sub,
+			core.Show{When: func() bool { return len(tracks) > 0 }, Then: func(*core.Scope) core.Node { return a.playButtons(p, tracks) }},
+		}}
+	}
 	return core.View{Style: core.Style{Direction: core.Row, Gap: 28, AlignItems: core.AlignEnd, Padding: core.Symmetric(0, 12),
 		Margin: core.Edges{Bottom: 24}}, Children: []core.Node{
 		core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), CornerRadius: 14,
@@ -578,8 +623,11 @@ func (a *app) playlistPage(cx *core.Scope, p palette, id string) core.Node {
 	return a.pageScroll(p, core.Group{
 		a.playlistHero(p, pl),
 		core.List{Count: func() int { return len(pl.Tracks) }, Key: func(i int) any { return pl.Tracks[i].ID },
-			EstimatedSize: 54, Viewport: core.ListViewportParent,
+			EstimatedSize: a.trackRowHeight(), Viewport: core.ListViewportParent,
 			Row: func(cx *core.Scope, row core.ListRow) core.Node {
+				if a.phoneLayout(cx) {
+					return core.Dynamic(func(cx *core.Scope) core.Node { return a.phoneTrackRow(p, pl.Tracks, row.Index(), pl.ID) })
+				}
 				i := row.Index()
 				tr := pl.Tracks[i]
 				r := a.trackRow(p, pl.Tracks, i, true, false, true, a.currentID() == tr.ID)
@@ -596,6 +644,9 @@ func (a *app) playlistHero(p palette, pl *music.Playlist) core.Node {
 	}
 	head := a.hero(p, pic, i18n.T("Playlist"), pl.Name, i18n.Songs(len(pl.Tracks)), pl.Tracks)
 	id, name := pl.ID, pl.Name
+	if a.phoneLayout(a.cx) {
+		return core.View{Children: []core.Node{head, a.phoneSheetAction(p, "phone-playlist-more", i18n.T("More"), lucideMore, func() { a.phonePlaylist = id; a.openPhoneSheet("playlist") })}}
+	}
 	return ui.ContextMenu{Trigger: head, Children: []core.Node{
 		ui.MenuItem{Text: i18n.T("Rename Playlist…"), Icon: lucide.Pencil, OnSelect: func() { a.renamePlaylist(id, name) }},
 		ui.MenuItem{Text: i18n.T("Delete Playlist"), Icon: lucide.Trash, Variant: ui.MenuItemDanger, OnSelect: func() { a.confirmDelete(id, name) }},
@@ -694,6 +745,9 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 			}},
 		}},
 	}}
+	if a.phoneLayout(cx) {
+		header = a.heroNode(p, a.coverRound(p, page.Artist.ImageURL, 212), i18n.T("Artist"), page.Artist.Name, text(strings.Join(meta, " · "), 13, core.FontWeightNormal, p.muted), page.Tracks).(core.View)
+	}
 
 	tabs := core.View{Style: core.Style{Direction: core.Row, Gap: 2, Padding: core.All(2), Background: p.hover,
 		CornerRadius: 8, AlignSelf: core.AlignEnd}, Children: func() []core.Node {
@@ -834,6 +888,10 @@ var searchKinds = []struct {
 }
 
 func (a *app) searchHeader(p palette, r route) core.Node {
+	minHeight := core.Points(0)
+	if a.phoneLayout(a.cx) {
+		minHeight = 48
+	}
 	var tabs []core.Node
 	for _, k := range searchKinds {
 		kind := k.kind
@@ -845,8 +903,13 @@ func (a *app) searchHeader(p palette, r route) core.Node {
 		}
 		tabs = append(tabs, base.Button{TestID: "search-tab-" + string(kind), Label: i18n.T(k.label), OnPress: func(core.PressEvent) {
 			a.open(route{page: pageSearch, query: r.query, kind: kind})
-		}, Style: core.Style{Padding: core.Symmetric(6, 14), CornerRadius: 999, Background: bg, Hover: &core.Style{Background: p.sidebar}},
+		}, Style: core.Style{MinHeight: core.Pt(minHeight), JustifyContent: core.JustifyCenter, Padding: core.Symmetric(6, 14), CornerRadius: 999, Background: bg, Hover: &core.Style{Background: p.sidebar}},
 			Children: []core.Node{text(i18n.T(k.label), 13, core.FontWeightSemibold, fg)}})
+	}
+	if a.phoneLayout(a.cx) {
+		return core.Scroll{Horizontal: true, HideIndicator: true, Style: core.Style{FlexShrink: 0, Margin: core.Edges{Bottom: 16}}, Children: []core.Node{
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Height: core.Pt(48), Gap: 4}, Children: tabs},
+		}}
 	}
 	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12), Gap: 14, Margin: core.Edges{Bottom: 18}}, Children: []core.Node{
 		core.View{Style: core.Style{Gap: 4}, Children: []core.Node{
@@ -858,6 +921,10 @@ func (a *app) searchHeader(p palette, r route) core.Node {
 }
 
 func (a *app) searchHistoryPage(p palette) core.Node {
+	height := core.Points(38)
+	if a.phoneLayout(a.cx) {
+		height = 48
+	}
 	var body []core.Node
 	body = append(body, a.titleBlock(p, i18n.T("Search"), ""))
 	if len(a.set.SearchHistory) == 0 {
@@ -878,7 +945,7 @@ func (a *app) searchHistoryPage(p palette) core.Node {
 		rows = append(rows, base.Button{Label: query, OnPress: func(core.PressEvent) {
 			a.search(query)
 		}, StyleFunc: func() core.Style {
-			return core.Style{Height: core.Pt(38), Padding: core.Symmetric(0, 12), Gap: 10, Direction: core.Row, AlignItems: core.AlignCenter,
+			return core.Style{Height: core.Pt(height), Padding: core.Symmetric(0, 12), Gap: 10, Direction: core.Row, AlignItems: core.AlignCenter,
 				CornerRadius: 8, Hover: &core.Style{Background: p.sidebar}}
 		}, Children: []core.Node{icon(lucideSearch, 14, p.faint), text(query, 13, core.FontWeightNormal, p.text)}})
 	}
