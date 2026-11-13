@@ -1,0 +1,54 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: woodwind-music
+      # Match the framework checkout used to validate this Windows port.
+      - uses: actions/checkout@v4
+        with:
+          repository: nsgo-dev/nsgo
+          ref: 3eb043c9d1dbe58c56a2cabcd947cad4e625b20d
+          path: nsgo
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: woodwind-music/go.mod
+          cache-dependency-path: woodwind-music/go.sum
+      - name: Test
+        working-directory: woodwind-music
+        run: go tool nsgo test
+      - name: Check
+        working-directory: woodwind-music
+        run: go tool nsgo check
+      - name: Install NSIS
+        run: |
+          choco install nsis --no-progress -y
+          'C:\Program Files (x86)\NSIS' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Build installer and portable package
+        working-directory: woodwind-music
+        run: |
+          go tool nsgo build -target windows_x64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go run scripts/package-windows.go
+      - uses: actions/upload-artifact@v4
+        with:
+          name: woodwind-music-windows-x64
+          if-no-files-found: error
+          path: |
+            woodwind-music/dist/releases/*-windows-x64-setup.exe
+            woodwind-music/dist/releases/*-windows-x64-setup.exe.sha256
+            woodwind-music/dist/releases/*-windows-x64-portable.zip
+            woodwind-music/dist/releases/*-windows-x64-portable.zip.sha256

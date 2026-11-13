@@ -7,12 +7,25 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"math"
+	"runtime"
 
 	"github.com/nsgo-dev/nsgo/core"
 	_ "golang.org/x/image/webp"
 
 	"github.com/HengWh/woodwind-music/internal/music"
 )
+
+// imageSource gives NSGo a native Windows path. Its current file-URL loader
+// reads URL.Path literally, including /C: and without a UNC URL's hostname.
+// Native paths retain NSGo's asynchronous loading and bounded image cache.
+func imageSource(url string) core.ImageSource {
+	if runtime.GOOS == "windows" {
+		if path, ok := music.PathOf(url); ok {
+			return core.Src(path)
+		}
+	}
+	return core.Src(url)
+}
 
 // coverTint returns the most vivid color of the cover at url, loading it if
 // the app hasn't seen it: 0 until it has, so the daily card shows its red.

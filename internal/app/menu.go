@@ -20,7 +20,7 @@ func (a *app) menu(cx *core.Scope) {
 		{Role: desktop.MenuHideOthers},
 		{Role: desktop.MenuShowAll},
 		{Separator: true},
-		{Label: i18n.Tf("Quit %s", appName), Shortcut: "mod+q", Role: desktop.MenuQuit},
+		{Label: i18n.Tf("Quit %s", appName), Shortcut: "mod+q", OnSelect: a.quit},
 	}}
 	file := desktop.MenuItem{Label: i18n.T("File"), Items: []desktop.MenuItem{
 		{Label: i18n.T("New Playlist"), Shortcut: "mod+n", OnSelect: a.newPlaylist},

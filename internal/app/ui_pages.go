@@ -242,7 +242,7 @@ func (a *app) coverArt(p palette, url string, radius core.Points, fallback *core
 			CornerRadius: radius, Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 			Children: []core.Node{icon(fallback, 40, p.faint)}}
 	}
-	return core.Image{Source: core.Src(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
+	return core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
 		Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), CornerRadius: radius, Background: p.sidebar}}
 }
 
@@ -364,7 +364,7 @@ func (a *app) coverRound(p palette, url string, size core.Points) core.Node {
 		return core.View{Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: size / 2, Background: p.sidebar,
 			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideUser, size*0.34, p.faint)}}
 	}
-	return core.Image{Source: core.Src(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
+	return core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
 		Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: size / 2, Background: p.sidebar}}
 }
 

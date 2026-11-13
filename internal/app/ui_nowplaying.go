@@ -23,7 +23,7 @@ func (a *app) nowPlayingView(cx *core.Scope, p palette) core.Node {
 	backdrop := core.Dynamic(func(cx *core.Scope) core.Node {
 		a.playRev.Get()
 		if t := a.pl.Current(); t != nil && t.Album.ImageURL != "" {
-			return core.Image{Source: core.Src(t.Album.ImageURL), ResizeMode: core.Cover, BlurRadius: 90,
+			return core.Image{Source: imageSource(t.Album.ImageURL), ResizeMode: core.Cover, BlurRadius: 90,
 				Style: core.Style{Position: core.Absolute, Top: core.Pt(-60), Right: core.Pt(-60), Bottom: core.Pt(-60), Left: core.Pt(-60),
 					Opacity: core.Alpha(0.16)}}
 		}

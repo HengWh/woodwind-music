@@ -61,6 +61,10 @@ func (a *app) settingsView(cx *core.Scope) core.Node {
 	}
 	win := desktop.CurrentWindow(cx)
 	cx.OnKey("mod+w", func() {
+		if a.settingsInMain {
+			a.closeSettings()
+			return
+		}
 		if win != nil && !win.Closed() {
 			win.Close()
 		}
@@ -136,13 +140,19 @@ func (a *app) settingsLayout(cx *core.Scope, p palette, cats []settingsCatDef) c
 					}},
 				core.View{StyleFunc: func() core.Style {
 					s := core.Style{Position: core.Absolute, Top: core.Pt(0), Left: core.Pt(0), Right: core.Pt(0), Height: core.Pt(top),
-						Direction: core.Row, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 32), Background: p.bg}
+						Direction: core.Row, AlignItems: core.AlignCenter,
+						Padding: core.Edges{Left: 32, Right: max(32, desktop.TitleBar(cx).Right+12)}, Background: p.bg}
 					if under.Get() {
 						s.Borders, s.BorderColor = core.Edges{Bottom: 1}, p.hairline
 					}
 					return s
 				}, Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn}, Children: []core.Node{
-					core.Text{Content: title, MaxLines: 1, Style: core.Style{FontSize: 15, FontWeight: core.FontWeightBold, Color: p.text}},
+					core.Show{When: func() bool { return a.settingsInMain }, Then: func(cx *core.Scope) core.Node {
+						return base.Button{Label: i18n.T("Back"), TestID: "settings-back", OnPress: func(core.PressEvent) { a.closeSettings() },
+							Style: core.Style{Width: core.Pt(32), Height: core.Pt(32), Margin: core.Edges{Right: 8},
+								AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideChevronLeft, 16, p.text)}}
+					}},
+					core.Text{Content: title, MaxLines: 1, Style: core.Style{FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 15, FontWeight: core.FontWeightBold, Color: p.text}},
 				}},
 			}}
 		})}}

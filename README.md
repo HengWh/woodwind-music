@@ -12,6 +12,8 @@ NSGo 提供窗口、界面渲染和交互框架；MyGo Music 是界面设计、�
 
 当前主要在 **macOS Apple Silicon（arm64）** 上开发与验证。
 
+现已补充 **Windows x64** 构建与桌面适配，提供安装包和便携版。当前已完成交叉编译和共享功能测试，Windows 真机播放与系统集成仍待验收。详见 [Windows 使用与验证](docs/WINDOWS.md)。
+
 ## 界面预览
 
 以下截图来自本地曲库，界面仍在持续调整。
@@ -45,6 +47,7 @@ NSGo 提供窗口、界面渲染和交互框架；MyGo Music 是界面设计、�
 - 侧栏、返回/前进、搜索历史、空状态
 - 设置窗口：侧栏分页与搜索（通用、播放、资料库、缓存、实验性功能）、跟随系统/English/简体中文、外观、应用图标（程序坞与菜单栏）、音质、音量均衡、重新扫描与添加/移除目录、缓存上限与清除
 - macOS：隐藏标题栏、自绘顶部区域、菜单栏图标、媒体键与系统“正在播放”
+- Windows：WASAPI 输出、原生托盘与窗口恢复、系统媒体控制适配、主窗口内设置页
 - 英文与简体中文，跟随系统语言
 
 普通 LRC 的逐字进度沿用上游逻辑，将每行时长分配给行内文字。音质设置会传给支持音质选择的音乐源。
@@ -96,7 +99,7 @@ go tool nsgo build      # 按 nsgo.yaml 的目标本地打包
 <details>
 <summary>本地打包与图标更新</summary>
 
-应用名称、ID、版本和构建目标在 `nsgo.yaml` 中配置。当前打包目标为 `macos_arm64`，产物保存在 `dist/`，安装镜像保存在 `dist/releases/`。
+应用名称、ID、版本和构建目标在 `nsgo.yaml` 中配置。当前打包目标为 `macos_arm64`、`windows_x64`，产物保存在 `dist/`，安装镜像与安装包保存在 `dist/releases/`。单独构建 Windows 使用 `go tool nsgo build -target windows_x64`，随后运行 `go run scripts/package-windows.go` 生成便携版；完整说明见 [Windows 使用与验证](docs/WINDOWS.md)。
 
 开发运行与本地打包使用相同图标，macOS 使用预生成的 `resources/icon.icns`。更新图标后，在项目根目录执行：
 
@@ -151,7 +154,8 @@ open internal/app/.nsgo/test/screenshots/macos
 | `internal/local` | 本地文件源：扫描、标签、封面、播放列表、喜欢、最近播放 |
 | `internal/music` | 播放器与视图共用的音乐模型和源接口 |
 | `internal/lyrics` | LRC 解析与逐字歌词 |
-| `internal/nowplaying` | macOS 的 MPNowPlayingInfoCenter 与 MPRemoteCommandCenter |
+| `internal/nowplaying` | macOS / Windows 播放信息与系统媒体命令桥接 |
+| `internal/winshell` | Windows 原生托盘、窗口恢复与系统媒体会话 |
 | `internal/i18n` | 英文 / 简体中文 |
 | `resources`、`icon` | 应用图标与生成工具 |
 | `docs` | 供目视核对的界面截图 |

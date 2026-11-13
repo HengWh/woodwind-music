@@ -53,7 +53,7 @@ func (a *app) featureCardNow(p palette, sec music.Section, pageID string, at int
 
 	var children []core.Node
 	if cover := tracks[0].Album.ImageURL; cover != "" {
-		children = append(children, core.Image{Source: core.Src(cover), ResizeMode: core.Cover, BlurRadius: 34,
+		children = append(children, core.Image{Source: imageSource(cover), ResizeMode: core.Cover, BlurRadius: 34,
 			Style: core.Style{Position: core.Absolute, Top: core.Pt(-30), Right: core.Pt(-30), Bottom: core.Pt(-30), Left: core.Pt(-30),
 				Opacity: core.Alpha(0.24)}})
 	}
@@ -582,7 +582,7 @@ func (a *app) dayCoverNow(p palette, tracks []music.Track, now time.Time) core.N
 	deep, rich, _ := dailyColors(tint)
 	var children []core.Node
 	if cover != "" {
-		children = append(children, core.Image{Source: core.Src(cover), ResizeMode: core.Cover, BlurRadius: 24,
+		children = append(children, core.Image{Source: imageSource(cover), ResizeMode: core.Cover, BlurRadius: 24,
 			Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0),
 				Opacity: core.Alpha(0.34)}})
 	}

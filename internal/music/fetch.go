@@ -104,6 +104,22 @@ func HeadersStay(client *http.Client, host string, headers map[string]string) *h
 
 // FileURL is the file:// URL of a path.
 func FileURL(path string) string {
+	return fileURL(path, runtime.GOOS == "windows")
+}
+
+func fileURL(path string, windows bool) string {
+	if windows {
+		path = strings.ReplaceAll(path, `\`, "/")
+		if strings.HasPrefix(path, "//?/UNC/") {
+			path = "//" + path[8:]
+		} else {
+			path = strings.TrimPrefix(path, "//?/")
+		}
+		if strings.HasPrefix(path, "//") {
+			host, rest, _ := strings.Cut(path[2:], "/")
+			return (&url.URL{Scheme: "file", Host: host, Path: "/" + rest}).String()
+		}
+	}
 	path = filepath.ToSlash(path)
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path // C:/Music
@@ -113,16 +129,26 @@ func FileURL(path string) string {
 
 // PathOf returns the path a file:// URL names, and whether u is one.
 func PathOf(u string) (string, bool) {
-	if !strings.HasPrefix(u, "file:") {
-		return "", false
-	}
+	return pathOf(u, runtime.GOOS == "windows")
+}
+
+func pathOf(u string, windows bool) (string, bool) {
 	parsed, err := url.Parse(u)
-	if err != nil || parsed.Path == "" {
+	if err != nil || !strings.EqualFold(parsed.Scheme, "file") || parsed.Path == "" || parsed.User != nil {
 		return "", false
 	}
 	path := parsed.Path
-	if runtime.GOOS == "windows" {
-		path = strings.TrimPrefix(path, "/")
+	if parsed.Host != "" && !strings.EqualFold(parsed.Host, "localhost") {
+		if !windows {
+			return "", false
+		}
+		path = "//" + parsed.Host + path
+	}
+	if windows {
+		if len(path) >= 3 && path[0] == '/' && path[2] == ':' {
+			path = path[1:]
+		}
+		return strings.ReplaceAll(path, "/", `\`), true
 	}
 	return filepath.FromSlash(path), true
 }

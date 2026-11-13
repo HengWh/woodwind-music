@@ -160,7 +160,7 @@ func (a *app) cover(p palette, url string, size core.Points, radius core.Points)
 			Background: p.sidebar, Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 			Children: []core.Node{icon(lucideNote, size*0.32, p.faint)}}
 	}
-	return core.Image{Source: core.Src(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
+	return core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
 		Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: radius, Background: p.sidebar}}
 }
 

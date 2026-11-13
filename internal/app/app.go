@@ -3,8 +3,10 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,6 +28,10 @@ const appName = "Woodwind Music"
 // Run runs the app until it quits, its music playing on in the menu bar
 // when its window closes.
 func Run() error {
+	if err := nowplaying.Initialize(); err != nil {
+		log.Printf("desktop integration: %v", err)
+	}
+	defer nowplaying.Shutdown()
 	nsgo.Run(func(cx *core.Scope) {
 		desktop.SetShutdownMode(cx, desktop.ShutdownOnExplicit)
 		a := newApp(cx)
@@ -244,6 +250,7 @@ type app struct {
 	deletingID       string
 	deletingName     string
 	settingsWin      *desktop.Window
+	settingsInMain   bool
 	settingsRef      *core.Ref
 	settingsPage     string
 	settingsQuery    string
@@ -252,7 +259,7 @@ type app struct {
 	cacheUsed    int64
 	stageTicking bool
 
-	tray     *desktop.Tray
+	tray     trayIcon
 	openMain func()
 }
 
@@ -338,7 +345,14 @@ func newApp(cx *core.Scope) *app {
 	a.reload()
 	a.heartbeat()
 	a.setup(cx)
+	cx.OnQuit(func(context.Context) { a.saveSession() })
 	return a
+}
+
+func (a *app) quit() {
+	a.saveSession()
+	platformAllowQuit()
+	a.cx.Quit()
 }
 
 // post runs fn on the engine goroutine.
@@ -940,6 +954,15 @@ func (a *app) openSettings() {
 }
 
 func (a *app) showSettings() {
+	// NSGo's current Windows backend has one native surface. Keep settings
+	// within it until additional native windows are supported there.
+	if a.cx.Env().OS() == core.OSWindows {
+		a.settingsInMain = true
+		a.measureCache()
+		a.showMain()
+		a.bump()
+		return
+	}
 	if a.settingsWin != nil && !a.settingsWin.Closed() {
 		a.settingsWin.Show()
 		a.settingsWin.Focus()
@@ -988,6 +1011,11 @@ func (a *app) view(cx *core.Scope) core.Node {
 			a.nameDialog(cx, p),
 			a.deleteDialog(cx, p),
 			core.Show{When: func() bool { return a.toast.Get() != "" }, Then: a.toastView},
+			core.Show{When: func() bool { a.rev.Get(); return a.settingsInMain }, Then: func(cx *core.Scope) core.Node {
+				return core.View{TestID: "settings-in-main", Style: core.Style{Position: core.Absolute,
+					Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0), ZIndex: 20},
+					Children: []core.Node{a.settingsView(cx)}}
+			}},
 		}
 		return root
 	})
@@ -1020,7 +1048,14 @@ func (a *app) setupWindow(cx *core.Scope) {
 // shortcuts binds the keys of Music.
 func (a *app) shortcuts(cx *core.Scope) {
 	cx.OnKeyWith("space", core.KeyOptions{When: core.KeyNotEditing}, a.toggle)
-	cx.OnKey("mod+f", func() { a.searchFieldFocus(cx) })
+	cx.OnKey("mod+f", func() {
+		if a.settingsInMain {
+			a.settingsRef.Focus()
+			return
+		}
+		a.searchFieldFocus(cx)
+	})
+	cx.OnKey("mod+q", a.quit)
 	cx.OnKey("mod+[", a.back)
 	cx.OnKey("mod+]", a.goForward)
 	cx.OnKey("mod+n", a.newPlaylist)
@@ -1028,6 +1063,10 @@ func (a *app) shortcuts(cx *core.Scope) {
 	cx.OnKey("mod+left", a.pl.Prev)
 	cx.OnKey("mod+right", a.pl.Next)
 	cx.OnKey("escape", func() {
+		if a.settingsInMain {
+			a.closeSettings()
+			return
+		}
 		if a.nowPlaying {
 			a.closeNowPlaying()
 		}
@@ -1041,6 +1080,8 @@ func (a *app) shortcuts(cx *core.Scope) {
 		})
 	}
 }
+
+func (a *app) closeSettings() { a.settingsInMain = false; a.bump() }
 
 // searchFieldFocus focuses the sidebar's search field.
 func (a *app) searchFieldFocus(cx *core.Scope) {

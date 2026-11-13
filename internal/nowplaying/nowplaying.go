@@ -1,6 +1,5 @@
 // Package nowplaying shows what the app plays where the system shows
-// media, and reports the media keys and its controls: purego on macOS,
-// nothing elsewhere yet.
+// media, and reports the media keys and its controls on macOS and Windows.
 package nowplaying
 
 import "time"

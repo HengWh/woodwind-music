@@ -4,8 +4,46 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
 )
+
+func TestLocalFileURLs(t *testing.T) {
+	for _, tc := range []struct {
+		path, url string
+		windows   bool
+	}{
+		{`C:\音乐\周杰伦 #1 100%.flac`, "file:///C:/%E9%9F%B3%E4%B9%90/%E5%91%A8%E6%9D%B0%E4%BC%A6%20%231%20100%25.flac", true},
+		{`\\NAS\Music\专辑\a.flac`, "file://NAS/Music/%E4%B8%93%E8%BE%91/a.flac", true},
+		{"/Music/a #1%.flac", "file:///Music/a%20%231%25.flac", false},
+	} {
+		if got := fileURL(tc.path, tc.windows); got != tc.url {
+			t.Errorf("FileURL(%q) = %q, want %q", tc.path, got, tc.url)
+		}
+		if got, ok := pathOf(tc.url, tc.windows); !ok || got != tc.path {
+			t.Errorf("PathOf(%q) = %q, %v; want %q", tc.url, got, ok, tc.path)
+		}
+	}
+	for _, tc := range []struct{ url, want string }{
+		{"file://localhost/C:/Music/a.mp3", `C:\Music\a.mp3`},
+		{"file:////NAS/Music/a.mp3", `\\NAS\Music\a.mp3`},
+	} {
+		if got, ok := pathOf(tc.url, true); !ok || got != tc.want {
+			t.Errorf("PathOf(%q) = %q, %v", tc.url, got, ok)
+		}
+	}
+	if _, ok := pathOf("file://NAS/Music/a.mp3", false); ok {
+		t.Fatal("a remote file URL must not become a local path")
+	}
+	path := filepath.Join(t.TempDir(), "音乐 #100%.png")
+	if err := os.WriteFile(path, []byte("cover"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := Fetch(FileURL(path)); err != nil || string(data) != "cover" {
+		t.Fatalf("fetching a local cover: %q, %v", data, err)
+	}
+}
 
 // useImageHeaders sets ImageHeaders for a test, putting back what was there.
 func useImageHeaders(t *testing.T, f func(*url.URL) map[string]string) {

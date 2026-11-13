@@ -16,6 +16,11 @@ import (
 //go:embed tray/tray-template.png
 var trayTemplate []byte
 
+//go:embed tray/tray.png
+var trayColor []byte
+
+type trayIcon interface{ Remove() }
+
 // appIcons are where the app's icon shows on macOS, with their names: the
 // Dock and the menu bar, the Dock alone, or the menu bar alone.
 var appIcons = []struct{ id, label string }{
@@ -52,8 +57,15 @@ func (a *app) windowOpen() bool {
 
 // makeTray adds the app's icon to the menu bar or the notification area,
 // which opens its window and plays.
-func (a *app) makeTray(cx *core.Scope) *desktop.Tray {
-	return desktop.NewTray(cx, desktop.TrayOptions{Icon: trayTemplate, Template: true, Tooltip: appName,
+func (a *app) makeTray(cx *core.Scope) trayIcon {
+	image, template := trayColor, false
+	var onClick func()
+	if runtime.GOOS == "darwin" {
+		image, template = trayTemplate, true
+	} else {
+		onClick = a.showMain
+	}
+	return newPlatformTray(cx, desktop.TrayOptions{Icon: image, Template: template, Tooltip: appName, OnClick: onClick,
 		Menu: func() []desktop.MenuItem {
 			return []desktop.MenuItem{
 				{Label: i18n.Tf("Open %s", appName), OnSelect: a.showMain},
@@ -70,13 +82,16 @@ func (a *app) makeTray(cx *core.Scope) *desktop.Tray {
 				{Label: i18n.T("Now Playing"), OnSelect: func() { a.showMain(); a.openNowPlaying() }},
 				{Label: i18n.T("Settings…"), OnSelect: a.openSettings},
 				{Separator: true},
-				{Label: i18n.Tf("Quit %s", appName), OnSelect: func() { a.saveSession(); a.cx.Quit() }},
+				{Label: i18n.Tf("Quit %s", appName), OnSelect: a.quit},
 			}
-		}})
+		}}, a.saveSession)
 }
 
 // showMain opens the app's window, or brings it forward.
 func (a *app) showMain() {
+	if platformRestoreMain() {
+		return
+	}
 	if w := desktop.MainWindow(a.cx); w != nil && !w.Closed() {
 		w.Show()
 		w.Focus()
