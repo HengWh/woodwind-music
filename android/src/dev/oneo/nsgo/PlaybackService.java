@@ -57,7 +57,7 @@ public final class PlaybackService extends Service {
             .setWillPauseWhenDucked(true).setOnAudioFocusChangeListener(this::focusChanged, ui).build();
         wake = getSystemService(PowerManager.class).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, getPackageName()+":playback");
         wake.setReferenceCounted(false);
-        session = new MediaSession(this, "Woodwind Music");
+        session = new MediaSession(this, getApplicationInfo().loadLabel(getPackageManager()).toString());
         session.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
         session.setSessionActivity(openApp());
         session.setCallback(new MediaSession.Callback() {

@@ -116,7 +116,7 @@ go run ./cmd/android
 .tools/android/platform-tools/adb install -r "dist/releases/woodwind-music-0.1.23-android-arm64.apk"
 ```
 
-APK 位于 `dist/releases/`，版本号跟随 `nsgo.yaml`。本地构建沿用 NSGo 的调试签名，保留安装后的数据。`-device <序列号>` 选择手机，`-debug` 允许开发检查。工具优先使用 `ANDROID_HOME`、`JAVA_HOME`、`R8_JAR` 和 `ADB`，否则使用项目 `.tools/android/` 下的工具。
+APK 位于 `dist/releases/`，版本号跟随 `nsgo.yaml`。安卓安装后统一显示中文名称“木听风音乐”，桌面图标和系统应用信息使用 `android/AndroidManifest.xml` 中的名称，媒体会话也沿用该名称。本地构建沿用 NSGo 的调试签名，保留安装后的数据。`-device <序列号>` 选择手机，`-debug` 允许开发检查。工具优先使用 `ANDROID_HOME`、`JAVA_HOME`、`R8_JAR` 和 `ADB`，否则使用项目 `.tools/android/` 下的工具。
 
 请用 `go run ./cmd/android` 构建完整安卓包。裸 `go tool nsgo build -target android_arm64` 只会生成框架的基础包，不含本项目的后台播放宿主。
 
