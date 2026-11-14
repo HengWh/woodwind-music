@@ -1289,18 +1289,21 @@ func (a *app) shortcuts(cx *core.Scope) {
 	cx.OnKey("mod+,", a.openSettings)
 	cx.OnKey("mod+left", a.pl.Prev)
 	cx.OnKey("mod+right", a.pl.Next)
-	cx.OnKey("escape", func() {
+	// Let menus and other overlays consume Escape before closing a page.
+	cx.OnBackPress(func() bool {
 		if a.phoneSheet.GetUntracked() != "" {
 			a.phoneSheet.Set("")
-			return
+			return true
 		}
 		if a.settingsInMain {
 			a.closeSettings()
-			return
+			return true
 		}
 		if a.nowPlaying {
 			a.closeNowPlaying()
+			return true
 		}
+		return false
 	})
 	for i, pane := range []int{0, 3, 1, 2} {
 		pane := pane

@@ -268,3 +268,60 @@ func TestDesktopPluginPlaybackErrorIsVisible(t *testing.T) {
 		t.Fatal("Now Playing hid the playback error")
 	}
 }
+
+// A custom menu trigger must still have a popup surface. Check the visible
+// geometry as well as selection, since a transparent menu remains clickable.
+func TestSourceSwitcherMenuSurface(t *testing.T) {
+	for _, appearance := range []string{"light", "dark"} {
+		t.Run(appearance, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("WOODWIND_MUSIC_DATA_DIR", dir)
+			installDemo(t, dir)
+			var a *app
+			ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+				a = newApp(cx)
+				a.set.Appearance = appearance
+				if appearance == "dark" {
+					cx.SetAppearance(core.AppearanceDark)
+				} else {
+					cx.SetAppearance(core.AppearanceLight)
+				}
+				return a.view(cx)
+			}, nsgotest.Size(880, 580))
+			defer a.closePlugins()
+			ui.WaitUntil(time.Second, func() bool { return !a.homeBusy })
+			ui.Press("id:source-switcher")
+			menu := ui.Find("role:menu")
+			popup, trigger := reviewBounds(menu), reviewBounds(ui.Find("id:source-switcher"))
+			if menu.Style.Background&0xff != 0xff || menu.Style.BorderWidth <= 0 {
+				t.Fatal("source menu has no opaque popup surface")
+			}
+			if popup.Size.Width < trigger.Size.Width || popup.Origin.Y < trigger.Origin.Y+trigger.Size.Height || popup.Origin.X+popup.Size.Width > 880 {
+				t.Fatalf("source menu is misplaced: popup=%+v trigger=%+v", popup, trigger)
+			}
+			for _, id := range []string{"source-option-local", "source-option-demo"} {
+				option := reviewBounds(ui.Find("id:" + id))
+				if option.Origin.X < popup.Origin.X || option.Origin.Y < popup.Origin.Y || option.Origin.X+option.Size.Width > popup.Origin.X+popup.Size.Width || option.Origin.Y+option.Size.Height > popup.Origin.Y+popup.Size.Height {
+					t.Fatalf("%s escapes its popup: option=%+v popup=%+v", id, option, popup)
+				}
+			}
+			if !ui.Find("id:source-option-local").Props.Checked {
+				t.Fatal("current source is not marked")
+			}
+			if os.Getenv("WOODWIND_PLUGIN_SHOTS") != "" {
+				ui.Screenshot("source-menu-" + appearance)
+			}
+			ui.Key("escape")
+			ui.WaitForGone("role:menu", time.Second)
+			ui.Press("id:source-switcher")
+			ui.Press("id:source-option-demo")
+			ui.WaitUntil(time.Second, func() bool { return a.source().Info().ID == "demo" && !a.homeBusy })
+			ui.WaitForGone("role:menu", time.Second)
+			ui.Press("id:source-switcher")
+			if !ui.Find("id:source-option-demo").Props.Checked {
+				t.Fatal("selected plugin is not marked after switching")
+			}
+			ui.Key("escape")
+		})
+	}
+}

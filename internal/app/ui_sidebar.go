@@ -60,10 +60,8 @@ func (a *app) sourceRow(p palette) core.Node {
 	if count != "" {
 		sub = append(sub, text(count, 11, core.FontWeightNormal, p.muted))
 	}
-	row := core.View{TestID: "source-switcher", Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Padding: core.Symmetric(6, 8),
-		CornerRadius: 8, Hover: &core.Style{Background: p.hover}}, OnPress: func(core.PressEvent) {
-		a.openPhoneSheet("sources")
-	}, Children: []core.Node{
+	row := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Padding: core.Symmetric(6, 8),
+		CornerRadius: 8, Hover: &core.Style{Background: p.hover}}, Children: []core.Node{
 		core.View{Style: core.Style{Width: core.Pt(28), Height: core.Pt(28), CornerRadius: 7, Background: p.accent,
 			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{
 			icon(lucideNote, 15, p.onAccent),
@@ -75,15 +73,39 @@ func (a *app) sourceRow(p palette) core.Node {
 		icon(lucideChevronDown, 12, p.faint),
 	}}
 	var items []core.Node
-	items = append(items, ui.MenuItem{Text: i18n.T("Local Files"), OnSelect: func() { a.switchSource("local") }})
-	for _, p := range a.plugins {
-		id := p.Info().ID
-		items = append(items, ui.MenuItem{Text: p.Info().Name, OnSelect: func() { a.switchSource(id) }})
+	items = append(items, sourceMenuOption(p, "local", i18n.T("Local Files"),
+		func() bool { return a.source() == a.local }, func() { a.switchSource("local") }))
+	for _, plug := range a.plugins {
+		id := plug.Info().ID
+		items = append(items, sourceMenuOption(p, id, plug.Info().Name,
+			func() bool { return a.source().Info().ID == id }, func() { a.switchSource(id) }))
 	}
-	items = append(items, ui.MenuItem{Text: i18n.T("Plugins"), OnSelect: func() { a.settingsPage = "plugins"; a.openSettings() }})
-	row.OnPress = nil
-	return base.Menu{Trigger: row, Children: items}
+	items = append(items, ui.MenuSeparator{}, ui.MenuItem{Text: i18n.T("Plugins"), OnSelect: func() { a.settingsPage = "plugins"; a.openSettings() }})
+	// base.Menu supplies behavior only; a custom trigger still needs an opaque
+	// popup surface, otherwise its items draw directly over the sidebar.
+	return base.Menu{TestID: "source-switcher", Label: a.sourceName(), Trigger: row,
+		Placement: core.PlaceBottom, Align: core.AlignStart, Offset: 4, Margin: 8,
+		PopupStyle: core.Style{MinWidth: core.Pt(sidebarWidth - 28), MaxWidth: core.Pt(320),
+			Direction: core.Column, Background: p.bg, Color: p.text, Padding: core.All(4),
+			BorderWidth: 1, BorderColor: p.hairline, CornerRadius: 10,
+			ShadowColor: p.cardShade, ShadowRadius: 18, ShadowOffset: core.Point{Y: 6}},
+		Children: []core.Node{core.Scroll{TestID: "source-menu-options", Style: core.Style{MaxHeight: core.Pt(360)},
+			Children: []core.Node{core.View{Style: core.Style{Direction: core.Column}, Children: items}}}},
+	}
+}
 
+func sourceMenuOption(p palette, id, label string, checked func() bool, selectSource func()) core.Node {
+	return base.MenuItem{TestID: "source-option-" + id, Label: label, Role: core.RoleMenuItemRadio,
+		Checked: checked, OnSelect: selectSource,
+		Style: core.Style{MinHeight: core.Pt(28), Direction: core.Row, AlignItems: core.AlignCenter,
+			Padding: core.Symmetric(4, 8), Gap: 8, CornerRadius: 6,
+			Hover: &core.Style{Background: p.hover}, Focus: &core.Style{Background: p.hover}},
+		Indicator: icon(lucideCheck, 14, p.accent),
+		IndicatorStyle: core.Style{Width: core.Pt(14), Height: core.Pt(14), Opacity: core.Alpha(0),
+			Checked: &core.Style{Opacity: core.Alpha(1)}},
+		Children: []core.Node{core.Text{Content: label, MaxLines: 1,
+			Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 13, Color: p.text}}},
+	}
 }
 
 // navItem is a page in the sidebar.
