@@ -86,6 +86,10 @@ func TestCloseReleasesFiles(t *testing.T) {
 			b.mu.Lock()
 			file := b.dl.file
 			b.mu.Unlock()
+			var probe [1]byte
+			if _, err := file.ReadAt(probe[:], 0); err != nil {
+				t.Fatalf("audio file was not readable before closing: %v", err)
+			}
 			switch state {
 			case "paused":
 				p.TogglePlay()
@@ -94,7 +98,9 @@ func TestCloseReleasesFiles(t *testing.T) {
 			}
 			p.Close()
 			p.Close() // teardown can be requested more than once
-			if _, err := file.Stat(); !errors.Is(err, os.ErrClosed) {
+			// Stat reports ERROR_INVALID_HANDLE on Windows after Close;
+			// ReadAt uses Go's cross-platform closed-file error instead.
+			if _, err := file.ReadAt(probe[:], 0); !errors.Is(err, os.ErrClosed) {
 				t.Fatalf("audio file was not closed: %v", err)
 			}
 			if err := os.Remove(path); err != nil {
