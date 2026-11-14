@@ -1,10 +1,12 @@
 package app
 
 import (
+	"strings"
 	"time"
 
 	"github.com/nsgo-dev/nsgo/core"
 
+	"github.com/HengWh/woodwind-music/internal/music"
 	"github.com/HengWh/woodwind-music/internal/player"
 )
 
@@ -15,6 +17,7 @@ type videoOutput struct {
 	paused  *core.Signal[bool]
 	volume  *core.Signal[float32]
 	muted   *core.Signal[bool]
+	relay   *music.StreamRelay
 	managed bool
 }
 
@@ -35,8 +38,27 @@ func newVideoOutput(cx *core.Scope) *videoOutput {
 }
 
 func (v *videoOutput) Open(source string, paused bool, events player.NativeEvents) {
+	if v.relay != nil {
+		v.relay.Close()
+		v.relay = nil
+	}
 	v.paused.Set(paused)
 	v.request.Set(&videoRequest{source: source, events: events})
+}
+
+func (v *videoOutput) OpenWithHeaders(source string, headers map[string]string, paused bool, events player.NativeEvents) {
+	v.Close()
+	if len(headers) == 0 && !strings.HasPrefix(strings.ToLower(source), "http://") {
+		v.Open(source, paused, events)
+		return
+	}
+	relay, err := music.NewStreamRelay(source, headers)
+	if err != nil {
+		events.Error(err)
+		return
+	}
+	v.Open(relay.URL, paused, events)
+	v.relay = relay
 }
 
 func (v *videoOutput) SetPaused(paused bool) { v.paused.Set(paused) }
@@ -55,7 +77,13 @@ func (v *videoOutput) Seek(position time.Duration) {
 	}
 }
 
-func (v *videoOutput) Close() { v.request.Set(nil) }
+func (v *videoOutput) Close() {
+	v.request.Set(nil)
+	if v.relay != nil {
+		v.relay.Close()
+		v.relay = nil
+	}
+}
 
 func (v *videoOutput) view() core.Node {
 	return core.Dynamic(func(cx *core.Scope) core.Node {

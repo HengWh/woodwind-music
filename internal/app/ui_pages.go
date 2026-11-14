@@ -25,6 +25,8 @@ func (a *app) page(cx *core.Scope, p palette) core.Node {
 			return a.phoneHome(cx, p)
 		}
 		return a.homePage(cx, p)
+	case pageShows, pageShow, pageStations, pageComments, pageSavedAlbums:
+		return a.extraPage(cx, p, r)
 	case pageLibrary:
 		return a.phoneLibrary(cx, p)
 	case pageLiked:
@@ -103,7 +105,17 @@ func (a *app) homePage(cx *core.Scope, p palette) core.Node {
 		return a.emptyHome(p)
 	}
 	var body []core.Node
-	body = append(body, a.titleBlock(p, greeting(a.localTime()), i18n.Today(a.localTime())))
+	title, sub := greeting(a.localTime()), i18n.Today(a.localTime())
+	if a.source() != a.local {
+		title, sub = a.home.Title, a.home.Subtitle
+		if title == "" {
+			title = a.sourceName()
+		}
+	}
+	body = append(body, a.titleBlock(p, title, sub))
+	if a.home.Description != "" {
+		body = append(body, text(a.home.Description, 14, core.FontWeightNormal, p.muted))
+	}
 	for i, sec := range a.home.Sections {
 		body = append(body, a.browseSection(p, sec, "", i)...)
 	}
@@ -112,6 +124,9 @@ func (a *app) homePage(cx *core.Scope, p palette) core.Node {
 
 // emptyHome invites the listener to add a folder.
 func (a *app) emptyHome(p palette) core.Node {
+	if a.source() != a.local {
+		return a.sourceEmpty(p)
+	}
 	title, sub := i18n.T("Add a music folder"), i18n.T("Choose where your music lives, and it will all be here: MP3, FLAC, Ogg, WAV and M4A files, with their tags, covers and lyrics.")
 	if a.local != nil && len(a.local.Folders()) > 0 {
 		title, sub = i18n.T("No music found"), i18n.T("There are no music files in the folders you chose. Try another.")
@@ -235,6 +250,12 @@ func (a *app) browseSection(p palette, sec music.Section, pageID string, index i
 	if len(sec.Playlists) > 0 {
 		out = append(out, a.cardGrid(p, len(sec.Playlists), func(i int) core.Node { return a.playlistCard(p, sec.Playlists[i]) }))
 	}
+	if len(sec.Shows) > 0 {
+		out = append(out, a.cardGrid(p, len(sec.Shows), func(i int) core.Node { return a.showCard(p, sec.Shows[i]) }))
+	}
+	if len(sec.Stations) > 0 {
+		out = append(out, a.cardGrid(p, len(sec.Stations), func(i int) core.Node { return a.stationCard(p, sec.Stations[i]) }))
+	}
 	if len(sec.Links) > 0 {
 		out = append(out, a.cardGrid(p, len(sec.Links), func(i int) core.Node {
 			l := sec.Links[i]
@@ -273,8 +294,8 @@ func (a *app) coverArt(p palette, url string, radius core.Points, fallback *core
 			CornerRadius: radius, Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 			Children: []core.Node{icon(fallback, 40, p.faint)}}
 	}
-	return core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
-		Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), CornerRadius: radius, Background: p.sidebar}}
+	return a.sourceImage(core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
+		Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), CornerRadius: radius, Background: p.sidebar}})
 }
 
 // cardBox is a card's cover, lifting as the pointer comes onto its card.
@@ -398,8 +419,8 @@ func (a *app) coverRound(p palette, url string, size core.Points) core.Node {
 		return core.View{Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: size / 2, Background: p.sidebar,
 			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideUser, size*0.34, p.faint)}}
 	}
-	return core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
-		Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: size / 2, Background: p.sidebar}}
+	return a.sourceImage(core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
+		Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: size / 2, Background: p.sidebar}})
 }
 
 // playPlaylist loads a playlist, if it isn't loaded, and plays it.
@@ -408,11 +429,15 @@ func (a *app) playPlaylist(id string) {
 		a.playTracks(d.playlist.Tracks, firstPlayable(d.playlist.Tracks))
 		return
 	}
+	src := a.source()
 	go func() {
-		pl, err := a.local.Playlist(id)
+		pl, err := src.Playlist(id)
 		a.post(func() {
 			if err != nil {
 				a.say(err.Error())
+				return
+			}
+			if a.source() != src {
 				return
 			}
 			d := a.playlists[id]
@@ -458,6 +483,16 @@ func (a *app) trackList(p palette, tracks []music.Track, covers, showAlbum bool,
 // trackMenu is what a track's menu offers.
 func (a *app) trackMenu(tr music.Track, playlist string, index int) []core.Node {
 	var items []core.Node
+	src := a.sourceByID(tr.Source)
+	if tr.Source == "" {
+		src = a.source()
+	}
+	if src == nil {
+		return items
+	}
+	if src.Can("comments") {
+		items = append(items, ui.MenuItem{Text: i18n.T("Comments"), OnSelect: func() { a.openTrackPage(tr, pageComments, tr.ID) }})
+	}
 	name, names := tr.Name, tr.ArtistNames()
 	items = append(items, ui.MenuItem{Text: i18n.T("Copy Title"), Icon: lucide.Copy, OnSelect: func() {
 		a.cx.SetClipboard(name)
@@ -472,7 +507,7 @@ func (a *app) trackMenu(tr music.Track, playlist string, index int) []core.Node 
 		items = append(items, ui.MenuItem{Text: i18n.T("Copy Link"), Icon: lucide.Link2, OnSelect: func() { a.cx.SetClipboard(url) }})
 	}
 	items = append(items, ui.MenuSeparator{}, ui.MenuItem{Text: i18n.T("Play"), Icon: lucide.Play, OnSelect: func() { a.playTracks([]music.Track{tr}, 0) }})
-	if len(a.mine) > 0 {
+	if src == a.source() && src.Can("addToPlaylist") && len(a.mine) > 0 {
 		var adds []core.Node
 		for _, pl := range a.mine {
 			id := pl.ID
@@ -483,24 +518,22 @@ func (a *app) trackMenu(tr music.Track, playlist string, index int) []core.Node 
 		items = append(items, ui.Submenu{Text: i18n.T("Add to Playlist"), Icon: lucide.ListPlus,
 			Children: adds})
 	}
-	items = append(items, ui.MenuItem{Text: i18n.T("New Playlist…"), Icon: lucide.Plus, OnSelect: func() {
-		pl, err := a.local.CreatePlaylist(tr.Name)
-		if err != nil {
-			a.say(err.Error())
-			return
-		}
-		a.addToPlaylist(pl.ID, []string{tr.ID})
-		a.reload()
-	}})
-	liked := a.likedSet[tr.ID]
+	if src == a.source() && src.Can("createPlaylist") {
+		items = append(items, ui.MenuItem{Text: i18n.T("New Playlist…"), Icon: lucide.Plus, OnSelect: func() {
+			a.playlistForTrack(tr)
+		}})
+	}
+	liked := a.isTrackLiked(tr)
 	label := i18n.T("Like")
 	if liked {
 		label = i18n.T("Unlike")
 	}
-	items = append(items, ui.MenuSeparator{}, ui.MenuItem{Text: label, Icon: lucide.Heart, OnSelect: func() { a.toggleLike(tr.ID) }})
+	if src.Can("like") || src.Can("likeEpisode") {
+		items = append(items, ui.MenuSeparator{}, ui.MenuItem{Text: label, Icon: lucide.Heart, OnSelect: func() { a.toggleTrackLike(tr) }})
+	}
 	if tr.Album.ID != "" {
 		id, album := tr.Album.ID, tr.Album.Name
-		items = append(items, ui.MenuItem{Text: i18n.Tf("Go to Album: %s", album), Icon: lucide.Disc3, OnSelect: func() { a.open(route{page: pageAlbum, id: id}) }})
+		items = append(items, ui.MenuItem{Text: i18n.Tf("Go to Album: %s", album), Icon: lucide.Disc3, OnSelect: func() { a.openTrackPage(tr, pageAlbum, id) }})
 	}
 	for _, ar := range tr.Artists {
 		if ar.ID == "" {
@@ -508,32 +541,18 @@ func (a *app) trackMenu(tr music.Track, playlist string, index int) []core.Node 
 		}
 		id, artist := ar.ID, ar.Name
 		items = append(items, ui.MenuItem{Text: i18n.Tf("Go to Artist: %s", artist), Icon: lucide.User, OnSelect: func() {
-			a.open(route{page: pageArtist, id: id})
+			a.openTrackPage(tr, pageArtist, id)
 		}})
 	}
 	if playlist != "" {
 		id, at := tr.ID, index
 		if at > 0 {
 			items = append(items, ui.MenuItem{Text: i18n.T("Move Up"), Icon: lucide.ArrowUp, OnSelect: func() {
-				if err := a.local.MovePlaylistTrack(playlist, at, at-1); err != nil {
-					a.say(err.Error())
-					return
-				}
-				if d := a.playlists[playlist]; d != nil {
-					d.playlist = nil
-					a.loadPlaylist(playlist, true)
-				}
+				a.movePlaylistTrack(playlist, at, at-1)
 			}})
 		}
 		items = append(items, ui.MenuItem{Text: i18n.T("Move Down"), Icon: lucide.ArrowDown, OnSelect: func() {
-			if err := a.local.MovePlaylistTrack(playlist, at, at+1); err != nil {
-				a.say(err.Error())
-				return
-			}
-			if d := a.playlists[playlist]; d != nil {
-				d.playlist = nil
-				a.loadPlaylist(playlist, true)
-			}
+			a.movePlaylistTrack(playlist, at, at+1)
 		}})
 		items = append(items, ui.MenuSeparator{}, ui.MenuItem{Text: i18n.T("Remove from Playlist"), Icon: lucide.Trash, Variant: ui.MenuItemDanger,
 			OnSelect: func() { a.removeFromPlaylist(playlist, []string{id}) }})
@@ -643,6 +662,15 @@ func (a *app) playlistHero(p palette, pl *music.Playlist) core.Node {
 			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideList, 64, p.onAccent)}}
 	}
 	head := a.hero(p, pic, i18n.T("Playlist"), pl.Name, i18n.Songs(len(pl.Tracks)), pl.Tracks)
+	if a.can("savePlaylist") && !pl.Mine {
+		src := a.source()
+		id, on := pl.ID, !pl.Saved
+		label := i18n.TC("Save", "library")
+		if pl.Saved {
+			label = i18n.T("Remove from Saved")
+		}
+		head = core.View{Children: []core.Node{head, a.settingsAction(p, label, "playlist-save", false, func() { a.sourceAction(src, func() error { return src.SavePlaylist(id, on) }, nil) })}}
+	}
 	id, name := pl.ID, pl.Name
 	if a.phoneLayout(a.cx) {
 		return core.View{Children: []core.Node{head, a.phoneSheetAction(p, "phone-playlist-more", i18n.T("More"), lucideMore, func() { a.phonePlaylist = id; a.openPhoneSheet("playlist") })}}
@@ -685,10 +713,18 @@ func (a *app) albumPage(cx *core.Scope, p palette, id string) core.Node {
 	}
 	spans = append(spans, core.Span{Content: strings.Join(meta, " · ")})
 	sub := core.Text{Spans: spans, Style: core.Style{FontSize: 13, Color: p.muted}}
-	return a.pageScroll(p,
-		a.heroNode(p, a.cover(p, al.ImageURL, 212, 14), i18n.T("Album"), al.Name, sub, tracks),
-		a.trackList(p, tracks, false, false, a.currentID()),
-	)
+	nodes := []core.Node{a.heroNode(p, a.cover(p, al.ImageURL, 212, 14), i18n.T("Album"), al.Name, sub, tracks)}
+	if a.can("saveAlbum") {
+		src := a.source()
+		on := !al.Saved
+		label := i18n.TC("Save", "library")
+		if al.Saved {
+			label = i18n.T("Remove from Saved")
+		}
+		nodes = append(nodes, a.settingsAction(p, label, "album-save", false, func() { a.sourceAction(src, func() error { return src.SaveAlbum(id, on) }, nil) }))
+	}
+	nodes = append(nodes, a.trackList(p, tracks, false, false, a.currentID()))
+	return a.pageScroll(p, nodes...)
 }
 
 func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
@@ -768,6 +804,15 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 	}()}
 	var body []core.Node
 	body = append(body, header)
+	if a.can("followArtist") {
+		src := a.source()
+		on := !page.Artist.Following
+		label := i18n.T("Follow")
+		if page.Artist.Following {
+			label = i18n.T("Following")
+		}
+		body = append(body, a.settingsAction(p, label, "artist-follow", false, func() { a.sourceAction(src, func() error { return src.FollowArtist(id, on) }, nil) }))
+	}
 	if len(page.Tracks) > 0 && len(page.Albums) > 0 {
 		label := i18n.T("Songs")
 		if tab == 1 {
@@ -807,6 +852,12 @@ func (a *app) browsePage(cx *core.Scope, p palette, id string) core.Node {
 	}
 	b := d.browse
 	var body []core.Node
+	if b.ImageURL != "" {
+		body = append(body, a.coverRound(p, b.ImageURL, 96))
+	}
+	if b.Description != "" {
+		body = append(body, text(b.Description, 14, core.FontWeightNormal, p.muted))
+	}
 	if b.Title != "" {
 		body = append(body, a.titleBlock(p, b.Title, b.Subtitle))
 	}
@@ -853,6 +904,8 @@ func (a *app) searchPage(cx *core.Scope, p palette, r route) core.Node {
 		} else {
 			body = append(body, a.cardGrid(p, len(d.res.Artists), func(i int) core.Node { return a.artistCard(p, d.res.Artists[i]) }))
 		}
+	case music.SearchShows:
+		body = append(body, a.cardGrid(p, len(d.res.Shows), func(i int) core.Node { return a.showCard(p, d.res.Shows[i]) }))
 	case music.SearchPlaylists:
 		if len(d.res.Playlists) == 0 {
 			body = append(body, a.emptyNote(p, i18n.T("No playlists found"), i18n.T("Try another search.")))
@@ -885,6 +938,7 @@ var searchKinds = []struct {
 	{music.SearchArtists, i18n.N("Artists")},
 	{music.SearchAlbums, i18n.N("Albums")},
 	{music.SearchPlaylists, i18n.N("Playlists")},
+	{music.SearchShows, i18n.N("Podcasts")},
 }
 
 func (a *app) searchHeader(p palette, r route) core.Node {
@@ -894,6 +948,9 @@ func (a *app) searchHeader(p palette, r route) core.Node {
 	}
 	var tabs []core.Node
 	for _, k := range searchKinds {
+		if k.kind == music.SearchShows && a.source() == a.local {
+			continue
+		}
 		kind := k.kind
 		selected := r.kind == kind
 		fg := p.muted

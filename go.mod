@@ -3,6 +3,7 @@ module github.com/HengWh/woodwind-music
 go 1.26.0
 
 require (
+	github.com/MoeForge/moejs v0.1.0
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/ebitengine/purego v0.11.2
 	github.com/hajimehoshi/go-mp3 v0.3.4
@@ -11,9 +12,11 @@ require (
 	github.com/nsgo-dev/nsgo v0.0.0
 	github.com/tphakala/go-aac v0.7.1
 	golang.org/x/text v0.43.0
+	rsc.io/qr v0.2.0
 )
 
 require (
+	github.com/MoeForge/moego v0.1.0-alpha.1 // indirect
 	github.com/andybalholm/brotli v1.2.6 // indirect
 	github.com/dlclark/regexp2/v2 v2.11.0 // indirect
 	github.com/dop251/goja v0.0.0-20261027234916-5f913d1693d9 // indirect
@@ -30,7 +33,6 @@ require (
 	golang.org/x/image v0.45.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	rsc.io/qr v0.2.0 // indirect
 )
 
 tool github.com/nsgo-dev/nsgo/cmd/nsgo

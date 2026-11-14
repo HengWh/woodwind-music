@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 
 	"github.com/HengWh/woodwind-music/internal/i18n"
 	"github.com/HengWh/woodwind-music/internal/music"
@@ -29,11 +30,7 @@ func (a *app) sidebar(cx *core.Scope, top core.Points) core.Node {
 				r := a.route.Get()
 				return core.View{Style: core.Style{Direction: core.Column, Gap: 2, Padding: core.Symmetric(2, 0)}, Children: []core.Node{
 					core.Group{
-						a.navItem(p, "nav-home", lucideHome, i18n.T("Home"), r.page == pageHome, func() { a.open(route{page: pageHome}) }),
-						a.navItem(p, "nav-songs", lucideNote, i18n.T("Songs"), r.page == pageBrowse && r.id == "songs", func() { a.open(route{page: pageBrowse, id: "songs"}) }),
-						a.navItem(p, "nav-albums", lucideDisc, i18n.T("Albums"), r.page == pageBrowse && r.id == "albums", func() { a.open(route{page: pageBrowse, id: "albums"}) }),
-						a.navItem(p, "nav-artists", lucideUser, i18n.T("Artists"), r.page == pageBrowse && r.id == "artists", func() { a.open(route{page: pageBrowse, id: "artists"}) }),
-						a.navItem(p, "nav-liked", lucideHeart, i18n.T("Liked Songs"), r.page == pageLiked, func() { a.open(route{page: pageLiked}) }),
+						core.Group(a.sourceNavigation(p, r, false)),
 						core.Show{When: func() bool { return a.lastSearch.query != "" },
 							Then: func(*core.Scope) core.Node {
 								last := a.lastSearch
@@ -51,7 +48,7 @@ func (a *app) sidebar(cx *core.Scope, top core.Points) core.Node {
 // sourceRow names the source the library is of, and what is being scanned.
 func (a *app) sourceRow(p palette) core.Node {
 	count := ""
-	if a.local != nil {
+	if a.source() == a.local && a.local != nil {
 		if n := a.local.TrackCount(); n > 0 {
 			count = i18n.Songs(n)
 		}
@@ -63,20 +60,30 @@ func (a *app) sourceRow(p palette) core.Node {
 	if count != "" {
 		sub = append(sub, text(count, 11, core.FontWeightNormal, p.muted))
 	}
-	return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Padding: core.Symmetric(6, 8),
+	row := core.View{TestID: "source-switcher", Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Padding: core.Symmetric(6, 8),
 		CornerRadius: 8, Hover: &core.Style{Background: p.hover}}, OnPress: func(core.PressEvent) {
-		a.open(route{page: pageHome})
+		a.openPhoneSheet("sources")
 	}, Children: []core.Node{
 		core.View{Style: core.Style{Width: core.Pt(28), Height: core.Pt(28), CornerRadius: 7, Background: p.accent,
 			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{
 			icon(lucideNote, 15, p.onAccent),
 		}},
 		core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Direction: core.Column, Gap: 1}, Children: []core.Node{
-			text(i18n.T("Local Files"), 13, core.FontWeightSemibold, p.text),
+			text(a.sourceName(), 13, core.FontWeightSemibold, p.text),
 			core.Group(sub),
 		}},
 		icon(lucideChevronDown, 12, p.faint),
 	}}
+	var items []core.Node
+	items = append(items, ui.MenuItem{Text: i18n.T("Local Files"), OnSelect: func() { a.switchSource("local") }})
+	for _, p := range a.plugins {
+		id := p.Info().ID
+		items = append(items, ui.MenuItem{Text: p.Info().Name, OnSelect: func() { a.switchSource(id) }})
+	}
+	items = append(items, ui.MenuItem{Text: i18n.T("Plugins"), OnSelect: func() { a.settingsPage = "plugins"; a.openSettings() }})
+	row.OnPress = nil
+	return base.Menu{Trigger: row, Children: items}
+
 }
 
 // navItem is a page in the sidebar.
@@ -100,6 +107,9 @@ func (a *app) navItem(p palette, id string, svg *core.SVG, label string, selecte
 
 // playlistSection is My Playlists, above the listener's lists.
 func (a *app) playlistSection(p palette, r route) core.Node {
+	if !a.can("playlists") {
+		return core.Group{}
+	}
 	var rows []core.Node
 	for i := range a.mine {
 		pl := a.mine[i]
@@ -110,7 +120,7 @@ func (a *app) playlistSection(p palette, r route) core.Node {
 		Children: []core.Node{
 			text(i18n.T("My Playlists"), 11, core.FontWeightSemibold, p.muted),
 			core.View{Style: core.Style{FlexGrow: 1}},
-			base.Button{Label: i18n.T("New Playlist"), TestID: "new-playlist", OnPress: func(core.PressEvent) { a.newPlaylist() },
+			base.Button{Label: i18n.T("New Playlist"), TestID: "new-playlist", Disabled: func() bool { return !a.can("createPlaylist") }, OnPress: func(core.PressEvent) { a.newPlaylist() },
 				Style: core.Style{Width: core.Pt(24), Height: core.Pt(24), Direction: core.Row, AlignItems: core.AlignCenter,
 					JustifyContent: core.JustifyCenter, CornerRadius: 6, Hover: &core.Style{Background: p.hover}},
 				Children: []core.Node{icon(lucidePlus, 14, p.muted)}},

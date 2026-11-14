@@ -2,11 +2,15 @@ package app
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
 	"image"
 	"image/color"
 	_ "image/jpeg"
 	_ "image/png"
 	"math"
+	"net/url"
 	"runtime"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -159,4 +163,45 @@ func hsvColor(h, s, v float64) core.Color {
 	}
 	m := v - c
 	return core.RGB(rgbHex(r+m, g+m, b+m))
+}
+
+// Protected artwork is fetched by the host because core.Image has no header
+// property. Cache keys include credentials so a new sign-in gets fresh bytes.
+func (a *app) sourceImage(im core.Image) core.Node {
+	u, err := url.Parse(im.Source.URI)
+	if err != nil {
+		return im
+	}
+	headers := a.imageHeaders(u)
+	if len(headers) == 0 {
+		return im
+	}
+	encoded, _ := json.Marshal(headers)
+	key := fmt.Sprintf("%s/%x", im.Source.URI, sha256.Sum256(encoded))
+	if a.protectedImages == nil {
+		a.protectedImages = map[string]*core.Signal[*core.ImageSource]{}
+	}
+	source := a.protectedImages[key]
+	if source == nil {
+		if len(a.protectedImages) >= 64 {
+			a.protectedImages = map[string]*core.Signal[*core.ImageSource]{}
+		}
+		source = core.NewSignal[*core.ImageSource](a.cx, nil)
+		a.protectedImages[key] = source
+		address := im.Source.URI
+		go func() {
+			data, err := music.Fetch(address)
+			if err == nil {
+				a.post(func() { source.Set(&core.ImageSource{Data: data}) })
+			}
+		}()
+	}
+	im.Source = core.ImageSource{}
+	im.SourceFunc = func() core.ImageSource {
+		if value := source.Get(); value != nil {
+			return *value
+		}
+		return core.ImageSource{}
+	}
+	return im
 }

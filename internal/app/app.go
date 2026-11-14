@@ -21,6 +21,7 @@ import (
 	"github.com/HengWh/woodwind-music/internal/music"
 	"github.com/HengWh/woodwind-music/internal/nowplaying"
 	"github.com/HengWh/woodwind-music/internal/player"
+	"github.com/HengWh/woodwind-music/internal/plugin"
 )
 
 const appName = "Woodwind Music"
@@ -69,10 +70,16 @@ const (
 	pageBrowse
 	pageSection
 	pageLibrary
+	pageShows
+	pageShow
+	pageStations
+	pageComments
+	pageSavedAlbums
 )
 
-// route is the page shown. A page is of the one source, the local files.
+// route identifies both the page and the source that owns its IDs.
 type route struct {
+	src   string
 	page  pageKind
 	id    string // the playlist, album, artist or browse page shown
 	query string
@@ -81,6 +88,7 @@ type route struct {
 
 // settings are the app's own, kept in settings.json in its data directory.
 type settings struct {
+	Source     string  `json:"source,omitempty"`
 	Language   string  `json:"language"`
 	Appearance string  `json:"appearance"`
 	Volume     float64 `json:"volume"`
@@ -184,6 +192,18 @@ type app struct {
 	location *time.Location
 	set      settings
 
+	sources         sourceRegistry
+	protectedImages map[string]*core.Signal[*core.ImageSource]
+	active          music.Source
+	plugins         []*plugin.Plugin
+	installer       pluginInstaller
+	account         *music.Account
+	signingIn       bool
+	signSource      music.Source
+	signGeneration  int
+	signPrompt      music.SignInPrompt
+	extra           map[route]*extraData
+
 	local        *local.Source
 	pl           *player.Player
 	video        *videoOutput
@@ -219,13 +239,14 @@ type app struct {
 	forward  []route
 	scrolled route
 
-	home     *music.Browse
-	homeBusy bool
-	homeErr  string
-	recent   []music.Track
-	mine     []music.Playlist
-	liked    []music.Track
-	likedSet map[string]bool
+	home       *music.Browse
+	homeBusy   bool
+	homeErr    string
+	recent     []music.Track
+	mine       []music.Playlist
+	liked      []music.Track
+	likedSet   map[string]bool
+	trackLikes map[string]map[string]bool
 
 	searchRef *core.Ref
 
@@ -319,13 +340,29 @@ func newApp(cx *core.Scope) *app {
 	zone, _ := cx.HostParams()["woodwind.timeZone"].(string)
 	a.location = deviceLocation(zone)
 	a.local = local.New(dir)
-	a.local.OnChange(func() { a.post(a.reload) })
+	a.local.OnChange(func() {
+		a.post(func() {
+			if a.source() == a.local {
+				a.reload()
+			} else {
+				a.bump()
+			}
+		})
+	})
+	a.initSources()
 	a.pl = player.New(func(fn func()) { a.post(fn) })
 	if cx.Env().OS() == core.OSAndroid {
 		a.video = newVideoOutput(cx)
 		a.pl.Native = a.video
 	}
-	a.pl.Source = func(string) music.Source { return a.local }
+	a.pl.Source = a.sourceByID
+	a.pl.Failed = func(id string, err error) {
+		a.say(err.Error())
+		if src := a.sourceByID(id); src != nil {
+			a.settingsPage = "plugins"
+			a.openSettings()
+		}
+	}
 	a.pl.Quality = func() string { return a.set.Quality }
 	a.pl.Normalize = func() bool { return a.set.Normalize }
 	if dir != "" && a.set.CacheMB > 0 {
@@ -368,7 +405,7 @@ func newApp(cx *core.Scope) *app {
 	a.reload()
 	a.heartbeat()
 	a.setup(cx)
-	cx.OnQuit(func(context.Context) { a.saveSession() })
+	cx.OnQuit(func(context.Context) { a.saveSession(); a.closePlugins() })
 	return a
 }
 
@@ -431,7 +468,7 @@ func (a *app) reload() {
 	a.homeBusy = true
 	a.reloadGen++
 	gen := a.reloadGen
-	src := a.local
+	src := a.source()
 	go func() {
 		home, homeErr := src.Home()
 		playlists, _ := src.Playlists()
@@ -452,6 +489,10 @@ func (a *app) reload() {
 				a.liked = liked.Tracks
 			}
 			a.likedSet = map[string]bool{}
+			if a.trackLikes == nil {
+				a.trackLikes = map[string]map[string]bool{}
+			}
+			a.trackLikes[src.Info().ID] = a.likedSet
 			for _, t := range a.liked {
 				a.likedSet[t.ID] = true
 			}
@@ -463,6 +504,7 @@ func (a *app) reload() {
 			a.artists = map[string]*artistData{}
 			a.browses = map[string]*browseData{}
 			a.searches = map[route]*searchData{}
+			a.extra = map[route]*extraData{}
 			a.reloadPage(a.route.GetUntracked())
 			a.bump()
 		})
@@ -486,6 +528,8 @@ func (a *app) reloadPage(r route) {
 		a.loadBrowse(r.id, false)
 	case pageSearch:
 		a.loadSearch(r, false)
+	case pageShows, pageShow, pageStations, pageComments, pageSavedAlbums:
+		a.loadExtra(r, false)
 	case pageSection:
 		// Read from the page the section is on.
 	}
@@ -501,12 +545,17 @@ func (a *app) loadPlaylist(id string, again bool) {
 		return
 	}
 	d.loading, d.err = true, ""
+	src := a.source()
 	go func() {
-		pl, err := a.local.Playlist(id)
+		pl, err := src.Playlist(id)
+		if err == nil && pl == nil {
+			err = errNoAnswer
+		}
 		a.post(func() {
 			d.loading = false
 			if err != nil {
 				d.err = err.Error()
+				a.bump()
 				return
 			}
 			d.playlist = pl
@@ -525,12 +574,17 @@ func (a *app) loadAlbum(id string) {
 		return
 	}
 	d.loading, d.err = true, ""
+	src := a.source()
 	go func() {
-		al, err := a.local.Album(id)
+		al, err := src.Album(id)
+		if err == nil && al == nil {
+			err = errNoAnswer
+		}
 		a.post(func() {
 			d.loading = false
 			if err != nil {
 				d.err = err.Error()
+				a.bump()
 				return
 			}
 			d.album = al
@@ -549,12 +603,17 @@ func (a *app) loadArtist(id string) {
 		return
 	}
 	d.loading, d.err = true, ""
+	src := a.source()
 	go func() {
-		p, err := a.local.Artist(id)
+		p, err := src.Artist(id)
+		if err == nil && p == nil {
+			err = errNoAnswer
+		}
 		a.post(func() {
 			d.loading = false
 			if err != nil {
 				d.err = err.Error()
+				a.bump()
 				return
 			}
 			d.page = p
@@ -573,12 +632,17 @@ func (a *app) loadBrowse(id string, again bool) {
 		return
 	}
 	d.loading, d.err = true, ""
+	src := a.source()
 	go func() {
-		b, err := a.local.Browse(id)
+		b, err := src.Browse(id)
+		if err == nil && b == nil {
+			err = errNoAnswer
+		}
 		a.post(func() {
 			d.loading = false
 			if err != nil {
 				d.err = err.Error()
+				a.bump()
 				return
 			}
 			d.browse = b
@@ -600,10 +664,14 @@ func (a *app) loadSearch(r route, again bool) {
 		return
 	}
 	d.loading, d.loaded, d.err = true, false, ""
+	src := a.source()
 	go func() {
-		res, err := a.local.Search(r.query, r.kind, 0)
+		res, err := src.Search(r.query, r.kind, 0)
+		if err == nil && res == nil {
+			err = errNoAnswer
+		}
 		a.post(func() {
-			if a.searches[r] != d {
+			if a.source() != src || a.searches[r] != d {
 				return
 			}
 			d.loading = false
@@ -628,10 +696,14 @@ func (a *app) loadMoreSearch(r route) {
 	d.loading, d.err = true, ""
 	offset := d.res.Len()
 	a.bump()
+	src := a.source()
 	go func() {
-		res, err := a.local.Search(r.query, r.kind, offset)
+		res, err := src.Search(r.query, r.kind, offset)
+		if err == nil && res == nil {
+			err = errNoAnswer
+		}
 		a.post(func() {
-			if a.searches[r] != d {
+			if a.source() != src || a.searches[r] != d {
 				return
 			}
 			d.loading = false
@@ -642,6 +714,7 @@ func (a *app) loadMoreSearch(r route) {
 				d.res.Albums = append(d.res.Albums, res.Albums...)
 				d.res.Artists = append(d.res.Artists, res.Artists...)
 				d.res.Playlists = append(d.res.Playlists, res.Playlists...)
+				d.res.Shows = append(d.res.Shows, res.Shows...)
 				d.res.More, d.more = res.More, res.More
 			}
 			a.bump()
@@ -651,6 +724,9 @@ func (a *app) loadMoreSearch(r route) {
 
 // open shows r, remembering the page before.
 func (a *app) open(r route) {
+	if r.src == "" && a.source() != a.local {
+		r.src = a.source().Info().ID
+	}
 	if r == a.route.GetUntracked() {
 		a.closeNowPlaying()
 		return
@@ -661,6 +737,13 @@ func (a *app) open(r route) {
 }
 
 func (a *app) show(r route) {
+	target := r.src
+	if target == "" {
+		target = local.ID
+	}
+	if target != a.source().Info().ID {
+		a.activateSource(target)
+	}
 	a.closeNowPlaying()
 	a.phoneSheet.Set("")
 	a.searchOpen.Set(false)
@@ -759,21 +842,61 @@ func (a *app) mute() {
 
 // toggleLike likes or unlikes the track, and says so.
 func (a *app) toggleLike(id string) {
-	on := !a.likedSet[id]
-	if err := a.local.Like(id, on); err != nil {
-		a.say(err.Error())
+	a.toggleTrackLike(music.Track{ID: id, Source: a.source().Info().ID})
+}
+
+func (a *app) isTrackLiked(tr music.Track) bool {
+	if tr.Source == "" || tr.Source == a.source().Info().ID {
+		return a.likedSet[tr.ID]
+	}
+	return a.trackLikes[tr.Source][tr.ID]
+}
+func (a *app) toggleTrackLike(tr music.Track) {
+	src := a.sourceByID(tr.Source)
+	if tr.Source == "" {
+		src = a.source()
+	}
+	if src == nil {
 		return
 	}
-	if on {
-		a.likedSet[id] = true
-	} else {
-		delete(a.likedSet, id)
-	}
-	a.playRev.Update(func(n int) int { return n + 1 })
-	a.say(i18n.T("Added to Liked Songs"))
-	if !on {
-		a.say(i18n.T("Removed from Liked Songs"))
-	}
+	on := !a.isTrackLiked(tr)
+	go func() {
+		var err error
+		if tr.ShowID != "" && src.Can("likeEpisode") {
+			err = src.LikeEpisode(tr.ID, on)
+		} else {
+			err = src.Like(tr.ID, on)
+		}
+		a.post(func() {
+			if err != nil {
+				a.say(err.Error())
+				return
+			}
+			id := src.Info().ID
+			if a.trackLikes == nil {
+				a.trackLikes = map[string]map[string]bool{}
+			}
+			likes := a.trackLikes[id]
+			if a.source() == src {
+				likes = a.likedSet
+			}
+			if likes == nil {
+				likes = map[string]bool{}
+			}
+			likes[tr.ID] = on
+			a.trackLikes[id] = likes
+			a.playRev.Update(func(n int) int { return n + 1 })
+			if a.source() == src {
+				a.reload()
+			}
+			if on {
+				a.say(i18n.T("Added to Liked Songs"))
+			} else {
+				a.say(i18n.T("Removed from Liked Songs"))
+			}
+			a.bump()
+		})
+	}()
 }
 
 func (a *app) say(msg string) {
@@ -801,22 +924,23 @@ func (a *app) saveName() {
 	if name == "" {
 		return
 	}
-	if a.namingNew {
-		pl, err := a.local.CreatePlaylist(name)
-		if err != nil {
-			a.say(err.Error())
-		} else {
-			a.playlists[pl.ID] = &playlistData{playlist: pl}
-			a.open(route{page: pagePlaylist, id: pl.ID})
-			a.reload()
-		}
-	} else if err := a.local.RenamePlaylist(a.namingID, name); err != nil {
-		a.say(err.Error())
-	} else if d := a.playlists[a.namingID]; d != nil && d.playlist != nil {
-		d.playlist.Name = name
-	}
+	src := a.source()
+	isNew, id := a.namingNew, a.namingID
 	a.naming = false
 	a.bump()
+	var made *music.Playlist
+	a.sourceAction(src, func() error {
+		if isNew {
+			var err error
+			made, err = src.CreatePlaylist(name)
+			return err
+		}
+		return src.RenamePlaylist(id, name)
+	}, func() {
+		if made != nil {
+			a.open(route{page: pagePlaylist, id: made.ID})
+		}
+	})
 }
 
 func (a *app) confirmDelete(id, name string) {
@@ -826,41 +950,39 @@ func (a *app) confirmDelete(id, name string) {
 
 func (a *app) deletePlaylist() {
 	id := a.deletingID
-	if err := a.local.DeletePlaylist(id); err != nil {
-		a.say(err.Error())
-	}
+	src := a.source()
 	a.deleting = false
-	if a.route.GetUntracked().page == pagePlaylist && a.route.GetUntracked().id == id {
-		a.back()
-	}
-	a.reload()
 	a.bump()
+	a.sourceAction(src, func() error { return src.DeletePlaylist(id) }, func() {
+		if r := a.route.GetUntracked(); r.page == pagePlaylist && r.id == id {
+			a.back()
+		}
+	})
 }
-
-// addToPlaylist puts tracks into the playlist.
 func (a *app) addToPlaylist(id string, ids []string) {
-	if err := a.local.AddToPlaylist(id, ids); err != nil {
-		a.say(err.Error())
-		return
-	}
-	a.say(i18n.T("Added to the playlist"))
-	if d := a.playlists[id]; d != nil {
-		d.playlist = nil
-		a.loadPlaylist(id, true)
-	}
-	a.reload()
+	src := a.source()
+	a.sourceAction(src, func() error { return src.AddToPlaylist(id, ids) }, func() { a.say(i18n.T("Added to the playlist")) })
 }
-
 func (a *app) removeFromPlaylist(id string, ids []string) {
-	if err := a.local.RemoveFromPlaylist(id, ids); err != nil {
-		a.say(err.Error())
-		return
-	}
-	if d := a.playlists[id]; d != nil {
-		d.playlist = nil
-		a.loadPlaylist(id, true)
-	}
-	a.reload()
+	src := a.source()
+	a.sourceAction(src, func() error { return src.RemoveFromPlaylist(id, ids) }, nil)
+}
+func (a *app) movePlaylistTrack(id string, from, to int) {
+	src := a.source()
+	a.sourceAction(src, func() error { return src.MovePlaylistTrack(id, from, to) }, nil)
+}
+func (a *app) playlistForTrack(tr music.Track) {
+	src := a.source()
+	a.sourceAction(src, func() error {
+		pl, err := src.CreatePlaylist(tr.Name)
+		if err != nil {
+			return err
+		}
+		if pl == nil {
+			return errNoAnswer
+		}
+		return src.AddToPlaylist(pl.ID, []string{tr.ID})
+	}, nil)
 }
 
 // pickFolders asks for folders with the system's picker and adds them.
@@ -1037,7 +1159,7 @@ func (a *app) showSettings() {
 // view is the window.
 func (a *app) view(cx *core.Scope) core.Node {
 	a.setupWindow(cx)
-	content := core.Dynamic(func(cx *core.Scope) core.Node {
+	var content core.Node = core.Dynamic(func(cx *core.Scope) core.Node {
 		p := a.palette(cx)
 		a.compact = a.phoneLayout(cx)
 		if a.compact {
@@ -1080,6 +1202,7 @@ func (a *app) view(cx *core.Scope) core.Node {
 		}
 		return root
 	})
+	content = core.Group{content, a.pluginDialogs(a.cx, false)}
 	if a.video != nil {
 		// Keep the media node and the UI under one stable attached root,
 		// independently of the content's redraw scopes.
@@ -1103,6 +1226,10 @@ func (a *app) setup(cx *core.Scope) {
 		})
 		cx.OnBackPress(func() bool {
 			switch {
+			case a.signingIn:
+				a.cancelSignIn()
+			case a.installer.open:
+				a.cancelPluginDialog()
 			case a.naming:
 				a.naming = false
 				a.bump()

@@ -2,6 +2,22 @@ package i18n
 
 // zhCN is the app's text in Simplified Chinese, by its English.
 var zhCN = map[string]string{
+	"Website cookie sign-in is not available yet; use the plugin’s QR code or browser sign-in": "暂不支持读取网页登录凭据，请使用插件提供的扫码或浏览器回调登录方式",
+	"This plugin ID is reserved":                                     "此插件 ID 为应用保留",
+	"Plugin installed":                                               "插件已安装",
+	"Install from GitHub or a ZIP file":                              "从 GitHub 或 ZIP 文件安装",
+	"Plugins that start desktop programs are unavailable on Android": "需要启动桌面程序的插件无法在安卓上使用",
+	"Allow":  "允许",
+	"Revoke": "撤销",
+	"Plugin settings are kept for reinstalling": "保留插件设置，重新安装后可继续使用",
+	"Remove Plugin?":   "移除插件？",
+	"Choose ZIP File…": "选择 ZIP 文件…",
+	"Refresh":          "刷新",
+	"Music Sources":    "音乐源",
+	"Unsubscribe":      "取消订阅",
+	"Write a comment":  "写评论",
+	"Send":             "发送",
+
 	"Music Library":                               "音乐库",
 	"Choose a song to start listening":            "选一首歌，开始聆听",
 	"Continue listening":                          "继续聆听",

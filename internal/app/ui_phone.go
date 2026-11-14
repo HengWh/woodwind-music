@@ -92,7 +92,11 @@ func (a *app) phoneHeader(cx *core.Scope, p palette) core.Node {
 							AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideNote, 21, p.onAccent)}})
 					}
 					children = append(children, core.Text{Content: title, MaxLines: 1, Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: phoneFontTitle, FontWeight: core.FontWeightSemibold, Color: p.text}})
-					children = append(children, a.phoneIcon(p, "phone-add-folder", i18n.T("Add Folder…"), lucideFolder, p.text, a.pickFolders))
+					if a.source() == a.local {
+						children = append(children, a.phoneIcon(p, "phone-add-folder", i18n.T("Add Folder…"), lucideFolder, p.text, a.pickFolders))
+					} else {
+						children = append(children, a.phoneIcon(p, "phone-source-switcher", a.sourceName(), lucideChevronDown, p.text, func() { a.openPhoneSheet("sources") }))
+					}
 					if a.phoneTab == 1 {
 						children = append(children, a.phoneIcon(p, "open-settings", i18n.T("Settings"), lucideSettings, p.text, a.openSettings))
 					} else {

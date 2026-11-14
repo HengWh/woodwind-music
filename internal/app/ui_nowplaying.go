@@ -23,9 +23,9 @@ func (a *app) nowPlayingView(cx *core.Scope, p palette) core.Node {
 	backdrop := core.Dynamic(func(cx *core.Scope) core.Node {
 		a.playRev.Get()
 		if t := a.pl.Current(); t != nil && t.Album.ImageURL != "" {
-			return core.Image{Source: imageSource(t.Album.ImageURL), ResizeMode: core.Cover, BlurRadius: 90,
+			return a.sourceImage(core.Image{Source: imageSource(t.Album.ImageURL), ResizeMode: core.Cover, BlurRadius: 90,
 				Style: core.Style{Position: core.Absolute, Top: core.Pt(-60), Right: core.Pt(-60), Bottom: core.Pt(-60), Left: core.Pt(-60),
-					Opacity: core.Alpha(0.16)}}
+					Opacity: core.Alpha(0.16)}})
 		}
 		return core.Group{}
 	})
@@ -88,6 +88,16 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 			ui.Menu{Trigger: ui.Button{Label: i18n.T("More"), Variant: ui.ButtonGhost, Side: 30},
 				Face: icon(lucideMore, 22, core.RGBA(0xffffff, 0.7)), Children: a.trackMenu(*tr, "", -1)},
 		}},
+		core.Text{TestID: "np-status", ContentFunc: func() string {
+			a.playRev.Get()
+			if err := a.pl.Err(); err != "" {
+				return err
+			}
+			if a.pl.Loading() {
+				return i18n.T("Buffering…")
+			}
+			return ""
+		}, MaxLines: 2, Style: core.Style{FontSize: 12, Color: white, Margin: core.Edges{Bottom: 8}}},
 		a.progress(palette{accent: white, press: core.RGBA(0xffffff, 0.18)}, true),
 		core.View{Style: core.Style{Height: core.Pt(16), Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween}, Children: []core.Node{
 			core.Text{ContentFunc: func() string { a.tick.Get(); return clock(a.pl.Position()) }, Style: core.Style{FontSize: 11, Color: core.RGBA(0xffffff, 0.5)}},
@@ -134,11 +144,15 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 
 // npLikeButton is the heart of Now Playing.
 func (a *app) npLikeButton(id string) core.Node {
+	tr := music.Track{ID: id}
+	if current := a.pl.Current(); current != nil {
+		tr = *current
+	}
 	color := core.RGBA(0xffffff, 0.7)
-	if a.likedSet[id] {
+	if a.isTrackLiked(tr) {
 		color = core.RGBA(0xffffff, 0.95)
 	}
-	return base.Button{Label: i18n.T("Like"), OnPress: func(core.PressEvent) { a.toggleLike(id) },
+	return base.Button{Label: i18n.T("Like"), OnPress: func(core.PressEvent) { a.toggleTrackLike(tr) },
 		Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), Direction: core.Row, AlignItems: core.AlignCenter,
 			JustifyContent: core.JustifyCenter, CornerRadius: 15, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.1)}},
 		Children: []core.Node{icon(lucideHeart, 20, color)}}

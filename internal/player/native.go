@@ -46,7 +46,10 @@ func (p *Player) loadNative(gen int, src music.Source, t music.Track, quality st
 			}
 			// core.Video has no request-header API. Never silently send an
 			// authenticated stream to it without its required headers.
-			if err == nil && len(info.Headers) > 0 {
+			_, headerOutput := p.Native.(interface {
+				OpenWithHeaders(string, map[string]string, bool, NativeEvents)
+			})
+			if err == nil && len(info.Headers) > 0 && !headerOutput {
 				err = errors.New("native playback: stream request headers are not supported")
 			}
 		}
@@ -70,7 +73,7 @@ func (p *Player) loadNative(gen int, src music.Source, t music.Track, quality st
 					}
 				})
 			}
-			p.Native.Open(info.URL, !p.playing, NativeEvents{
+			events := NativeEvents{
 				Loaded: func(d time.Duration) {
 					current(func() {
 						n.ready, n.duration = true, max(0, d)
@@ -117,7 +120,14 @@ func (p *Player) loadNative(gen int, src music.Source, t music.Track, quality st
 						p.loadFailed(t.Source, err, at, skipped, dir)
 					})
 				},
-			})
+			}
+			if output, ok := p.Native.(interface {
+				OpenWithHeaders(string, map[string]string, bool, NativeEvents)
+			}); ok {
+				output.OpenWithHeaders(info.URL, info.Headers, !p.playing, events)
+			} else {
+				p.Native.Open(info.URL, !p.playing, events)
+			}
 			p.applyGain()
 			p.sync()
 		})

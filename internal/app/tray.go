@@ -75,7 +75,7 @@ func (a *app) makeTray(cx *core.Scope) trayIcon {
 				{Label: i18n.T("Previous"), OnSelect: a.pl.Prev},
 				{Label: i18n.T("Like/Unlike"), OnSelect: func() {
 					if t := a.pl.Current(); t != nil {
-						a.toggleLike(t.ID)
+						a.toggleTrackLike(*t)
 					}
 				}},
 				{Separator: true},

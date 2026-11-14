@@ -31,10 +31,10 @@ func (a *app) phoneSettings(cx *core.Scope, p palette, cats []settingsCatDef) co
 			a.phoneIcon(p, "settings-back", i18n.T("Back"), lucideChevronLeft, p.text, a.closeSettings),
 			text(i18n.T("Settings"), phoneFontTitle, core.FontWeightSemibold, p.text),
 		}},
-		core.Scroll{Horizontal: true, HideIndicator: true, Style: core.Style{FlexShrink: 0}, Children: []core.Node{
+		core.Scroll{Horizontal: true, HideIndicator: true, Style: core.Style{FlexShrink: 0, Height: core.Pt(64), MinHeight: core.Pt(64)}, Children: []core.Node{
 			core.View{Style: core.Style{Direction: core.Row, Gap: 8, Padding: core.Symmetric(8, 16)}, Children: tabs},
 		}},
-		core.Scroll{TestID: "settings-content", Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
+		core.Scroll{TestID: "settings-content", Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0)}, Children: []core.Node{
 			core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 8, Left: 16, Right: 16, Bottom: 24}, Gap: 12}, Children: groups},
 		}},
 	}}

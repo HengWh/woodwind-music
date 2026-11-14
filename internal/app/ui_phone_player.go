@@ -82,11 +82,11 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 					}},
 					a.phoneIcon(ink, "np-like", i18n.T("Like"), lucideHeart, func() core.Color {
 						a.rev.Get()
-						if a.likedSet[tr.ID] {
+						if a.isTrackLiked(*tr) {
 							return p.accent
 						}
 						return white
-					}(), func() { a.toggleLike(tr.ID) }),
+					}(), func() { a.toggleTrackLike(*tr) }),
 				}},
 				a.phoneProgress(ink),
 				core.View{Style: core.Style{Direction: core.Row, JustifyContent: core.JustifySpaceBetween, FlexShrink: 0}, Children: []core.Node{

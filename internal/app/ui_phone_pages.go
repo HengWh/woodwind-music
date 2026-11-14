@@ -11,6 +11,9 @@ import (
 )
 
 func (a *app) phoneHome(cx *core.Scope, p palette) core.Node {
+	if a.source() != a.local {
+		return a.homePage(cx, p)
+	}
 	if a.home == nil && a.homeBusy {
 		return a.loadingPage(p)
 	}
@@ -103,10 +106,14 @@ func (a *app) phoneSectionHeading(p palette, title string, more func()) core.Nod
 }
 
 func (a *app) phoneLibrary(cx *core.Scope, p palette) core.Node {
+	if a.source() != a.local {
+		return a.pluginPhoneLibrary(p)
+	}
 	body := []core.Node{core.View{Style: core.Style{Gap: 6, Margin: core.Edges{Top: 8, Bottom: 16}}, Children: []core.Node{
 		text(i18n.T("Your music, always with you"), phoneFontDisplay, core.FontWeightSemibold, p.text),
 		text(i18n.Songs(a.local.TrackCount()), 13, core.FontWeightNormal, p.muted),
 	}}}
+	body = append(body, a.phoneLibraryRow(p, "phone-sources", i18n.T("Music Sources"), a.sourceName(), lucideNote, func() { a.openPhoneSheet("sources") }))
 	for _, item := range []struct {
 		id, title, sub string
 		svg            *core.SVG

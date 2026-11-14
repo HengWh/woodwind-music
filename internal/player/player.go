@@ -260,6 +260,23 @@ func (p *Player) playQueue(tracks []music.Track, start, dir int) {
 	p.loadSkipping(max(start, 0), 0, dir, true, 0)
 }
 
+// Clear stops playback and forgets its queue, for a source being removed.
+func (p *Player) Clear() {
+	if r := p.remote; r != nil && r.started && p.playing {
+		p.command(r.src, r.src.RemotePause)
+	}
+	p.dropAhead()
+	p.pending = 0
+	p.lyrics, p.lyricsLoaded = nil, false
+	p.gen++
+	p.endRadio()
+	p.stop()
+	p.queue, p.order, p.track = nil, nil, nil
+	p.at = -1
+	p.playing, p.loading = false, false
+	p.sync()
+}
+
 // PlayRadio plays tracks in their order, then goes on with those feed
 // gives as the queue nears its end, until something else is played. The
 // radio's name says which it is. feed calls got on the main thread.
@@ -874,6 +891,9 @@ func errorText(err error) string {
 	case errors.Is(err, errNoSource):
 		return i18n.T("The plugin of this song is gone")
 	case errors.Is(err, music.ErrUnavailable):
+		if reason := music.Reason(err); reason != "" {
+			return reason
+		}
 		return i18n.T("This song isn't available")
 	case errors.Is(err, music.ErrSignIn):
 		return i18n.T("Sign in to play this song")

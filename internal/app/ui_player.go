@@ -94,8 +94,11 @@ func (a *app) barTrack(p palette) core.Node {
 			base.Button{Label: tr.Name, TestID: "bar-open-title", OnPress: open, Style: core.Style{Padding: core.Symmetric(0, 0)},
 				Children: []core.Node{core.Text{Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 13.5, FontWeight: core.FontWeightSemibold, Color: p.text}}}},
 			core.Text{Spans: a.artistSpans(p, *tr, 12, p.muted), MaxLines: 1, Style: core.Style{FontSize: 12, Color: p.muted}},
+			core.Show{When: func() bool { return a.pl.Err() != "" }, Then: func(*core.Scope) core.Node {
+				return core.Text{TestID: "bar-error", Content: a.pl.Err(), MaxLines: 1, Style: core.Style{FontSize: 11, Color: p.accent}}
+			}},
 		}},
-		a.likeButton(p, tr.ID, 15, p.muted),
+		a.likeButton(p, *tr, 15, p.muted),
 	}}
 }
 

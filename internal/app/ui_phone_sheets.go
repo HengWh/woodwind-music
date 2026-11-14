@@ -47,6 +47,9 @@ func (a *app) phoneSheets(cx *core.Scope, p palette) core.Node {
 				if kind != "" {
 					last = kind
 				}
+				if last == "sources" {
+					return a.phoneSources(p)
+				}
 				if last == "queue" {
 					return a.phoneQueue(cx, p)
 				}
@@ -140,13 +143,7 @@ func (a *app) phoneActions(cx *core.Scope, p palette, kind string) core.Node {
 				body = append(body, a.phoneSheetAction(p, "phone-add-to-"+pl.ID, pl.Name, lucideListPlus, close(func() { a.addToPlaylist(pl.ID, []string{tr.ID}) })))
 			}
 			body = append(body, a.phoneSheetAction(p, "phone-add-new-playlist", i18n.T("New Playlist…"), lucidePlus, close(func() {
-				pl, err := a.local.CreatePlaylist(tr.Name)
-				if err != nil {
-					a.say(err.Error())
-					return
-				}
-				a.addToPlaylist(pl.ID, []string{tr.ID})
-				a.reload()
+				a.playlistForTrack(tr)
 			})))
 		case "info":
 			body = append(body, text(i18n.T("Song Info"), phoneFontSection, core.FontWeightSemibold, p.text),
@@ -155,20 +152,23 @@ func (a *app) phoneActions(cx *core.Scope, p palette, kind string) core.Node {
 				text(i18n.T("Duration")+" · "+clock(tr.Length()), phoneFontBody, core.FontWeightNormal, p.muted),
 				a.phoneSheetAction(p, "phone-copy-title", i18n.T("Copy Title"), lucideNote, close(func() { a.cx.SetClipboard(tr.Name) })))
 		default:
+			if src := a.sourceByID(tr.Source); src != nil && src.Can("comments") {
+				body = append(body, a.phoneSheetAction(p, "phone-comments", i18n.T("Comments"), lucideNote, close(func() { a.openTrackPage(tr, pageComments, tr.ID) })))
+			}
 			label := i18n.T("Like")
-			if a.likedSet[tr.ID] {
+			if a.isTrackLiked(tr) {
 				label = i18n.T("Unlike")
 			}
 			body = append(body,
-				a.phoneSheetAction(p, "phone-track-like", label, lucideHeart, close(func() { a.toggleLike(tr.ID) })),
+				a.phoneSheetAction(p, "phone-track-like", label, lucideHeart, close(func() { a.toggleTrackLike(tr) })),
 				a.phoneSheetAction(p, "phone-track-add", i18n.T("Add to Playlist"), lucideListPlus, func() { a.phoneSheet.Set("add") }))
 			if tr.Album.ID != "" {
-				body = append(body, a.phoneSheetAction(p, "phone-track-album", i18n.Tf("Go to Album: %s", tr.Album.Name), lucideDisc, close(func() { a.open(route{page: pageAlbum, id: tr.Album.ID}) })))
+				body = append(body, a.phoneSheetAction(p, "phone-track-album", i18n.Tf("Go to Album: %s", tr.Album.Name), lucideDisc, close(func() { a.openTrackPage(tr, pageAlbum, tr.Album.ID) })))
 			}
 			for _, ar := range tr.Artists {
 				artist := ar
 				if artist.ID != "" {
-					body = append(body, a.phoneSheetAction(p, "phone-track-artist-"+artist.ID, i18n.Tf("Go to Artist: %s", artist.Name), lucideUser, close(func() { a.open(route{page: pageArtist, id: artist.ID}) })))
+					body = append(body, a.phoneSheetAction(p, "phone-track-artist-"+artist.ID, i18n.Tf("Go to Artist: %s", artist.Name), lucideUser, close(func() { a.openTrackPage(tr, pageArtist, artist.ID) })))
 				}
 			}
 			body = append(body, a.phoneSheetAction(p, "phone-track-info", i18n.T("Song Info"), lucideNote, func() { a.phoneSheet.Set("info") }))
@@ -176,11 +176,7 @@ func (a *app) phoneActions(cx *core.Scope, p palette, kind string) core.Node {
 				playlist, index := a.phonePlaylist, a.phoneTrackIndex
 				move := func(to int) func() {
 					return close(func() {
-						if err := a.local.MovePlaylistTrack(playlist, index, to); err != nil {
-							a.say(err.Error())
-							return
-						}
-						a.loadPlaylist(playlist, true)
+						a.movePlaylistTrack(playlist, index, to)
 					})
 				}
 				if index > 0 {

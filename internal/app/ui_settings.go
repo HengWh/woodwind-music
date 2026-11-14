@@ -73,7 +73,7 @@ func (a *app) settingsView(cx *core.Scope) core.Node {
 	return core.Dynamic(func(cx *core.Scope) core.Node {
 		a.rev.Get()
 		p := a.palette(cx)
-		return a.settingsLayout(cx, p, a.settingsCategories(p))
+		return core.Group{a.settingsLayout(cx, p, a.settingsCategories(p)), a.pluginDialogs(cx, true)}
 	})
 }
 
@@ -314,7 +314,7 @@ func (a *app) settingsCategories(p palette) []settingsCatDef {
 				control: a.growFromCoverControl},
 		}}}}
 
-	return []settingsCatDef{general, playback, library, cache, experiments}
+	return []settingsCatDef{general, playback, library, a.pluginCategories(), cache, experiments}
 }
 
 // generalRows are the language, the appearance, and on macOS where the

@@ -164,8 +164,8 @@ func (a *app) cover(p palette, url string, size core.Points, radius core.Points)
 			Background: p.sidebar, Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 			Children: []core.Node{icon(lucideNote, size*0.32, p.faint)}}
 	}
-	return core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
-		Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: radius, Overflow: core.Hidden, Background: p.sidebar}}
+	return a.sourceImage(core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
+		Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: radius, Overflow: core.Hidden, Background: p.sidebar}})
 }
 
 // clock says a length as m:ss, or h:mm:ss when it takes an hour.
@@ -260,14 +260,14 @@ func (a *app) trackRow(p palette, tracks []music.Track, i int, showCover bool, s
 	// A liked song's heart shows; the others' as the pointer is on them,
 	// in a cell the row keeps whether or not it shows, as Music does.
 	heart := core.DisplayNone
-	if a.likedSet[tr.ID] {
+	if a.isTrackLiked(tr) {
 		heart = core.DisplayFlex
 	}
 	children = append(children, core.View{Style: core.Style{Width: core.Pt(32), Height: core.Pt(32), Direction: core.Row,
 		AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{
 		core.View{Style: core.Style{Display: heart,
 			GroupStyle: &core.GroupStyle{Name: trackRowGroup, Hover: &core.Style{Display: core.DisplayFlex}}},
-			Children: []core.Node{a.likeButton(p, tr.ID, 15, p.muted)}}}})
+			Children: []core.Node{a.likeButton(p, tr, 15, p.muted)}}}})
 	children = append(children, core.Text{Content: clock(tr.Length()), Style: core.Style{Width: core.Pt(44), TextAlign: core.TextAlignEnd, FontSize: 12.5, Color: p.faint}})
 	row.Children = children
 	return row
@@ -295,13 +295,13 @@ func (a *app) artistLine(p palette, tr music.Track, size core.Points, color core
 }
 
 // likeButton is the heart of a track.
-func (a *app) likeButton(p palette, id string, size core.Points, color core.Color) core.Node {
-	liked := a.likedSet[id]
+func (a *app) likeButton(p palette, tr music.Track, size core.Points, color core.Color) core.Node {
+	liked := a.isTrackLiked(tr)
 	fill := p.accent
 	if liked {
 		color = fill
 	}
-	return base.Button{Label: i18n.T("Like"), OnPress: func(core.PressEvent) { a.toggleLike(id) },
+	return base.Button{Label: i18n.T("Like"), OnPress: func(core.PressEvent) { a.toggleTrackLike(tr) },
 		StyleFunc: func() core.Style {
 			return core.Style{Width: core.Pt(size + 14), Height: core.Pt(size + 14), Direction: core.Row, AlignItems: core.AlignCenter,
 				JustifyContent: core.JustifyCenter, CornerRadius: size / 2, Hover: &core.Style{Background: p.sidebar}}

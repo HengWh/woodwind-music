@@ -150,6 +150,13 @@ func build(install, launch bool, device string, debug bool) error {
 	if err := copyFile(p.Icon.PNG, filepath.Join(res, "icon.png")); err != nil {
 		return err
 	}
+	xmlDir := filepath.Join(stage, "res", "xml")
+	if err := os.MkdirAll(xmlDir, 0700); err != nil {
+		return err
+	}
+	if err := copyFile("android/res/xml/network_security_config.xml", filepath.Join(xmlDir, "network_security_config.xml")); err != nil {
+		return err
+	}
 	compiled := filepath.Join(stage, "resources.zip")
 	if err := command(filepath.Join(tools, "aapt2"), "compile", "--dir", filepath.Join(stage, "res"), "-o", compiled); err != nil {
 		return err
