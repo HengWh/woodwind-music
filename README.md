@@ -100,23 +100,17 @@ NSGo 提供窗口、界面渲染和交互框架；MyGo Music 是界面设计、�
 
 ## 开发与运行
 
-需要 Go 1.26 或更高版本。NSGo 尚未发布，本项目与框架同步开发，通过 `go.mod` 中的 `replace` 使用相邻目录中的 NSGo 源码。
+需要 Go 1.26 或更高版本。NSGo 通过 Go Modules 从远程获取，版本固定在 `go.mod` 中，本地开发与 CI 使用同一个提交，无需单独克隆框架。
 
 ### 环境准备
 
-将 NSGo 与本项目放在同一级目录：
-
-```text
-workspace/
-├── nsgo/
-└── woodwind-music/
-```
-
 ```sh
-git clone https://github.com/nsgo-dev/nsgo.git
 git clone https://github.com/HengWh/woodwind-music.git
 cd woodwind-music
+go mod download
 ```
+
+需要联调本地 NSGo 时，可以在项目根目录执行 `go work init . ../nsgo`（假设框架位于相邻的 `nsgo` 目录）。`go.work` 和 `go.work.sum` 已忽略，不提交到仓库；设置 `GOWORK=off` 可临时恢复使用远程依赖。
 
 ### 常用命令
 

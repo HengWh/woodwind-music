@@ -29,7 +29,7 @@ Windows 桌面服务集中在 `internal/winshell`；NSGo 补齐对应功能后�
 
 ## 构建与自动检查
 
-按根目录 README 准备同级 NSGo 源码，再执行：
+按根目录 README 安装 Go 并获取项目，NSGo 依赖会自动从远程下载，再执行：
 
 ```sh
 go tool nsgo test
@@ -40,7 +40,7 @@ go run scripts/package-windows.go
 
 完整安装包需要 NSIS 3：macOS 使用 `brew install makensis`；Windows 可使用 `choco install nsis`，并将 NSIS 目录加入 PATH。便携版和安装包位于 `dist/releases/`，附带 SHA-256 校验文件。
 
-`.github/workflows/windows.yml` 会在 Windows runner 上运行测试、检查并上传安装包和便携版，不自动发布 GitHub Release。框架固定到本次验证的公开提交，更新框架时应同步调整该提交并重新回归。
+`.github/workflows/windows.yml` 会在 Windows runner 上运行测试、检查并上传安装包和便携版，不自动发布 GitHub Release。框架版本统一由 `go.mod` 固定，更新框架时应更新依赖并重新回归。
 
 Windows 原生媒体会话测试需要已登录的桌面会话，在 PowerShell 中执行：
 

@@ -10,6 +10,8 @@
 *.test
 *.out
 *.prof
+/go.work
+/go.work.sum
 
 # Local checkout of mygo-music, used as the porting reference
 /.reference/
