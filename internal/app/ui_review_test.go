@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -223,7 +224,13 @@ func TestSettingsControls(t *testing.T) {
 	if a.set.Language != i18n.Chinese {
 		t.Fatal("language selection did not apply")
 	}
-	ui.Find("text:应用图标")
+	ui.Find("text:语言")
+	ui.Find("text:外观")
+	if runtime.GOOS == "darwin" {
+		ui.Find("text:应用图标")
+	} else if ui.Exists("id:settings-app-icon") {
+		t.Fatal("App Icon is a macOS-only setting")
+	}
 	ui.Press("id:settings-appearance-dark")
 	if a.set.Appearance != "dark" {
 		t.Fatal("appearance selection did not apply")
@@ -245,7 +252,11 @@ func TestSettingsControls(t *testing.T) {
 		t.Fatal("quality selection did not apply")
 	}
 	ui.Press("id:settings-nav-general")
-	for _, id := range []string{"settings-language", "settings-app-icon", "settings-appearance-dark"} {
+	ids := []string{"settings-language", "settings-appearance-dark"}
+	if runtime.GOOS == "darwin" {
+		ids = append(ids, "settings-app-icon")
+	}
+	for _, id := range ids {
 		b := reviewBounds(ui.Find("id:" + id))
 		if b.Origin.X < 201 || b.Origin.X+b.Size.Width > 640 {
 			t.Fatalf("%s overflows the settings page: %+v", id, b)

@@ -358,6 +358,7 @@ func newApp(cx *core.Scope) *app {
 	})
 	a.initSources()
 	a.pl = player.New(func(fn func()) { a.post(fn) })
+	cx.Cleanup(a.pl.Close)
 	if cx.Env().OS() == core.OSAndroid {
 		a.video = newVideoOutput(cx)
 		a.pl.Native = a.video

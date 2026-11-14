@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/HengWh/woodwind-music/internal/audio"
@@ -143,6 +144,11 @@ type Player struct {
 	recorded string // the track last told its source it played
 
 	ahead *ahead // the next track's audio, asked for before its turn
+
+	closed      bool
+	playback    *playback
+	resourcesMu sync.Mutex
+	resources   map[*playback]struct{} // includes pending loads and fading outputs
 }
 
 func New(post func(func())) *Player {
@@ -256,7 +262,7 @@ func (p *Player) PlayShuffled(tracks []music.Track) {
 // playQueue plays tracks from start; a start below 0, when shuffled, lets
 // any track come first.
 func (p *Player) playQueue(tracks []music.Track, start, dir int) {
-	if len(tracks) == 0 {
+	if p.closed || len(tracks) == 0 {
 		return
 	}
 	p.endRadio()
@@ -726,12 +732,18 @@ func (p *Player) stop() {
 		p.Native.Close()
 	}
 	p.native = nil
-	if out := p.out; out != nil {
-		// Paused first, it fades out over a few milliseconds, rather than
-		// stopping with a click.
-		out.Pause()
-		time.AfterFunc(100*time.Millisecond, out.Close)
+	b := p.playback
+	if b == nil && p.out != nil {
+		b = p.newPlayback()
+		b.out, b.stream = p.out, p.stream
+		if p.stream != nil {
+			b.dl, _ = p.stream.source()
+		}
 	}
+	if b != nil {
+		b.stop()
+	}
+	p.playback = nil
 	p.out, p.stream, p.watch, p.info, p.remote = nil, nil, nil, nil, nil
 	p.seeking = false
 	p.fade.attach(nil, 1)
@@ -786,6 +798,9 @@ func (p *Player) record() {
 // loadSkipping loads the track at order[at], to play or not, from from,
 // skipping those that cannot play the way dir goes: skipped of them so far.
 func (p *Player) loadSkipping(at, skipped, dir int, play bool, from time.Duration) {
+	if p.closed {
+		return
+	}
 	t := p.queue[p.order[at]]
 	src := p.sourceOf(&t)
 	if was := p.remote; was != nil && was.started && p.playing && (src == nil || src.Info().ID != was.src.Info().ID) {
@@ -821,13 +836,16 @@ func (p *Player) loadSkipping(at, skipped, dir int, play bool, from time.Duratio
 		return
 	}
 	pre := p.takeAhead(t, quality)
+	b := p.newPlayback()
+	p.playback = b
 	go func() {
-		info, s, err := p.open(src, t, quality, pre)
+		info, s, err := p.openPlayback(src, t, quality, pre, b)
+		if !b.decoded(s) {
+			return
+		}
 		p.post(func() {
 			if gen != p.gen {
-				if s != nil {
-					s.Close()
-				}
+				b.close()
 				return
 			}
 			p.loading = false
@@ -838,7 +856,7 @@ func (p *Player) loadSkipping(at, skipped, dir int, play bool, from time.Duratio
 			p.stream, p.info = s, info
 			p.gain = normGain(info)
 			p.watch = &watched{stream: s, now: p.now, ended: func() { p.post(func() {}) }}
-			p.out = audio.NewPlayer(p.watch)
+			p.out = b.output(p.watch)
 			// From its middle, as a session picked up again, it fades in.
 			level := 1.0
 			if p.pending > 0 {
@@ -956,10 +974,18 @@ var errNoSource = errors.New("player: no such source")
 // there, or else streamed into the cache, and kept once it has all come in.
 // What failed ahead is asked for again: it may have been a moment's.
 func (p *Player) open(src music.Source, t music.Track, quality string, pre *ahead) (*music.Stream, stream, error) {
-	if src == nil {
-		if pre != nil {
-			pre.close()
+	return p.openPlayback(src, t, quality, pre, nil)
+}
+
+func (p *Player) openPlayback(src music.Source, t music.Track, quality string, pre *ahead, b *playback) (*music.Stream, stream, error) {
+	// A canceled load must still release a prefetched download it took.
+	unused := pre
+	defer func() {
+		if unused != nil {
+			unused.close()
 		}
+	}()
+	if src == nil {
 		return nil, nil, errNoSource
 	}
 	var dl *download
@@ -968,18 +994,33 @@ func (p *Player) open(src music.Source, t music.Track, quality string, pre *ahea
 	if pre != nil {
 		<-pre.done
 		if pre.err == nil {
-			info, dl, ok = pre.info, pre.dl, true
-			if dl == nil {
-				path, _ := music.PathOf(info.URL)
-				var err error
-				if dl, err = openFile(path); err != nil {
-					return nil, nil, err
+			info, ok = pre.info, true
+			var err error
+			dl, err = b.acquire(func() (*download, error) {
+				dl, err := pre.resource.takeDownload()
+				if dl != nil || err != nil {
+					return dl, err
 				}
+				path, _ := music.PathOf(info.URL)
+				return openFile(path)
+			})
+			if err != nil {
+				return nil, nil, err
 			}
+			pre.close()
+			unused = nil
 		}
 	}
 	if !ok {
-		dl, info, ok = p.Cache.lookup(t.Source, t.ID, quality)
+		var err error
+		dl, err = b.acquire(func() (*download, error) {
+			var found *download
+			found, info, ok = p.Cache.lookup(t.Source, t.ID, quality)
+			return found, nil
+		})
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	if !ok {
 		var err error
@@ -990,13 +1031,14 @@ func (p *Player) open(src music.Source, t music.Track, quality string, pre *ahea
 		if info == nil {
 			return nil, nil, music.ErrUnavailable
 		}
-		if path, isFile := music.PathOf(info.URL); isFile {
-			dl, err = openFile(path)
-			if err != nil {
-				return nil, nil, err
+		dl, err = b.acquire(func() (*download, error) {
+			if path, isFile := music.PathOf(info.URL); isFile {
+				return openFile(path)
 			}
-		} else {
-			dl = p.Cache.download(t.Source, t.ID, quality, info)
+			return p.Cache.download(t.Source, t.ID, quality, info), nil
+		})
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 	s, err := openStream(dl, t.Duration)

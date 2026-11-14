@@ -26,15 +26,16 @@ import (
 // app's memory, as much again as the song. Songs the cache would not keep
 // come into memory.
 type download struct {
-	mu     sync.Mutex
-	cond   sync.Cond
-	file   *os.File // where the song is, or nil: then data
-	data   []byte
-	n      int64 // the bytes in so far
-	size   int64 // expected, or 0 if unknown
-	done   bool
-	err    error
-	cancel context.CancelFunc
+	mu       sync.Mutex
+	cond     sync.Cond
+	file     *os.File // where the song is, or nil: then data
+	data     []byte
+	n        int64 // the bytes in so far
+	size     int64 // expected, or 0 if unknown
+	done     bool
+	err      error
+	cancel   context.CancelFunc
+	finished chan struct{} // the fetcher released its file after cancellation
 	// part is the file's path until the cache keeps it, which keep does
 	// once the song has all come in: the path it is at then.
 	part string
@@ -53,7 +54,7 @@ type download struct {
 // without one.
 func startDownload(url string, size int64, headers map[string]string, part *os.File, keep func(string, int64) (string, bool)) *download {
 	ctx, cancel := context.WithCancel(context.Background())
-	d := &download{size: size, cancel: cancel, users: 2}
+	d := &download{size: size, cancel: cancel, users: 2, finished: make(chan struct{})}
 	d.cond.L = &d.mu
 	switch {
 	case part != nil:
@@ -88,6 +89,7 @@ func opened(f *os.File, size int64) *download {
 }
 
 func (d *download) run(ctx context.Context, url string, headers map[string]string) {
+	defer close(d.finished)
 	defer d.release()
 	finish := func(err error) {
 		d.mu.Lock()

@@ -11,8 +11,8 @@ type ahead struct {
 	source, id, quality string
 	done                chan struct{} // closed once info, dl and err are in
 	info                *music.Stream
-	dl                  *download // nil for a song on disk, which opens at once
 	err                 error
+	resource            *playback
 }
 
 func (a *ahead) is(t music.Track, quality string) bool {
@@ -42,6 +42,9 @@ func (p *Player) upNext() (music.Track, bool) {
 // already or its source plays it elsewhere. What was asked for before that
 // isn't next any more is let go.
 func (p *Player) getAhead(quality string) {
+	if p.closed {
+		return
+	}
 	t, ok := p.upNext()
 	if a := p.ahead; a != nil {
 		if ok && a.is(t, quality) {
@@ -56,7 +59,7 @@ func (p *Player) getAhead(quality string) {
 	if src == nil || src.Info().Playback == music.PlaybackRemote || p.Cache.has(t.Source, t.ID, quality) {
 		return
 	}
-	a := &ahead{source: t.Source, id: t.ID, quality: quality, done: make(chan struct{})}
+	a := &ahead{source: t.Source, id: t.ID, quality: quality, done: make(chan struct{}), resource: p.newPlayback()}
 	p.ahead = a
 	go func() {
 		defer close(a.done)
@@ -70,7 +73,9 @@ func (p *Player) getAhead(quality string) {
 		}
 		a.info = info
 		if _, isFile := music.PathOf(info.URL); !isFile {
-			a.dl = p.Cache.download(t.Source, t.ID, quality, info)
+			_, a.err = a.resource.acquire(func() (*download, error) {
+				return p.Cache.download(t.Source, t.ID, quality, info), nil
+			})
 		}
 	}()
 }
@@ -97,10 +102,7 @@ func (p *Player) dropAhead() {
 	go a.close()
 }
 
-// close stops what was asked for ahead once it's in, if it's still coming in.
+// close cancels the input without waiting for the source's Stream call.
 func (a *ahead) close() {
-	<-a.done
-	if a.dl != nil {
-		a.dl.Close()
-	}
+	a.resource.close()
 }

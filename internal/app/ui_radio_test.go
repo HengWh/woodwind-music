@@ -78,7 +78,7 @@ func startRadioTest(t *testing.T, phone bool) (*nsgotest.App, *app, *radioTestSo
 	if err := os.WriteFile(path, wav, 0600); err != nil {
 		t.Fatal(err)
 	}
-	src := &radioTestSource{liked: map[string]bool{}, stream: "file://" + path,
+	src := &radioTestSource{liked: map[string]bool{}, stream: music.FileURL(path),
 		stations: []music.Station{{ID: "a", Name: "私人 FM", Description: "听见更多好音乐"}, {ID: "b", Name: "探索"}, {ID: "c", Name: "漫游"}}}
 	src.next = func(id string) ([]music.Track, error) { return radioTestTracks(id), nil }
 	var a *app
@@ -237,7 +237,7 @@ func TestRadioShots(t *testing.T) {
 	}
 	ui, a, src := startRadioTest(t, false)
 	_, file, _, _ := runtime.Caller(0)
-	art := "file://" + filepath.Join(filepath.Dir(file), "../../resources/icon.png")
+	art := music.FileURL(filepath.Join(filepath.Dir(file), "../../resources/icon.png"))
 	ui.Screenshot("radio-desktop-idle")
 	a.post(func() {
 		tracks := radioTestTracks("a")

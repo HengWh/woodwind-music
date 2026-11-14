@@ -70,11 +70,12 @@ type stream struct {
 	seekTo int64 // where to seek d next, or -1
 	gen    int   // counts seeks, to drop what was decoded before one
 	closed bool
+	done   chan struct{} // closed after the decoder and its input are released
 }
 
 func newStream(d Decoder) *stream {
 	ch := max(d.Channels(), 1)
-	s := &stream{d: d, channels: ch, keep: min(ch, 2), seekTo: -1}
+	s := &stream{d: d, channels: ch, keep: min(ch, 2), seekTo: -1, done: make(chan struct{})}
 	s.cond.L = &s.mu
 	// About a second ahead.
 	frames := max(d.SampleRate(), 4096)
@@ -84,6 +85,7 @@ func newStream(d Decoder) *stream {
 }
 
 func (s *stream) decode() {
+	defer close(s.done)
 	buf := make([]float32, 2048*s.channels)
 	var kept []float32
 	if s.keep != s.channels {

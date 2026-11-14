@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -120,7 +119,6 @@ func fileURL(path string, windows bool) string {
 			return (&url.URL{Scheme: "file", Host: host, Path: "/" + rest}).String()
 		}
 	}
-	path = filepath.ToSlash(path)
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path // C:/Music
 	}
@@ -150,5 +148,5 @@ func pathOf(u string, windows bool) (string, bool) {
 		}
 		return strings.ReplaceAll(path, "/", `\`), true
 	}
-	return filepath.FromSlash(path), true
+	return path, true
 }

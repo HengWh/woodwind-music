@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -322,7 +323,11 @@ func TestSettingsView(t *testing.T) {
 	app.Press("text:Playback")
 	app.Find("text:Even Out Loudness")
 	app.Press("text:General")
-	app.Find("text:App Icon")
+	if runtime.GOOS == "darwin" {
+		app.Find("text:App Icon")
+	} else if app.Exists("id:settings-app-icon") {
+		t.Fatal("App Icon is a macOS-only setting")
+	}
 
 	// A search finds rows of every page; none, says so.
 	app.Type("id:settings-search", "cache")

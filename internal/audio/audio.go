@@ -525,6 +525,15 @@ func (p *Player) Close() {
 	p.v.close()
 }
 
+// CloseAndWait closes the player and waits for its decoder to release its
+// input. Cancel a streaming input first so a blocked Read can return.
+func (p *Player) CloseAndWait() {
+	p.Close()
+	if s, ok := p.v.src.(*stream); ok {
+		<-s.done
+	}
+}
+
 var (
 	volume  = 1.0
 	latency = LatencyInteractive

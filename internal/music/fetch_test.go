@@ -17,6 +17,7 @@ func TestLocalFileURLs(t *testing.T) {
 		{`C:\音乐\周杰伦 #1 100%.flac`, "file:///C:/%E9%9F%B3%E4%B9%90/%E5%91%A8%E6%9D%B0%E4%BC%A6%20%231%20100%25.flac", true},
 		{`\\NAS\Music\专辑\a.flac`, "file://NAS/Music/%E4%B8%93%E8%BE%91/a.flac", true},
 		{"/Music/a #1%.flac", "file:///Music/a%20%231%25.flac", false},
+		{`/Music/a\b.flac`, "file:///Music/a%5Cb.flac", false},
 	} {
 		if got := fileURL(tc.path, tc.windows); got != tc.url {
 			t.Errorf("FileURL(%q) = %q, want %q", tc.path, got, tc.url)
