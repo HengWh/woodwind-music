@@ -36,6 +36,70 @@ func reviewTrack(a *app) {
 	a.np.Set(true)
 }
 
+func TestNowPlayingLikeHighlight(t *testing.T) {
+	for _, width := range []core.Points{1180, 390} {
+		for _, initial := range []bool{false, true} {
+			t.Run(fmt.Sprintf("width%v/liked%v", width, initial), func(t *testing.T) {
+				t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+				src := &radioTestSource{liked: map[string]bool{"review": initial}}
+				var a *app
+				ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+					a = newApp(cx)
+					src.Source = a.local
+					a.sources.items[src.Info().ID] = src
+					if a.trackLikes == nil {
+						a.trackLikes = map[string]map[string]bool{}
+					}
+					a.trackLikes[src.Info().ID] = map[string]bool{"review": initial}
+					reviewTrack(a)
+					a.pl.Current().Source = src.Info().ID
+					return a.view(cx)
+				}, nsgotest.Size(width, 844))
+				ui.WaitUntil(time.Second, func() bool { return !a.homeBusy })
+				ui.Advance(time.Second)
+				check := func(want bool) {
+					t.Helper()
+					button := ui.Find("id:np-like")
+					if button.Props.Selected != want {
+						t.Fatalf("like button selected=%v, want %v", button.Props.Selected, want)
+					}
+					filled, accented := false, false
+					for _, op := range button.Children[0].Ops {
+						filled = filled || op.Kind == core.DrawFill
+						accented = accented || op.Color == a.palette(a.cx).accent
+					}
+					if filled != want || accented != want {
+						t.Fatalf("like icon filled=%v accented=%v, want %v", filled, accented, want)
+					}
+				}
+				check(initial)
+				// A late library response updates just the heart, including when
+				// the playing track belongs to a different source than the page.
+				title := ui.Find("id:np-title")
+				a.post(func() {
+					_ = src.Like("review", !initial)
+					a.trackLikes[src.Info().ID]["review"] = !initial
+					a.bump()
+				})
+				ui.Settle()
+				check(!initial)
+				if ui.Find("id:np-title") != title {
+					t.Fatal("updating liked state recreated the player")
+				}
+				for _, want := range []bool{initial, !initial} {
+					ui.Press("id:np-like")
+					ui.WaitUntil(time.Second, func() bool { return ui.Find("id:np-like").Props.Selected == want })
+					check(want)
+					page, err := src.Liked(0)
+					if err != nil || (len(page.Tracks) > 0) != want {
+						t.Fatal("like button did not save the new state to the track's source")
+					}
+				}
+			})
+		}
+	}
+}
+
 func TestNowPlayingViewport(t *testing.T) {
 	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {

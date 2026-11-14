@@ -25,7 +25,7 @@ func (a *app) playerBar(cx *core.Scope, p palette) core.Node {
 	})
 	controls := core.Dynamic(func(cx *core.Scope) core.Node {
 		a.playRev.Get()
-		return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 2}, Children: a.transport(p, p.muted, p.accent, 18)}
+		return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 2}, Children: a.transport(p, p.muted, 18)}
 	})
 	progress := a.progress(p, false)
 	var right []core.Node
@@ -41,12 +41,6 @@ func (a *app) playerBar(cx *core.Scope, p palette) core.Node {
 			}, Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), Direction: core.Row, AlignItems: core.AlignCenter,
 				JustifyContent: core.JustifyCenter, CornerRadius: 8, Hover: &core.Style{Background: p.hover}},
 				Children: []core.Node{icon(lucideMic, 16, p.muted)}},
-			base.Button{Label: i18n.T("Up Next"), TestID: "bar-queue", OnPress: func(core.PressEvent) {
-				a.openNowPlaying()
-				a.npPane.Set(1)
-			}, Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), Direction: core.Row, AlignItems: core.AlignCenter,
-				JustifyContent: core.JustifyCenter, CornerRadius: 8, Hover: &core.Style{Background: p.hover}},
-				Children: []core.Node{icon(lucideList, 16, p.muted)}},
 		}
 	}))
 	right = append(right, base.Button{Label: i18n.T("Volume"), TestID: "volume-icon", OnPress: func(core.PressEvent) {
@@ -123,31 +117,57 @@ func (a *app) artistSpans(p palette, tr music.Track, size core.Points, color cor
 	return spans
 }
 
-// transport is the buttons that play: shuffle, previous, play or pause,
-// next and repeat.
-func (a *app) transport(p palette, fg, accent core.Color, size core.Points) []core.Node {
+func (a *app) playbackModeAppearance() (string, *core.SVG) {
+	a.modeRev.Get()
+	switch a.pl.PlaybackMode() {
+	case player.ModeSingleLoop:
+		return i18n.T("Single-track Loop"), lucideRepeatOne
+	case player.ModeShuffle:
+		return i18n.T("Shuffle"), lucideShuffle
+	default:
+		return i18n.T("List Loop"), lucideRepeat
+	}
+}
+
+// Bind the mode directly to the button's label and icon so changing it keeps
+// the surrounding player, artwork and lyric scroll position mounted.
+func (a *app) playbackModeButton(id string, size core.Points, color core.Color, style core.Style) core.Node {
+	return base.Button{TestID: id, LabelFunc: func() string {
+		label, _ := a.playbackModeAppearance()
+		return label
+	}, OnPress: func(core.PressEvent) { a.cyclePlaybackMode() }, Style: style,
+		Children: []core.Node{core.Icon{SVGFunc: func() *core.SVG {
+			_, svg := a.playbackModeAppearance()
+			return svg
+		}, Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), Color: color}}}}
+}
+
+func (a *app) playbackQueueButton(id string, size core.Points, color core.Color, style core.Style) core.Node {
+	return base.Button{TestID: id, Label: i18n.T("Up Next"), Style: style,
+		OnPress: func(core.PressEvent) {
+			if a.phoneLayout(a.cx) {
+				a.openPhoneSheet("queue")
+				return
+			}
+			a.openNowPlaying()
+			a.npPane.Set(1)
+		}, Children: []core.Node{icon(lucideList, size, color)}}
+}
+
+// transport shows one playback mode button alongside the playback controls.
+func (a *app) transport(p palette, fg core.Color, size core.Points) []core.Node {
 	pl := a.pl
 	playing := pl.Playing()
-	shuffle := pl.Shuffle()
-	repeat := pl.Repeat()
-	shuffleColor := fg
-	if shuffle {
-		shuffleColor = accent
-	}
-	repeatColor := fg
-	repeatIcon := lucideRepeat
-	if repeat != player.RepeatOff {
-		repeatColor = accent
-	}
-	if repeat == player.RepeatOne {
-		repeatIcon = lucideRepeatOne
-	}
+	modeSize := size*0.62 + 16
+	sideStyle := core.Style{Width: core.Pt(modeSize), Height: core.Pt(modeSize), Direction: core.Row, AlignItems: core.AlignCenter,
+		JustifyContent: core.JustifyCenter, CornerRadius: 999,
+		Hover: &core.Style{Background: p.hover}, Active: &core.Style{Background: p.press}}
 	glyph := transportPlay
 	if playing {
 		glyph = transportPause
 	}
 	return []core.Node{core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: size * 0.5}, Children: []core.Node{
-		a.roundButton(nil, p, size*0.62, shuffleColor, i18n.T("Shuffle"), lucideShuffle, a.toggleShuffle),
+		a.playbackModeButton("playback-mode", size*0.62, fg, sideStyle),
 		a.roundButton(nil, p, size*0.85, p.text, i18n.T("Previous"), transportPrev, pl.Prev),
 		base.Button{Label: i18n.T("Play/Pause"), TestID: "play-pause", OnPress: func(core.PressEvent) { a.toggle() },
 			Style: core.Style{Width: core.Pt(size*1.25 + 16), Height: core.Pt(size*1.25 + 16), CornerRadius: 999,
@@ -155,7 +175,7 @@ func (a *app) transport(p palette, fg, accent core.Color, size core.Points) []co
 				Hover: &core.Style{Background: p.hover}, Active: &core.Style{Background: p.press}},
 			Children: []core.Node{icon(glyph, size*1.25, p.text)}},
 		a.roundButton(nil, p, size*0.85, p.text, i18n.T("Next"), transportNext, pl.Next),
-		a.roundButton(nil, p, size*0.62, repeatColor, i18n.T("Repeat"), repeatIcon, a.cycleRepeat),
+		a.playbackQueueButton("playback-queue", size*0.62, fg, sideStyle),
 	}}}
 }
 

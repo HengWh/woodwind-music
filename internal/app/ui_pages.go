@@ -12,6 +12,7 @@ import (
 
 	"github.com/HengWh/woodwind-music/internal/i18n"
 	"github.com/HengWh/woodwind-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/player"
 )
 
 const pagePad = 40
@@ -25,7 +26,9 @@ func (a *app) page(cx *core.Scope, p palette) core.Node {
 			return a.phoneHome(cx, p)
 		}
 		return a.homePage(cx, p)
-	case pageShows, pageShow, pageStations, pageComments, pageSavedAlbums:
+	case pageStations:
+		return a.stationsPage(cx, p, r)
+	case pageShows, pageShow, pageComments, pageSavedAlbums:
 		return a.extraPage(cx, p, r)
 	case pageLibrary:
 		return a.phoneLibrary(cx, p)
@@ -546,18 +549,22 @@ func (a *app) trackMenu(tr music.Track, playlist string, index int) []core.Node 
 			a.openTrackPage(tr, pageArtist, id)
 		}})
 	}
-	if playlist != "" {
+	if playlist != "" && a.canEditPlaylistTracks(playlist) {
 		id, at := tr.ID, index
-		if at > 0 {
+		if at > 0 && a.can("movePlaylistTrack") {
 			items = append(items, ui.MenuItem{Text: i18n.T("Move Up"), Icon: lucide.ArrowUp, OnSelect: func() {
 				a.movePlaylistTrack(playlist, at, at-1)
 			}})
 		}
-		items = append(items, ui.MenuItem{Text: i18n.T("Move Down"), Icon: lucide.ArrowDown, OnSelect: func() {
-			a.movePlaylistTrack(playlist, at, at+1)
-		}})
-		items = append(items, ui.MenuSeparator{}, ui.MenuItem{Text: i18n.T("Remove from Playlist"), Icon: lucide.Trash, Variant: ui.MenuItemDanger,
-			OnSelect: func() { a.removeFromPlaylist(playlist, []string{id}) }})
+		if d := a.playlists[playlist]; a.can("movePlaylistTrack") && d != nil && d.playlist != nil && at+1 < len(d.playlist.Tracks) {
+			items = append(items, ui.MenuItem{Text: i18n.T("Move Down"), Icon: lucide.ArrowDown, OnSelect: func() {
+				a.movePlaylistTrack(playlist, at, at+1)
+			}})
+		}
+		if a.can("removeFromPlaylist") {
+			items = append(items, ui.MenuSeparator{}, ui.MenuItem{Text: i18n.T("Remove from Playlist"), Icon: lucide.Trash, Variant: ui.MenuItemDanger,
+				OnSelect: func() { a.removeFromPlaylist(playlist, []string{id}) }})
+		}
 	}
 	return items
 }
@@ -567,7 +574,7 @@ func (a *app) playButtons(p palette, tracks []music.Track) core.Node {
 	return core.View{Style: core.Style{Direction: core.Row, Gap: 10, Margin: core.Edges{Top: 10}}, Children: []core.Node{
 		a.pillButton(p, lucidePlay, i18n.T("Play"), p.accent, p.onAccent, func() {
 			if a.pl.Shuffle() {
-				a.toggleShuffle()
+				a.setPlaybackMode(player.ModeListLoop)
 			}
 			a.pl.PlayQueue(tracks, firstPlayable(tracks))
 			a.heartbeat()
@@ -636,12 +643,12 @@ func (a *app) playlistPage(cx *core.Scope, p palette, id string) core.Node {
 	}
 	pl := d.playlist
 	if len(pl.Tracks) == 0 {
-		return a.pageScroll(p, core.Group{
+		return a.playlistScroll(p, core.Group{
 			a.playlistHero(p, pl),
 			a.emptyNote(p, i18n.T("This playlist is empty"), i18n.T("Add songs to it from their menus.")),
 		})
 	}
-	return a.pageScroll(p, core.Group{
+	return a.playlistScroll(p, core.Group{
 		a.playlistHero(p, pl),
 		core.List{Count: func() int { return len(pl.Tracks) }, Key: func(i int) any { return pl.Tracks[i].ID },
 			EstimatedSize: a.trackRowHeight(), Viewport: core.ListViewportParent,
@@ -652,37 +659,11 @@ func (a *app) playlistPage(cx *core.Scope, p palette, id string) core.Node {
 					}
 					i := row.Index()
 					tr := pl.Tracks[i]
-					r := a.trackRow(p, pl.Tracks, i, true, false, true, a.currentID() == tr.ID)
+					r := a.trackRow(p, pl.Tracks, i, true, true, true, a.currentID() == tr.ID)
 					return ui.ContextMenu{Trigger: r, Children: a.trackMenu(tr, pl.ID, i)}
 				})
 			}},
 	})
-}
-
-func (a *app) playlistHero(p palette, pl *music.Playlist) core.Node {
-	pic := a.cover(p, pl.ImageURL, 212, 14)
-	if pl.ImageURL == "" {
-		pic = core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), CornerRadius: 14, Background: p.accent,
-			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideList, 64, p.onAccent)}}
-	}
-	head := a.hero(p, pic, i18n.T("Playlist"), pl.Name, i18n.Songs(len(pl.Tracks)), pl.Tracks)
-	if a.can("savePlaylist") && !pl.Mine {
-		src := a.source()
-		id, on := pl.ID, !pl.Saved
-		label := i18n.TC("Save", "library")
-		if pl.Saved {
-			label = i18n.T("Remove from Saved")
-		}
-		head = core.View{Children: []core.Node{head, a.settingsAction(p, label, "playlist-save", false, func() { a.sourceAction(src, func() error { return src.SavePlaylist(id, on) }, nil) })}}
-	}
-	id, name := pl.ID, pl.Name
-	if a.phoneLayout(a.cx) {
-		return core.View{Children: []core.Node{head, a.phoneSheetAction(p, "phone-playlist-more", i18n.T("More"), lucideMore, func() { a.phonePlaylist = id; a.openPhoneSheet("playlist") })}}
-	}
-	return ui.ContextMenu{Trigger: head, Children: []core.Node{
-		ui.MenuItem{Text: i18n.T("Rename Playlist…"), Icon: lucide.Pencil, OnSelect: func() { a.renamePlaylist(id, name) }},
-		ui.MenuItem{Text: i18n.T("Delete Playlist"), Icon: lucide.Trash, Variant: ui.MenuItemDanger, OnSelect: func() { a.confirmDelete(id, name) }},
-	}}
 }
 
 func (a *app) albumPage(cx *core.Scope, p palette, id string) core.Node {

@@ -13,6 +13,7 @@ import (
 type extraData struct {
 	busy, loaded, more bool
 	err, draft         string
+	stationAt          int
 	shows              []music.Show
 	show               *music.Show
 	stations           []music.Station
@@ -113,34 +114,7 @@ func (a *app) showCard(p palette, show music.Show) core.Node {
 	return a.cardFrame(p, show.Name, show.Publisher, 10, a.coverArt(p, show.ImageURL, 10, lucideNote), func() { a.open(route{page: pageShow, id: show.ID}) })
 }
 func (a *app) stationCard(p palette, station music.Station) core.Node {
-	return a.cardFrame(p, station.Name, station.Description, 10, a.coverArt(p, station.ImageURL, 10, lucideNote), func() { a.playStation(station) })
-}
-func (a *app) playStation(station music.Station) {
-	src := a.source()
-	go func() {
-		tracks, err := src.StationNext(station.ID)
-		a.post(func() {
-			if err != nil {
-				a.say(err.Error())
-				return
-			}
-			if len(tracks) == 0 {
-				return
-			}
-			a.pl.PlayRadio(station.Name, tracks, func(got func([]music.Track)) {
-				go func() {
-					next, err := src.StationNext(station.ID)
-					a.post(func() {
-						if err != nil {
-							a.say(err.Error())
-						}
-						got(next)
-					})
-				}()
-			})
-			a.heartbeat()
-		})
-	}()
+	return a.cardFrame(p, station.Name, station.Description, 10, a.coverArt(p, station.ImageURL, 10, lucide.Radio()), func() { a.playStation(station) })
 }
 func (a *app) extraPage(cx *core.Scope, p palette, r route) core.Node {
 	d := a.extra[r]
@@ -149,9 +123,6 @@ func (a *app) extraPage(cx *core.Scope, p palette, r route) core.Node {
 	}
 	var body []core.Node
 	title := i18n.T("Podcasts")
-	if r.page == pageStations {
-		title = i18n.T("Radio")
-	}
 	if r.page == pageComments {
 		title = i18n.T("Comments")
 	}
@@ -180,9 +151,6 @@ func (a *app) extraPage(cx *core.Scope, p palette, r route) core.Node {
 	}
 	if len(d.shows) > 0 {
 		body = append(body, a.cardGrid(p, len(d.shows), func(i int) core.Node { return a.showCard(p, d.shows[i]) }))
-	}
-	if len(d.stations) > 0 {
-		body = append(body, a.cardGrid(p, len(d.stations), func(i int) core.Node { return a.stationCard(p, d.stations[i]) }))
 	}
 	if len(d.albums) > 0 {
 		body = append(body, a.cardGrid(p, len(d.albums), func(i int) core.Node { return a.albumCard(p, d.albums[i]) }))

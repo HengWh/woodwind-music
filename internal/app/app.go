@@ -204,6 +204,8 @@ type app struct {
 	signGeneration  int
 	signPrompt      music.SignInPrompt
 	extra           map[route]*extraData
+	radioStarting   string
+	radioRequest    int
 
 	local        *local.Source
 	pl           *player.Player
@@ -215,6 +217,7 @@ type app struct {
 	// the page shown; tick moves as what plays does, for the clock.
 	rev        *core.Signal[int]
 	playRev    *core.Signal[int]
+	modeRev    *core.Signal[int]
 	route      *core.Signal[route]
 	tick       *core.Signal[int]
 	query      *core.Signal[string]
@@ -269,6 +272,8 @@ type app struct {
 	scroll          map[string]core.Points
 	phoneTab        int
 	compact         bool
+	mineCollapsed   bool
+	savedCollapsed  bool
 	phoneTabs       [3]phoneTabState
 	phoneSheet      *core.Signal[string]
 	phoneTrack      music.Track
@@ -307,6 +312,7 @@ func newApp(cx *core.Scope) *app {
 		set:              loadSettings(dir),
 		rev:              core.NewSignal(cx, 0),
 		playRev:          core.NewSignal(cx, 0),
+		modeRev:          core.NewSignal(cx, 0),
 		route:            core.NewSignal(cx, route{page: pageHome}),
 		tick:             core.NewSignal(cx, 0),
 		query:            core.NewSignal(cx, ""),
@@ -402,6 +408,8 @@ func newApp(cx *core.Scope) *app {
 		})
 	}
 	a.restoreSession()
+	// Normalize old independent shuffle/repeat settings to a single mode.
+	a.pl.SetPlaybackMode(a.pl.PlaybackMode())
 	a.local.Rescan()
 	a.reload()
 	a.heartbeat()
@@ -798,6 +806,7 @@ func (a *app) openNowPlaying() {
 // playTracks replaces the queue and plays the one at i.
 func (a *app) playTracks(tracks []music.Track, i int) {
 	a.cancelFocusResume()
+	a.cancelRadioStart()
 	if len(tracks) == 0 {
 		return
 	}
@@ -811,18 +820,20 @@ func (a *app) toggle() {
 	a.heartbeat()
 }
 
-// toggleShuffle turns shuffling on or off, and shows it.
-func (a *app) toggleShuffle() {
-	a.pl.ToggleShuffle()
-	a.playRev.Update(func(n int) int { return n + 1 })
-	a.menu(a.cx)
+func (a *app) setPlaybackMode(mode player.PlaybackMode) {
+	a.pl.SetPlaybackMode(mode)
+	a.playbackModeChanged()
 }
 
-// cycleRepeat moves on to the next kind of repeat, and shows it.
-func (a *app) cycleRepeat() {
-	a.pl.CycleRepeat()
-	a.playRev.Update(func(n int) int { return n + 1 })
+func (a *app) cyclePlaybackMode() {
+	a.pl.CyclePlaybackMode()
+	a.playbackModeChanged()
+}
+
+func (a *app) playbackModeChanged() {
+	a.modeRev.Update(func(n int) int { return n + 1 })
 	a.menu(a.cx)
+	a.saveSession()
 }
 
 // mute turns the sound off, and back to where it was.
@@ -911,6 +922,7 @@ func (a *app) say(msg string) {
 
 // newPlaylist opens the dialog that names one.
 func (a *app) newPlaylist() {
+	a.mineCollapsed = false
 	a.naming, a.namingNew, a.namingText, a.namingID = true, true, "", ""
 	a.bump()
 }
@@ -1114,6 +1126,9 @@ func (a *app) restoreSession() {
 	var s player.Session
 	if json.Unmarshal(b, &s) == nil {
 		a.pl.Restore(s)
+		if src, _, _ := radioParts(s.Radio); src != "" && a.sourceByID(src) != nil && a.pl.Current() != nil {
+			a.pl.AttachRadio(s.Radio, a.radioFeed(s.Radio))
+		}
 	}
 }
 

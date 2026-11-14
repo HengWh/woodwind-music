@@ -80,11 +80,13 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 			Children: []core.Node{a.cover(coverPal, tr.Album.ImageURL, coverSize, 12)}},
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Margin: core.Edges{Top: 36, Bottom: 18}}, Children: []core.Node{
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Direction: core.Column, Gap: 4}, Children: []core.Node{
+				a.radioChip(),
 				core.Text{TestID: "np-title", Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 22, FontWeight: core.FontWeightBold, LetterSpacing: -0.3, Color: white}},
 				core.Text{Spans: a.artistSpans(palette{white: white}, *tr, 15, core.RGBA(0xffffff, 0.6)), MaxLines: 1,
 					Style: core.Style{FontSize: 15, Color: core.RGBA(0xffffff, 0.6)}},
 			}},
-			a.npLikeButton(tr.ID),
+			a.npLikeButton(p, *tr, 20, core.Style{Width: core.Pt(30), Height: core.Pt(30), Direction: core.Row, AlignItems: core.AlignCenter,
+				JustifyContent: core.JustifyCenter, CornerRadius: 15, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.1)}}),
 			ui.Menu{Trigger: ui.Button{Label: i18n.T("More"), Variant: ui.ButtonGhost, Side: 30},
 				Face: icon(lucideMore, 22, core.RGBA(0xffffff, 0.7)), Children: a.trackMenu(*tr, "", -1)},
 		}},
@@ -111,7 +113,7 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 		}},
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Margin: core.Edges{Top: 14, Bottom: 18}},
 			Children: a.transport(palette{text: white, hover: core.RGBA(0xffffff, 0.10), press: core.RGBA(0xffffff, 0.16)},
-				core.RGBA(0xffffff, 0.45), p.accent, 28)},
+				core.RGBA(0xffffff, 0.45), 28)},
 		core.View{TestID: "np-volume", Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 8}, Children: []core.Node{
 			icon(lucideVolume, 14, core.RGBA(0xffffff, 0.55)),
 			base.Slider{Value: func() base.SliderValue { a.tick.Get(); return base.SingleValue(a.pl.Volume() * 100) },
@@ -128,8 +130,10 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 			a.npPane.Get()
 			switch a.npPane.GetUntracked() {
 			case 1:
+				a.modeRev.Get()
 				return a.queuePane(cx, white)
 			case 2:
+				a.modeRev.Get()
 				return a.wallPane(cx, white)
 			default:
 				return a.lyricsPane(cx, white)
@@ -143,19 +147,25 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 }
 
 // npLikeButton is the heart of Now Playing.
-func (a *app) npLikeButton(id string) core.Node {
-	tr := music.Track{ID: id}
-	if current := a.pl.Current(); current != nil {
-		tr = *current
+func (a *app) npLikeButton(p palette, tr music.Track, size core.Points, style core.Style) core.Node {
+	liked := func() bool {
+		a.rev.Get()
+		return a.isTrackLiked(tr)
 	}
-	color := core.RGBA(0xffffff, 0.7)
-	if a.isTrackLiked(tr) {
-		color = core.RGBA(0xffffff, 0.95)
-	}
-	return base.Button{Label: i18n.T("Like"), OnPress: func(core.PressEvent) { a.toggleTrackLike(tr) },
-		Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), Direction: core.Row, AlignItems: core.AlignCenter,
-			JustifyContent: core.JustifyCenter, CornerRadius: 15, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.1)}},
-		Children: []core.Node{icon(lucideHeart, 20, color)}}
+	return base.Button{TestID: "np-like", Label: i18n.T("Like"), Selected: liked,
+		OnPress: func(core.PressEvent) { a.toggleTrackLike(tr) }, Style: style,
+		Children: []core.Node{core.Icon{SVGFunc: func() *core.SVG {
+			if liked() {
+				return filledHeart
+			}
+			return lucideHeart
+		}, Style: core.Style{Width: core.Pt(size), Height: core.Pt(size)}, StyleFunc: func() core.Style {
+			color := core.RGBA(0xffffff, 0.7)
+			if liked() {
+				color = p.accent
+			}
+			return core.Style{Color: color}
+		}}}}
 }
 
 // paneTabs are the tabs of Now Playing.

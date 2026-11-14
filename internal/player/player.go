@@ -22,6 +22,15 @@ const (
 	RepeatOne
 )
 
+// PlaybackMode combines shuffle and repeat into one mutually exclusive choice.
+type PlaybackMode int
+
+const (
+	ModeListLoop PlaybackMode = iota
+	ModeSingleLoop
+	ModeShuffle
+)
+
 // MediaCommand is a control of the system's now-playing controls or the
 // keyboard's media keys.
 type MediaCommand int
@@ -236,7 +245,11 @@ func (p *Player) PlayTrack(tracks []music.Track, i int) {
 // PlayShuffled replaces the queue with tracks in a random order, any of them
 // first, and plays it with shuffle on.
 func (p *Player) PlayShuffled(tracks []music.Track) {
+	if len(tracks) == 0 {
+		return
+	}
 	p.shuffle = true
+	p.repeat = RepeatAll
 	p.playQueue(tracks, -1, forward)
 }
 
@@ -410,6 +423,36 @@ func (p *Player) ToggleShuffle() {
 }
 
 func (p *Player) CycleRepeat() { p.repeat = (p.repeat + 1) % 3 }
+
+// PlaybackMode maps legacy independent settings to one playback mode.
+func (p *Player) PlaybackMode() PlaybackMode {
+	if p.repeat == RepeatOne {
+		return ModeSingleLoop
+	}
+	if p.shuffle {
+		return ModeShuffle
+	}
+	return ModeListLoop
+}
+
+// SetPlaybackMode preserves the current track while updating the queue's order.
+func (p *Player) SetPlaybackMode(mode PlaybackMode) {
+	if mode < ModeListLoop || mode > ModeShuffle {
+		return
+	}
+	p.repeat = RepeatAll
+	if mode == ModeSingleLoop {
+		p.repeat = RepeatOne
+	}
+	if p.shuffle != (mode == ModeShuffle) {
+		p.ToggleShuffle()
+	}
+}
+
+// CyclePlaybackMode cycles list loop, single-track loop, then shuffle.
+func (p *Player) CyclePlaybackMode() {
+	p.SetPlaybackMode((p.PlaybackMode() + 1) % 3)
+}
 
 // Current returns the track playing or loading, or nil.
 func (p *Player) Current() *music.Track { return p.track }

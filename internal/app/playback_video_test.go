@@ -98,8 +98,7 @@ func TestAndroidImportAndNativePlayback(t *testing.T) {
 			t.Fatalf("%s exceeds phone width: %v", selector, v.Frame)
 		}
 	}
-	a.pl.CycleRepeat()
-	a.pl.CycleRepeat()
+	a.pl.SetPlaybackMode(player.ModeSingleLoop)
 	if a.pl.Repeat() != player.RepeatOne {
 		t.Fatal("not repeating one")
 	}

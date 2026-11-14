@@ -2,6 +2,9 @@ package i18n
 
 // zhCN is the app's text in Simplified Chinese, by its English.
 var zhCN = map[string]string{
+	"Playback Mode":     "播放模式",
+	"List Loop":         "列表循环",
+	"Single-track Loop": "单曲循环",
 	"Website cookie sign-in is not available yet; use the plugin’s QR code or browser sign-in": "暂不支持读取网页登录凭据，请使用插件提供的扫码或浏览器回调登录方式",
 	"This plugin ID is reserved":                                     "此插件 ID 为应用保留",
 	"Plugin installed":                                               "插件已安装",

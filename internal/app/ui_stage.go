@@ -174,7 +174,7 @@ func (a *app) stageBar(cx *core.Scope, p palette, white core.Color) core.Node {
 					}},
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter},
 					Children: a.transport(palette{accent: p.accent, hover: core.RGBA(0xffffff, 0.1), press: core.RGBA(0xffffff, 0.16),
-						text: white, muted: core.RGBA(0xffffff, 0.5), onAccent: p.onAccent}, core.RGBA(0xffffff, 0.6), p.accent, 22)},
+						text: white, muted: core.RGBA(0xffffff, 0.5), onAccent: p.onAccent}, core.RGBA(0xffffff, 0.6), 22)},
 				core.View{Style: core.Style{FlexGrow: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), Direction: core.Row, JustifyContent: core.JustifyEnd},
 					Children: []core.Node{core.Text{ContentFunc: func() string {
 						a.tick.Get()

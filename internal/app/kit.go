@@ -191,9 +191,10 @@ func (a *app) trackRow(p palette, tracks []music.Track, i int, showCover bool, s
 		return a.phoneTrackRow(p, tracks, i, "")
 	}
 	tr := tracks[i]
+	showAlbum = showAlbum && a.cx.Env().Window().Width-sidebarWidth > 820
 	isCurrent := func() bool {
 		if t := a.pl.Current(); t != nil {
-			return t.ID == tr.ID
+			return t.ID == tr.ID && t.Source == tr.Source
 		}
 		return false
 	}
@@ -241,9 +242,9 @@ func (a *app) trackRow(p palette, tracks []music.Track, i int, showCover bool, s
 		core.View{StyleFunc: play, Children: []core.Node{icon(lucidePlay, 13, p.text)}},
 	}}}
 	if showCover {
-		children = append(children, core.View{Style: core.Style{Width: core.Pt(40), FlexShrink: 0}, Children: []core.Node{a.cover(p, tr.Album.ImageURL, 40, 6)}})
+		children = append(children, core.View{Style: core.Style{Width: core.Pt(38), FlexShrink: 0}, Children: []core.Node{a.cover(p, tr.Album.ImageURL, 38, 6)}})
 	}
-	children = append(children, core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Direction: core.Column, Gap: 3}, Children: []core.Node{
+	children = append(children, core.View{Style: core.Style{FlexGrow: 3, FlexBasis: core.Pt(0), FlexShrink: 1, MinWidth: core.Pt(0), Direction: core.Column, Gap: 3}, Children: []core.Node{
 		core.Text{Content: tr.Name, MaxLines: 1, StyleFunc: func() core.Style {
 			a.playRev.Get()
 			c := p.text
@@ -255,7 +256,14 @@ func (a *app) trackRow(p palette, tracks []music.Track, i int, showCover bool, s
 		a.artistLine(p, tr, 12.5, p.muted),
 	}})
 	if showAlbum {
-		children = append(children, core.Text{Content: tr.Album.Name, MaxLines: 1, Style: core.Style{Width: core.Pct(26), FontSize: 12.5, Color: p.muted}})
+		album := core.Text{TestID: "track-album-" + tr.ID, Content: tr.Album.Name, MaxLines: 1,
+			Style: core.Style{FlexGrow: 2, FlexBasis: core.Pt(0), FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 12.5, Color: p.muted}}
+		if tr.Album.ID != "" {
+			album.Spans = []core.Span{{Content: tr.Album.Name, Style: core.Style{Color: p.muted, Hover: &core.Style{Color: p.text}},
+				OnPress: func(core.PressEvent) { a.openTrackPage(tr, pageAlbum, tr.Album.ID) }}}
+			album.Content = ""
+		}
+		children = append(children, album)
 	}
 	// A liked song's heart shows; the others' as the pointer is on them,
 	// in a cell the row keeps whether or not it shows, as Music does.

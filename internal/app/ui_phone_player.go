@@ -7,7 +7,6 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 
 	"github.com/HengWh/woodwind-music/internal/i18n"
-	"github.com/HengWh/woodwind-music/internal/player"
 )
 
 // The cover and lyrics occupy the same stage; controls stay within thumb reach.
@@ -16,6 +15,8 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 	white := core.RGB(0xffffff)
 	ink := palette{bg: core.RGB(0x202024), text: white, muted: core.RGBA(0xffffff, 0.6), faint: core.RGBA(0xffffff, 0.3),
 		sidebar: core.RGBA(0xffffff, 0.1), hover: core.RGBA(0xffffff, 0.1), press: core.RGBA(0xffffff, 0.16), accent: white, onAccent: p.bg}
+	sideStyle := core.Style{Width: core.Pt(48), Height: core.Pt(48), FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+		CornerRadius: 24, Active: &core.Style{Background: ink.press}}
 	fade, slide := core.NewAnimatedValue(cx, 1), core.NewAnimatedValue(cx, 0)
 	if !cx.Env().ReduceMotion() {
 		fade.Set(0)
@@ -77,16 +78,12 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 				}},
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, FlexShrink: 0, Padding: core.Edges{Top: 12, Bottom: 8}}, Children: []core.Node{
 					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 6}, Children: []core.Node{
+						a.radioChip(),
 						core.Text{TestID: "np-title", Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: phoneFontTitle, FontWeight: core.FontWeightSemibold, Color: white}},
 						core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: phoneFontTranslation, Color: ink.muted}},
 					}},
-					a.phoneIcon(ink, "np-like", i18n.T("Like"), lucideHeart, func() core.Color {
-						a.rev.Get()
-						if a.isTrackLiked(*tr) {
-							return p.accent
-						}
-						return white
-					}(), func() { a.toggleTrackLike(*tr) }),
+					a.npLikeButton(p, *tr, 23, core.Style{Width: core.Pt(48), Height: core.Pt(48), FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
+						CornerRadius: 24, Active: &core.Style{Background: ink.press}}),
 				}},
 				a.phoneProgress(ink),
 				core.View{Style: core.Style{Direction: core.Row, JustifyContent: core.JustifySpaceBetween, FlexShrink: 0}, Children: []core.Node{
@@ -94,27 +91,11 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 					core.Text{ContentFunc: func() string { a.tick.Get(); return clock(a.pl.Duration()) }, Style: core.Style{FontSize: 11, Color: ink.muted}},
 				}},
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween, FlexShrink: 0, Padding: core.Edges{Top: 12, Bottom: 12}}, Children: []core.Node{
-					a.phoneIcon(ink, "np-shuffle", i18n.T("Shuffle"), lucideShuffle, func() core.Color {
-						if a.pl.Shuffle() {
-							return white
-						}
-						return ink.faint
-					}(), a.toggleShuffle),
+					a.playbackModeButton("np-playback-mode", 23, white, sideStyle),
 					a.phoneIcon(ink, "np-previous", i18n.T("Previous"), lucidePrev, white, a.pl.Prev),
 					a.phonePlayButton(ink, "np-play-pause", true),
 					a.phoneIcon(ink, "np-next", i18n.T("Next"), lucideNext, white, a.pl.Next),
-					a.phoneIcon(ink, "np-repeat", i18n.T("Repeat"), func() *core.SVG {
-						if a.pl.Repeat() == player.RepeatOne {
-							return lucideRepeatOne
-						}
-						return lucideRepeat
-					}(),
-						func() core.Color {
-							if a.pl.Repeat() != player.RepeatOff {
-								return white
-							}
-							return ink.faint
-						}(), a.cycleRepeat),
+					a.playbackQueueButton("np-queue", 23, white, sideStyle),
 				}},
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween, FlexShrink: 0}, Children: []core.Node{
 					base.Button{TestID: "phone-toggle-lyrics", Label: i18n.T("Lyrics"), OnPress: func(core.PressEvent) { lyrics.Update(func(v bool) bool { return !v }) },
@@ -136,7 +117,6 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 						return ""
 					},
 						MaxLines: 1, Style: core.Style{FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 11, Color: ink.muted}},
-					a.phoneIcon(ink, "np-queue", i18n.T("Up Next"), lucideList, white, func() { a.openPhoneSheet("queue") }),
 				}},
 			}}
 		}),

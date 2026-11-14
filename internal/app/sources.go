@@ -97,6 +97,7 @@ func (a *app) activateSource(id string) {
 		a.trackLikes = map[string]map[string]bool{}
 	}
 	a.trackLikes[a.source().Info().ID] = a.likedSet
+	a.cancelRadioStart()
 	a.active = src
 	a.set.Source = id
 	a.set.save()

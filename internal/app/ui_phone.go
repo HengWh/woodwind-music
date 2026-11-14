@@ -79,6 +79,8 @@ func (a *app) phoneHeader(cx *core.Scope, p palette) core.Node {
 						title = i18n.T("Playlist")
 					case pageLiked:
 						title = i18n.T("Liked Songs")
+					case pageStations:
+						title = a.stationsTitle()
 					case pageBrowse:
 						if data := a.browses[r.id]; data != nil && data.browse != nil {
 							title = data.browse.Title

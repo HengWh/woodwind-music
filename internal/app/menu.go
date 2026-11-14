@@ -42,8 +42,11 @@ func (a *app) menu(cx *core.Scope) {
 		{Label: i18n.T("Next"), Shortcut: "mod+right", OnSelect: a.pl.Next},
 		{Label: i18n.T("Previous"), Shortcut: "mod+left", OnSelect: a.pl.Prev},
 		{Separator: true},
-		{Label: i18n.T("Shuffle"), Checkable: true, Checked: a.pl.Shuffle(), OnSelect: a.toggleShuffle},
-		{Label: i18n.T("Repeat"), Checkable: true, Checked: a.pl.Repeat() != player.RepeatOff, OnSelect: a.cycleRepeat},
+		{Label: i18n.T("Playback Mode"), Items: []desktop.MenuItem{
+			{Label: i18n.T("List Loop"), Checkable: true, Checked: a.pl.PlaybackMode() == player.ModeListLoop, OnSelect: func() { a.setPlaybackMode(player.ModeListLoop) }},
+			{Label: i18n.T("Single-track Loop"), Checkable: true, Checked: a.pl.PlaybackMode() == player.ModeSingleLoop, OnSelect: func() { a.setPlaybackMode(player.ModeSingleLoop) }},
+			{Label: i18n.T("Shuffle"), Checkable: true, Checked: a.pl.PlaybackMode() == player.ModeShuffle, OnSelect: func() { a.setPlaybackMode(player.ModeShuffle) }},
+		}},
 		{Label: i18n.T("Now Playing"), Shortcut: "mod+shift+p", OnSelect: a.openNowPlaying},
 	}}
 	view := desktop.MenuItem{Label: i18n.T("View"), Items: []desktop.MenuItem{

@@ -51,6 +51,7 @@ func (a *app) phoneSheets(cx *core.Scope, p palette) core.Node {
 					return a.phoneSources(p)
 				}
 				if last == "queue" {
+					a.modeRev.Get()
 					return a.phoneQueue(cx, p)
 				}
 				return a.phoneActions(cx, p, last)

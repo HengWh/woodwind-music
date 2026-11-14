@@ -3,6 +3,8 @@ package app
 import (
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 
 	"github.com/HengWh/woodwind-music/internal/i18n"
@@ -18,60 +20,61 @@ func (a *app) sidebar(cx *core.Scope, top core.Points) core.Node {
 	// Rebuild the shell only when its appearance or language changes.
 	cx.Env().Locale()
 	p := a.palette(cx)
+	left := desktop.TitleBar(cx).Left
+	paddingTop := core.Points(14)
+	if left > 0 {
+		paddingTop = top + 4
+	}
 	return core.View{Style: core.Style{Width: core.Pt(sidebarWidth), Height: core.Pct(100), Background: p.sidebar,
-		Direction: core.Column, Padding: core.Edges{Top: top + 4, Right: 14, Bottom: 14, Left: 14}, Gap: 4}, Children: []core.Node{
-		// The top strip moves the window where the source row is not.
-		core.View{Style: core.Style{Height: core.Pt(4)}, Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn}},
-		core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); return a.sourceRow(p) }),
-		a.searchField(p),
-		core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
-			core.Dynamic(func(cx *core.Scope) core.Node {
-				a.rev.Get()
-				r := a.route.Get()
-				return core.View{Style: core.Style{Direction: core.Column, Gap: 2, Padding: core.Symmetric(2, 0)}, Children: []core.Node{
-					core.Group{
-						core.Group(a.sourceNavigation(p, r, false)),
-						core.Show{When: func() bool { return a.lastSearch.query != "" },
-							Then: func(*core.Scope) core.Node {
-								last := a.lastSearch
-								return a.navItem(p, "nav-results", lucideSearch, i18n.T("Search Results"), r.page == pageSearch, func() { a.open(last) })
-							}},
-					},
-					a.playlistSection(p, r),
-				}}
-			}),
-		}},
-		a.sidebarFooter(p),
-	}}
+		Direction: core.Column, Padding: core.Edges{Top: paddingTop, Right: 14, Bottom: 14, Left: 14}, Gap: 4},
+		Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn}, Children: []core.Node{
+			core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); return a.sourceRow(p, top, left) }),
+			a.searchField(p),
+			core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
+				core.Dynamic(func(cx *core.Scope) core.Node {
+					a.rev.Get()
+					r := a.route.Get()
+					return core.View{Style: core.Style{Direction: core.Column, Gap: 2, Padding: core.Symmetric(2, 0)}, Children: []core.Node{
+						core.Group{
+							core.Group(a.sourceNavigation(p, r, false)),
+							core.Show{When: func() bool { return a.lastSearch.query != "" },
+								Then: func(*core.Scope) core.Node {
+									last := a.lastSearch
+									return a.navItem(p, "nav-results", lucideSearch, i18n.T("Search Results"), r.page == pageSearch, func() { a.open(last) })
+								}},
+						},
+						a.playlistSection(p, r),
+					}}
+				}),
+			}},
+			a.sidebarFooter(p),
+		}}
 }
 
-// sourceRow names the source the library is of, and what is being scanned.
-func (a *app) sourceRow(p palette) core.Node {
-	count := ""
-	if a.source() == a.local && a.local != nil {
-		if n := a.local.TrackCount(); n > 0 {
-			count = i18n.Songs(n)
-		}
-		if a.local.Scanning() {
-			count = i18n.T("Looking for music…")
-		}
+// sourceRow follows MyGo's compact source selector: beside the traffic lights
+// on macOS, or a line above search elsewhere, only when plugins are installed.
+func (a *app) sourceRow(p palette, top, left core.Points) core.Node {
+	if len(a.plugins) == 0 {
+		return core.Group{}
 	}
-	var sub []core.Node
-	if count != "" {
-		sub = append(sub, text(count, 11, core.FontWeightNormal, p.muted))
+	style := core.Style{Height: core.Pt(24), Padding: core.Symmetric(0, 7), Gap: 4,
+		Direction: core.Row, AlignItems: core.AlignCenter, AlignSelf: core.AlignStart,
+		CornerRadius: 7, Color: p.muted, MaxWidth: core.Pt(sidebarWidth - 28),
+		Margin:   core.Edges{Bottom: 4, Left: -7},
+		Hover:    &core.Style{Background: p.hover, Color: p.text},
+		Expanded: &core.Style{Background: p.hover, Color: p.text}}
+	if left > 0 {
+		style.Position = core.Absolute
+		style.Top = core.Pt((top - 24) / 2)
+		style.Left = core.Pt(left + 12)
+		style.MaxWidth = core.Pt(sidebarWidth - left - 22)
+		style.Margin = core.Edges{}
 	}
-	row := core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10, Padding: core.Symmetric(6, 8),
-		CornerRadius: 8, Hover: &core.Style{Background: p.hover}}, Children: []core.Node{
-		core.View{Style: core.Style{Width: core.Pt(28), Height: core.Pt(28), CornerRadius: 7, Background: p.accent,
-			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{
-			icon(lucideNote, 15, p.onAccent),
-		}},
-		core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Direction: core.Column, Gap: 1}, Children: []core.Node{
-			text(a.sourceName(), 13, core.FontWeightSemibold, p.text),
-			core.Group(sub),
-		}},
-		icon(lucideChevronDown, 12, p.faint),
-	}}
+	row := core.Group{
+		core.Text{Content: a.sourceName(), MaxLines: 1, Style: core.Style{
+			FontSize: 12.5, FontWeight: core.FontWeightSemibold, FlexShrink: 1, MinWidth: core.Pt(0)}},
+		icon(lucide.ChevronsUpDown(), 11, p.faint),
+	}
 	var items []core.Node
 	items = append(items, sourceMenuOption(p, "local", i18n.T("Local Files"),
 		func() bool { return a.source() == a.local }, func() { a.switchSource("local") }))
@@ -80,28 +83,29 @@ func (a *app) sourceRow(p palette) core.Node {
 		items = append(items, sourceMenuOption(p, id, plug.Info().Name,
 			func() bool { return a.source().Info().ID == id }, func() { a.switchSource(id) }))
 	}
-	items = append(items, ui.MenuSeparator{}, ui.MenuItem{Text: i18n.T("Plugins"), OnSelect: func() { a.settingsPage = "plugins"; a.openSettings() }})
-	// base.Menu supplies behavior only; a custom trigger still needs an opaque
-	// popup surface, otherwise its items draw directly over the sidebar.
-	return base.Menu{TestID: "source-switcher", Label: a.sourceName(), Trigger: row,
-		Placement: core.PlaceBottom, Align: core.AlignStart, Offset: 4, Margin: 8,
-		PopupStyle: core.Style{MinWidth: core.Pt(sidebarWidth - 28), MaxWidth: core.Pt(320),
-			Direction: core.Column, Background: p.bg, Color: p.text, Padding: core.All(4),
-			BorderWidth: 1, BorderColor: p.hairline, CornerRadius: 10,
-			ShadowColor: p.cardShade, ShadowRadius: 18, ShadowOffset: core.Point{Y: 6}},
+	fill, edge := core.RGB(0xf6f6f6), core.RGBA(0x000000, 0.12)
+	if p.dark {
+		fill, edge = core.RGB(0x2b2b2e), core.RGBA(0xffffff, 0.14)
+	}
+	return base.Menu{TestID: "source-switcher", Label: a.sourceName(), Trigger: row, Style: style,
+		Placement: core.PlaceBottom, Align: core.AlignStart, Offset: 6, Margin: 8,
+		PopupStyle: core.Style{MinWidth: core.Pt(180), MaxWidth: core.Pt(sidebarWidth + 60),
+			Direction: core.Column, Background: fill, Color: p.text, Padding: core.All(5),
+			BorderWidth: 0.5, BorderColor: edge, CornerRadius: 12,
+			Shadows: []core.BoxShadow{{Offset: core.Point{Y: 8}, Blur: 24, Spread: -4, Color: core.RGBA(0x000000, 0.2)}}},
 		Children: []core.Node{core.Scroll{TestID: "source-menu-options", Style: core.Style{MaxHeight: core.Pt(360)},
-			Children: []core.Node{core.View{Style: core.Style{Direction: core.Column}, Children: items}}}},
+			Children: []core.Node{core.View{Style: core.Style{Direction: core.Column, Gap: 1}, Children: items}}}},
 	}
 }
 
 func sourceMenuOption(p palette, id, label string, checked func() bool, selectSource func()) core.Node {
 	return base.MenuItem{TestID: "source-option-" + id, Label: label, Role: core.RoleMenuItemRadio,
 		Checked: checked, OnSelect: selectSource,
-		Style: core.Style{MinHeight: core.Pt(28), Direction: core.Row, AlignItems: core.AlignCenter,
-			Padding: core.Symmetric(4, 8), Gap: 8, CornerRadius: 6,
-			Hover: &core.Style{Background: p.hover}, Focus: &core.Style{Background: p.hover}},
-		Indicator: icon(lucideCheck, 14, p.accent),
-		IndicatorStyle: core.Style{Width: core.Pt(14), Height: core.Pt(14), Opacity: core.Alpha(0),
+		Style: core.Style{Height: core.Pt(30), Direction: core.Row, AlignItems: core.AlignCenter,
+			Padding: core.Symmetric(0, 8), Gap: 8, CornerRadius: 7,
+			Hover: &core.Style{Background: p.press}, Focus: &core.Style{Background: p.press}},
+		Indicator: icon(lucideCheck, 14, p.text),
+		IndicatorStyle: core.Style{Width: core.Pt(14), Height: core.Pt(14), FlexShrink: 0, Opacity: core.Alpha(0),
 			Checked: &core.Style{Opacity: core.Alpha(1)}},
 		Children: []core.Node{core.Text{Content: label, MaxLines: 1,
 			Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 13, Color: p.text}}},
@@ -127,51 +131,77 @@ func (a *app) navItem(p palette, id string, svg *core.SVG, label string, selecte
 	return b
 }
 
-// playlistSection is My Playlists, above the listener's lists.
+// playlistSection keeps created and saved playlists in their own disclosures.
 func (a *app) playlistSection(p palette, r route) core.Node {
 	if !a.can("playlists") {
 		return core.Group{}
 	}
-	var rows []core.Node
-	for i := range a.mine {
-		pl := a.mine[i]
-		selected := r.page == pagePlaylist && r.id == pl.ID
-		rows = append(rows, a.playlistRow(p, pl, selected))
+	var mine, saved []music.Playlist
+	for _, pl := range a.mine {
+		if pl.Mine {
+			mine = append(mine, pl)
+		} else {
+			saved = append(saved, pl)
+		}
 	}
-	head := core.View{Style: core.Style{Height: core.Pt(32), Direction: core.Row, AlignItems: core.AlignCenter, Margin: core.Edges{Top: 14}, Padding: core.Edges{Left: 10, Right: 2}},
-		Children: []core.Node{
-			text(i18n.T("My Playlists"), 11, core.FontWeightSemibold, p.muted),
-			core.View{Style: core.Style{FlexGrow: 1}},
-			base.Button{Label: i18n.T("New Playlist"), TestID: "new-playlist", Disabled: func() bool { return !a.can("createPlaylist") }, OnPress: func(core.PressEvent) { a.newPlaylist() },
-				Style: core.Style{Width: core.Pt(24), Height: core.Pt(24), Direction: core.Row, AlignItems: core.AlignCenter,
-					JustifyContent: core.JustifyCenter, CornerRadius: 6, Hover: &core.Style{Background: p.hover}},
-				Children: []core.Node{icon(lucidePlus, 14, p.muted)}},
-		}}
-	return core.View{Style: core.Style{Direction: core.Column, Gap: 2}, Children: append([]core.Node{head}, rows...)}
+	return core.Group{
+		a.playlistDisclosure(p, r, i18n.T("My Playlists"), "my-playlists", mine, true, &a.mineCollapsed),
+		a.playlistDisclosure(p, r, i18n.T("Saved Playlists"), "saved-playlists", saved, false, &a.savedCollapsed),
+	}
+}
+
+func (a *app) playlistDisclosure(p palette, r route, title, id string, lists []music.Playlist, mine bool, collapsed *bool) core.Node {
+	canCreate := mine && a.can("createPlaylist")
+	if len(lists) == 0 && !canCreate {
+		return core.Group{}
+	}
+	arrow := lucideChevronDown
+	if *collapsed {
+		arrow = lucideChevronRight
+	}
+	heading := []core.Node{base.Button{TestID: id + "-toggle", Label: title, Expanded: func() bool { return !*collapsed },
+		OnPress: func(core.PressEvent) { *collapsed = !*collapsed; a.bump() },
+		Style: core.Style{FlexGrow: 1, Height: core.Pt(26), Padding: core.Symmetric(0, 4), Gap: 6, CornerRadius: 6,
+			Direction: core.Row, AlignItems: core.AlignCenter, Hover: &core.Style{Background: p.hover}},
+		Children: []core.Node{core.Text{Content: title, Style: core.Style{FlexGrow: 1, FontSize: 11.5, FontWeight: core.FontWeightSemibold, Color: p.faint}}, icon(arrow, 12, p.faint)}}}
+	if canCreate {
+		heading = append(heading, base.Button{Label: i18n.T("New Playlist"), TestID: "new-playlist", OnPress: func(core.PressEvent) { a.newPlaylist() },
+			Style: core.Style{Width: core.Pt(26), Height: core.Pt(26), Direction: core.Row, AlignItems: core.AlignCenter,
+				JustifyContent: core.JustifyCenter, CornerRadius: 6, Hover: &core.Style{Background: p.hover}},
+			Children: []core.Node{icon(lucidePlus, 13, p.faint)}})
+	}
+	rows := []core.Node{core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter,
+		Margin: core.Edges{Top: 18, Right: 4, Bottom: 6, Left: 6}}, Children: heading}}
+	if !*collapsed {
+		for _, pl := range lists {
+			selected := r.page == pagePlaylist && r.id == pl.ID && !a.nowPlaying
+			rows = append(rows, a.playlistRow(p, pl, selected))
+		}
+	}
+	return core.View{Style: core.Style{Direction: core.Column}, Children: rows}
 }
 
 func (a *app) playlistRow(p palette, pl music.Playlist, selected bool) core.Node {
-	fg := p.muted
-	if selected {
-		fg = p.accent
-	}
 	row := base.Button{Label: pl.Name, TestID: "playlist-" + pl.ID, OnPress: func(core.PressEvent) { a.open(route{page: pagePlaylist, id: pl.ID}) },
 		Selected: func() bool { return selected },
 		StyleFunc: func() core.Style {
-			s := core.Style{Height: core.Pt(32), Padding: core.Symmetric(0, 10), Gap: 10, Direction: core.Row,
+			s := core.Style{Height: core.Pt(34), Padding: core.Symmetric(0, 8), Gap: 10, Direction: core.Row,
 				AlignItems: core.AlignCenter, CornerRadius: 8, Hover: &core.Style{Background: p.hover}}
 			if selected {
 				s.Background = p.press
 			}
 			return s
-		}, Children: []core.Node{icon(lucideList, 15, fg), core.Text{Content: pl.Name, MaxLines: 1,
-			Style: core.Style{Color: p.text, FontSize: 13, FontWeight: core.FontWeightNormal}}}}
-	id := pl.ID
-	name := pl.Name
-	return base.ContextMenu{Trigger: row, Children: []core.Node{
-		base.MenuItem{Label: i18n.T("Rename Playlist…"), OnSelect: func() { a.renamePlaylist(id, name) }},
-		base.MenuItem{Label: i18n.T("Delete Playlist"), OnSelect: func() { a.confirmDelete(id, name) }},
-	}}
+		}, Children: []core.Node{core.View{Style: core.Style{Width: core.Pt(22), Height: core.Pt(22), FlexShrink: 0},
+			Children: []core.Node{a.cover(p, pl.ImageURL, 22, 5)}}, core.Text{Content: pl.Name, MaxLines: 1,
+			Style: core.Style{FlexShrink: 1, MinWidth: core.Pt(0), Color: p.text, FontSize: 13}}}}
+	items := a.playlistMenu(pl)
+	if !pl.Mine && a.can("savePlaylist") {
+		items = []core.Node{ui.MenuItem{Text: i18n.T("Remove from Saved"), OnSelect: func() { a.setPlaylistSaved(pl.ID, false) }}}
+	}
+	if len(items) == 0 {
+		return row
+	}
+	return ui.ContextMenu{Trigger: row, Children: items}
 }
 
 // sidebarFooter is the settings and the folders.
