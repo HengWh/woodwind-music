@@ -4,15 +4,15 @@
 
 ## 安装与运行
 
-- 安装版：运行 `woodwind-music-<版本>-windows-x64-setup.exe`，安装到当前用户目录。
-- 便携版：解压 `woodwind-music-<版本>-windows-x64-portable.zip`，双击 `Woodwind Music.exe`。请保留同目录资源文件。
+- 安装版：运行 `wood-wind-music-<版本>-windows-x64-setup.exe`，安装到当前用户目录。
+- 便携版：解压 `wood-wind-music-<版本>-windows-x64-portable.zip`，双击 `wood wind music.exe`。请保留同目录资源文件。
 - 点击首页的“添加音乐文件夹”，或使用 `Ctrl+O`，导入自己的音乐。
 - 关闭主窗口会隐藏到通知区域，音乐继续播放。单击托盘图标恢复窗口；右键可控制播放、打开设置或退出。
 - 若通知区域图标创建失败，关闭窗口会正常退出，避免留下无法找回的后台进程。
 - 设置在主窗口内打开，点击左上角返回，或按 `Esc` / `Ctrl+W` 返回曲库。
-- 明确退出：托盘菜单“退出 Woodwind Music”、应用菜单退出，或 `Ctrl+Q`。
+- 明确退出：托盘菜单“退出 wood wind music”、应用菜单退出，或 `Ctrl+Q`。
 
-便携版指无需安装；它和安装版共用 `%APPDATA%\dev.oneo.nsgo.music` 中的曲库、歌单、喜欢和设置，音乐文件留在原目录。重装或更换程序目录不会主动清除这些数据。需要独立数据目录时可设置 `WOODWIND_MUSIC_DATA_DIR`。
+便携版指无需安装；它和安装版共用 `%APPDATA%\dev.oneo.nsgo.music` 中的曲库、歌单、喜欢和设置，音乐文件留在原目录。重装或更换程序目录不会主动清除这些数据。需要独立数据目录时可设置 `WOOD_WIND_MUSIC_DATA_DIR`。
 
 本地构建尚未做 Windows 代码签名。自动更新和双击音乐文件关联尚未接入；升级时先从应用菜单或托盘退出，再运行新安装包或替换便携版文件。当前没有跨设备同步。
 
@@ -45,9 +45,9 @@ go run scripts/package-windows.go
 Windows 原生媒体会话测试需要已登录的桌面会话，在 PowerShell 中执行：
 
 ```powershell
-$env:WOODWIND_WINDOWS_NATIVE = '1'
+$env:WOOD_WIND_WINDOWS_NATIVE = '1'
 go test -v ./internal/winshell
-Remove-Item Env:WOODWIND_WINDOWS_NATIVE
+Remove-Item Env:WOOD_WIND_WINDOWS_NATIVE
 ```
 
 该测试检查真实系统媒体接口、封面、时间轴和回调，不播放声音。默认无窗口测试不会创建托盘或媒体会话。

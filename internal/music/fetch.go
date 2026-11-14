@@ -14,7 +14,7 @@ import (
 )
 
 // Agent is who the app says it is when fetching what it plays and shows.
-const Agent = "WoodwindMusic/0.1.23"
+const Agent = "wood-wind-music/0.1.26"
 
 // fetchClient gets covers: they're small, and a slow one shouldn't hold a
 // slot for long.

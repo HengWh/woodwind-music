@@ -34,7 +34,7 @@ jobs:
           go run scripts/package-windows.go
       - uses: actions/upload-artifact@v4
         with:
-          name: woodwind-music-windows-x64
+          name: wood-wind-music-windows-x64
           if-no-files-found: error
           path: |
             dist/releases/*-windows-x64-setup.exe

@@ -14,7 +14,7 @@ import (
 )
 
 func TestSearchInputKeepsFocusAndText(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -39,7 +39,7 @@ func TestSearchInputKeepsFocusAndText(t *testing.T) {
 }
 
 func TestSearchSubmitsAndFindsEveryKind(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	dir := t.TempDir()
 	// The native test runner starts its binary from its build directory.
 	_, source, _, _ := runtime.Caller(0)
@@ -96,7 +96,7 @@ func TestSearchSubmitsAndFindsEveryKind(t *testing.T) {
 }
 
 func TestSearchRespectsInputMethodComposition(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -122,7 +122,7 @@ func TestSearchRespectsInputMethodComposition(t *testing.T) {
 }
 
 func TestSearchHistoryKeyboardAndDismiss(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -167,7 +167,7 @@ func TestSearchHistoryKeyboardAndDismiss(t *testing.T) {
 }
 
 func TestSearchNavigationAndShortcut(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -204,7 +204,7 @@ func TestSearchNavigationAndShortcut(t *testing.T) {
 }
 
 func TestSearchLoadsAdditionalResults(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)

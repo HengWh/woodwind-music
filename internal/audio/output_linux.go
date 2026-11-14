@@ -68,7 +68,7 @@ func appName() string {
 	if exe, err := os.Executable(); err == nil {
 		return filepath.Base(exe)
 	}
-	return "woodwind-music"
+	return "wood wind music"
 }
 
 func openDevice(ahead time.Duration) (device, int, error) {

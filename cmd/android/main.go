@@ -1,4 +1,4 @@
-// Command android builds Woodwind's NSGo app with its Android playback host.
+// Command android builds wood wind music with its Android playback host.
 // It uses only the framework's public host API; no NSGo checkout is modified.
 package main
 
@@ -69,9 +69,11 @@ func build(install, launch bool, device string, debug bool) error {
 	}
 	java := filepath.Join(javaHome, "bin", "java")
 	javac := filepath.Join(javaHome, "bin", "javac")
-	jar := filepath.Join(sdk, "android-35", "android.jar")
+	// The pinned NSGo host uses API 36 notification classes. This is the
+	// compile SDK only; the manifest keeps the existing runtime requirements.
+	jar := filepath.Join(sdk, "android-36", "android.jar")
 	if _, err := os.Stat(jar); err != nil {
-		jar = filepath.Join(sdk, "platforms", "android-35", "android.jar")
+		jar = filepath.Join(sdk, "platforms", "android-36", "android.jar")
 	}
 	r8 := os.Getenv("R8_JAR")
 	if r8 == "" {
@@ -96,7 +98,7 @@ func build(install, launch bool, device string, debug bool) error {
 		return err
 	}
 	framework := strings.TrimSpace(string(nsgo))
-	stage, err := os.MkdirTemp("", "woodwind-android-")
+	stage, err := os.MkdirTemp("", "wood-wind-music-android-")
 	if err != nil {
 		return err
 	}
@@ -187,7 +189,7 @@ func build(install, launch bool, device string, debug bool) error {
 	if err := copyFile(signed, base); err != nil {
 		return err
 	}
-	release := filepath.Join(p.Build.Output, "releases", "woodwind-music-"+p.Version+"-android-arm64.apk")
+	release := p.releaseAPK()
 	if err := copyFile(signed, release); err != nil {
 		return err
 	}
@@ -217,6 +219,11 @@ func build(install, launch bool, device string, debug bool) error {
 		}
 	}
 	return nil
+}
+
+func (p project) releaseAPK() string {
+	slug := strings.ToLower(strings.Join(strings.Fields(p.Name), "-"))
+	return filepath.Join(p.Build.Output, "releases", slug+"-"+p.Version+"-android-arm64.apk")
 }
 
 func command(name string, args ...string) error {

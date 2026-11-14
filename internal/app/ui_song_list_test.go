@@ -18,7 +18,7 @@ func TestDesktopSongListsRecycleRows(t *testing.T) {
 	}
 	for _, kind := range []string{"tracks", "browse", "playlist", "queue", "wall"} {
 		t.Run(kind, func(t *testing.T) {
-			t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+			t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 			ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 				a := newApp(cx)
 				p := a.palette(cx)

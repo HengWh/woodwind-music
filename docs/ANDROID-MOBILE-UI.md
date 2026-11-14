@@ -62,7 +62,7 @@
 ```sh
 go tool nsgo test
 go tool nsgo check
-WOODWIND_PHONE_SHOTS=1 go tool nsgo test -target macos -run '^TestPhoneShots$' ./internal/app
+WOOD_WIND_PHONE_SHOTS=1 go tool nsgo test -target macos -run '^TestPhoneShots$' ./internal/app
 go run ./cmd/android
 ```
 

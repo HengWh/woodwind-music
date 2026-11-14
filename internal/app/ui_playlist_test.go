@@ -18,7 +18,7 @@ import (
 
 func playlistReview(t *testing.T) (*app, *nsgotest.App) {
 	t.Helper()
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node { a = newApp(cx); return a.view(cx) },
 		nsgotest.Size(1180, 780), nsgotest.Environment(core.Environment{Locale: "en", OS: core.OSMacOS, Idiom: core.IdiomDesktop}))
@@ -105,8 +105,8 @@ func TestPlaylistAlbumColumnResizes(t *testing.T) {
 
 // Optional real-window captures compare playlist layout with MyGo at desktop and phone sizes.
 func TestPlaylistUIShots(t *testing.T) {
-	if os.Getenv("WOODWIND_PLAYLIST_SHOTS") == "" {
-		t.Skip("set WOODWIND_PLAYLIST_SHOTS=1 to review playlists")
+	if os.Getenv("WOOD_WIND_PLAYLIST_SHOTS") == "" {
+		t.Skip("set WOOD_WIND_PLAYLIST_SHOTS=1 to review playlists")
 	}
 	a, ui := playlistReview(t)
 	art := image.NewRGBA(image.Rect(0, 0, 320, 320))

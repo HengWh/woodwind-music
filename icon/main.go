@@ -1,4 +1,4 @@
-// Command icon packages the selected WoodWind artwork for release and dev
+// Command icon packages the selected wood wind music artwork for release and dev
 // builds. Run go run ./icon from the repository root to refresh the PNGs
 // and the macOS ICNS. No Xcode icon compiler is needed.
 package main
@@ -6,7 +6,6 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"image"
 	"image/png"
 	"log"
@@ -15,7 +14,7 @@ import (
 	"golang.org/x/image/draw"
 )
 
-const source = "assets/woodwind-icon-anime/woodwind-icon-anime-1024.png"
+const source = "assets/app-icon/source.png"
 
 func main() {
 	if err := run(); err != nil {
@@ -33,7 +32,14 @@ func run() error {
 		return err
 	}
 	if img.Bounds().Dx() != 1024 || img.Bounds().Dy() != 1024 {
-		return fmt.Errorf("%s must be a 1024×1024 PNG", source)
+		scaled := image.NewNRGBA(image.Rect(0, 0, 1024, 1024))
+		draw.CatmullRom.Scale(scaled, scaled.Bounds(), img, img.Bounds(), draw.Src, nil)
+		img = scaled
+		var out bytes.Buffer
+		if err := png.Encode(&out, img); err != nil {
+			return err
+		}
+		data = out.Bytes()
 	}
 	for _, path := range []string{"resources/icon.png", "resources/icon-dev.png", "assets/Icon.png"} {
 		if err := os.WriteFile(path, data, 0o644); err != nil {

@@ -17,9 +17,9 @@ if [ ! -x .tools/android/jdk/Contents/Home/bin/javac ]; then
   mkdir -p .tools/android/jdk
   tar -xzf .tools/android/jdk.tar.gz -C .tools/android/jdk --strip-components=1
 fi
-if [ ! -f .tools/android/sdk/android-35/android.jar ]; then
-  fetch https://dl.google.com/android/repository/platform-35_r02.zip .tools/android/platform35.zip
-  unzip -q -o .tools/android/platform35.zip -d .tools/android/sdk
+if [ ! -f .tools/android/sdk/android-36/android.jar ]; then
+  fetch https://dl.google.com/android/repository/platform-36_r02.zip .tools/android/platform36.zip
+  unzip -q -o .tools/android/platform36.zip -d .tools/android/sdk
 fi
 if [ ! -x .tools/android/sdk/build-tools/android-16/aapt2 ]; then
   fetch https://dl.google.com/android/repository/build-tools_r36_macosx.zip .tools/android/build-tools.zip

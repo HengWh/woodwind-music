@@ -1,4 +1,4 @@
-// Package app is Woodwind Music, built on NSGo: the music files on this
+// Package app is wood wind music, built on NSGo: the music files on this
 // computer, with their tags, covers and lyrics, in one window.
 package app
 
@@ -24,7 +24,7 @@ import (
 	"github.com/HengWh/woodwind-music/internal/plugin"
 )
 
-const appName = "Woodwind Music"
+const appName = "wood wind music"
 
 // Run runs the app until it quits, its music playing on in the menu bar
 // when its window closes.
@@ -344,7 +344,7 @@ func newApp(cx *core.Scope) *app {
 		scroll:           map[string]core.Points{},
 	}
 	a.applyLanguage()
-	zone, _ := cx.HostParams()["woodwind.timeZone"].(string)
+	zone, _ := cx.HostParams()["music.timeZone"].(string)
 	a.location = deviceLocation(zone)
 	a.local = local.New(dir)
 	a.local.OnChange(func() {

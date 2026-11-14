@@ -31,7 +31,7 @@ func TestPlaybackModeKeepsPlayerMounted(t *testing.T) {
 		{"phone lyrics", 390, false, true, "id:np-playback-mode", []string{"id:phone-now-playing", "id:lyrics-list", "id:np-title", "id:np-play-pause", "id:progress"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+			t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 			var a *app
 			ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 				a = newApp(cx)
@@ -99,7 +99,7 @@ func TestPlaybackModeKeepsPlayerMounted(t *testing.T) {
 }
 
 func TestPlaybackModeRefreshesQueueWithoutRecreatingCover(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -130,7 +130,7 @@ func TestPlaybackModeRefreshesQueueWithoutRecreatingCover(t *testing.T) {
 }
 
 func TestPlaybackModeButtonAcrossLayouts(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -216,7 +216,7 @@ func TestPlaybackModeRestoresLegacySessions(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			t.Setenv("WOODWIND_MUSIC_DATA_DIR", dir)
+			t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", dir)
 			s := player.Session{Queue: []music.Track{{ID: "saved", Name: "Saved"}}, Order: []int{0}, Shuffle: tc.shuffle, Repeat: tc.repeat}
 			b, err := json.Marshal(s)
 			if err != nil {

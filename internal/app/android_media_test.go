@@ -11,11 +11,11 @@ import (
 )
 
 func TestAndroidMediaServiceBridge(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	folder := t.TempDir()
 	writeToneWAV(t, filepath.Join(folder, "Native.wav"))
 	host := core.NewHost()
-	if err := host.SetParams(map[string]any{"woodwind.android": true}); err != nil {
+	if err := host.SetParams(map[string]any{"music.android": true}); err != nil {
 		t.Fatal(err)
 	}
 	var updates []map[string]any

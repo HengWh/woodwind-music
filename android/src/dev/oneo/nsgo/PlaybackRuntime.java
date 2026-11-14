@@ -25,13 +25,13 @@ final class PlaybackRuntime {
         if (view == null) {
             context = new MutableContextWrapper(host);
             view = new NsgoView(context);
-            view.setParams(Map.of("woodwind.android", true, "woodwind.timeZone", TimeZone.getDefault().getID()));
+            view.setParams(Map.of("music.android", true, "music.timeZone", TimeZone.getDefault().getID()));
             view.handle("playback.update", (data, reply) -> {
                 if (data instanceof Map) update((Map<String, Object>) data);
                 reply.resolve(null);
             });
             view.setErrorListener(message -> {
-                Log.e("Woodwind", message);
+                Log.e("wood wind music", message);
                 command("pause", 0);
             });
         } else {
@@ -64,7 +64,7 @@ final class PlaybackRuntime {
             try {
                 context.startForegroundService(new Intent(context, PlaybackService.class));
             } catch (RuntimeException e) {
-                Log.e("Woodwind", "Could not start playback service", e);
+                Log.e("wood wind music", "Could not start playback service", e);
                 command("pause", 0);
             }
         }

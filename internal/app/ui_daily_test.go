@@ -17,7 +17,7 @@ import (
 
 func dailyReview(t *testing.T) (*app, *nsgotest.App, []music.Track) {
 	t.Helper()
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	dir := t.TempDir()
 	path := filepath.Join(dir, "First Light.wav")
 	writeToneWAV(t, path)
@@ -126,8 +126,8 @@ func TestDailyMotionFollowsItsQueue(t *testing.T) {
 
 // Optional real-window captures cover the original card's responsive layout and both appearances.
 func TestDailyUIShots(t *testing.T) {
-	if os.Getenv("WOODWIND_DAILY_SHOTS") == "" {
-		t.Skip("set WOODWIND_DAILY_SHOTS=1 to review the home card")
+	if os.Getenv("WOOD_WIND_DAILY_SHOTS") == "" {
+		t.Skip("set WOOD_WIND_DAILY_SHOTS=1 to review the home card")
 	}
 	a, view, tracks := dailyReview(t)
 	_, source, _, _ := runtime.Caller(0)
@@ -171,7 +171,7 @@ func TestDailyUIShots(t *testing.T) {
 
 // Run creates the app outside its main window; using that app scope's zero width hid the cover stack.
 func TestDailyUsesMainWindowSize(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	root := core.NewRoot(core.RootOptions{Post: func(func()) {}, Clock: core.NewManualClock(time.Unix(0, 0)), Windows: &core.WindowOptions{Width: 1180, Height: 780}})
 	defer root.Dispose()
 	application := core.NewTree(root, core.ApproxTextEngine{})

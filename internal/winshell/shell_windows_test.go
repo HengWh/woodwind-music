@@ -19,8 +19,8 @@ var testWindowProc = syscall.NewCallback(func(hwnd uintptr, msg uint32, wp, lp u
 // Exercise the native close-to-tray hook against a throwaway window with the
 // same class as NSGo, including explicit exit and Explorer icon recreation.
 func TestNativeTrayWindowLifetime(t *testing.T) {
-	if os.Getenv("WOODWIND_WINDOWS_NATIVE") != "1" {
-		t.Skip("set WOODWIND_WINDOWS_NATIVE=1 on a signed-in Windows desktop")
+	if os.Getenv("WOOD_WIND_WINDOWS_NATIVE") != "1" {
+		t.Skip("set WOOD_WIND_WINDOWS_NATIVE=1 on a signed-in Windows desktop")
 	}
 	if err := Start("dev.oneo.nsgo.music.test"); err != nil {
 		t.Fatal(err)

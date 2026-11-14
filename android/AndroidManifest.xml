@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <application android:label="木听风音乐" android:icon="@drawable/icon" android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+    <application android:label="$LABEL" android:icon="@drawable/icon" android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
         android:networkSecurityConfig="@xml/network_security_config" android:extractNativeLibs="true" android:enableOnBackInvokedCallback="true" android:debuggable="$DEBUG">
         <activity android:name="dev.oneo.nsgo.NsgoActivity" android:exported="true" android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize"

@@ -65,7 +65,7 @@ func radioTestTracks(id string) []music.Track {
 
 func startRadioTest(t *testing.T, phone bool) (*nsgotest.App, *app, *radioTestSource) {
 	t.Helper()
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	path := filepath.Join(t.TempDir(), "radio.wav")
 	writeToneWAV(t, path)
 	wav, err := os.ReadFile(path)
@@ -232,8 +232,8 @@ func TestRadioLatestChannelWins(t *testing.T) {
 
 // FM screenshots cover the original desktop card and the stacked phone card.
 func TestRadioShots(t *testing.T) {
-	if os.Getenv("WOODWIND_RADIO_SHOTS") == "" {
-		t.Skip("set WOODWIND_RADIO_SHOTS=1 for visual review")
+	if os.Getenv("WOOD_WIND_RADIO_SHOTS") == "" {
+		t.Skip("set WOOD_WIND_RADIO_SHOTS=1 for visual review")
 	}
 	ui, a, src := startRadioTest(t, false)
 	_, file, _, _ := runtime.Caller(0)

@@ -17,7 +17,7 @@ import (
 // Exercise the pathless Android picker, the real catalog and core.Video's
 // protocol together. Media events stand in for the physical Android device.
 func TestAndroidImportAndNativePlayback(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	musicDir := t.TempDir()
 	writeToneWAV(t, filepath.Join(musicDir, "Haruhikage.wav"))
 	var a *app

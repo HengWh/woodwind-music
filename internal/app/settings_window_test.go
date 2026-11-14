@@ -13,7 +13,7 @@ import (
 // Unlike a settings view mounted in a single test surface, this exercises
 // the desktop window lifetime through the real sidebar button and redraws.
 func TestSettingsWindowSurvivesSidebarUpdates(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var mu sync.Mutex
 	var posts []func()
 	root := core.NewRoot(core.RootOptions{

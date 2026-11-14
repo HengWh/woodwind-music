@@ -1,6 +1,8 @@
 # Android host
 
-This host keeps `core.Video` as Woodwind's audio player. It adds Android's platform `MediaSession` and a `mediaPlayback` foreground service, using NSGo's public `HostParams`, `PostHost`, and `OnHostEvent` APIs. NSGo is downloaded at the version pinned in `go.mod`; the host reads its Java sources from the resolved module directory without modifying them or adding a second playback engine.
+This host keeps `core.Video` as wood wind music’s audio player. It adds Android's platform `MediaSession` and a `mediaPlayback` foreground service, using NSGo's public `HostParams`, `PostHost`, and `OnHostEvent` APIs. NSGo is downloaded at the version pinned in `go.mod`; the host reads its Java sources from the resolved module directory without modifying them or adding a second playback engine.
+
+Compile the pinned host with Android SDK Platform 36 (`android/bootstrap.sh` installs it locally). The manifest continues to support Android 9 / API 28 and target API 35.
 
 ## Build and run
 

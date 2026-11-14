@@ -56,7 +56,7 @@ func TestPluginAccountRestoredAndMyPage(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
-			t.Setenv("WOODWIND_MUSIC_DATA_DIR", dir)
+			t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", dir)
 			installAccountPlugin(t, dir, true)
 			settings := loadSettings(dir)
 			settings.Source = "account-test"
@@ -94,7 +94,7 @@ func TestPluginAccountRestoredAndMyPage(t *testing.T) {
 				})
 				ui.Settle()
 			}
-			if os.Getenv("WOODWIND_ACCOUNT_SHOTS") != "" {
+			if os.Getenv("WOOD_WIND_ACCOUNT_SHOTS") != "" {
 				ui.Press("id:account-menu")
 				ui.Screenshot("account-" + name)
 			}
@@ -106,7 +106,7 @@ func TestPluginAccountRestoredAndMyPage(t *testing.T) {
 // out through its account menu must clear its stored login and restore Sign In.
 func TestPluginAccountSignInFromSettingsAndSignOut(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", dir)
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", dir)
 	installAccountPlugin(t, dir, false)
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node { a = newApp(cx); return a.view(cx) }, nsgotest.Size(1180, 780), nsgotest.Environment(core.Environment{OS: core.OSWindows}))
@@ -187,7 +187,7 @@ func TestPluginAccountOldRequestCannotReplaceNewSource(t *testing.T) {
 // footer in an account-loading state with no request in flight.
 func TestPluginAccountFailedSignInCanRetry(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", dir)
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", dir)
 	installAccountPlugin(t, dir, false)
 	script := `export function account(){return null;} export function signIn(){throw new Error("Sign-in failed");}`
 	if err := os.WriteFile(filepath.Join(dir, "plugins", "account-test", "index.js"), []byte(script), 0600); err != nil {

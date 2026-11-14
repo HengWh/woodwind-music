@@ -16,7 +16,7 @@ import (
 
 func startPhone(t *testing.T) (*nsgotest.App, *app) {
 	t.Helper()
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
@@ -168,8 +168,8 @@ func TestPhoneTrackActionsAndPlaylist(t *testing.T) {
 
 // Run on a native surface for visual review; the same test remains optional headless.
 func TestPhoneShots(t *testing.T) {
-	if os.Getenv("WOODWIND_PHONE_SHOTS") == "" {
-		t.Skip("set WOODWIND_PHONE_SHOTS=1 for phone screenshots")
+	if os.Getenv("WOOD_WIND_PHONE_SHOTS") == "" {
+		t.Skip("set WOOD_WIND_PHONE_SHOTS=1 for phone screenshots")
 	}
 	ui, a := startPhone(t)
 	_, source, _, _ := runtime.Caller(0)

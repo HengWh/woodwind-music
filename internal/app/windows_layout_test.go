@@ -15,7 +15,7 @@ import (
 // Simulate Windows even on the Mac development host: settings must remain
 // usable when the backend has a main surface but no secondary windows.
 func TestWindowsSettingsStayInMainWindow(t *testing.T) {
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", t.TempDir())
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)

@@ -33,7 +33,7 @@ func newVideoOutput(cx *core.Scope) *videoOutput {
 		paused:  core.NewSignal(cx, true),
 		volume:  core.NewSignal[float32](cx, 1),
 		muted:   core.NewSignal(cx, false),
-		managed: cx.HostParams()["woodwind.android"] == true,
+		managed: cx.HostParams()["music.android"] == true,
 	}
 }
 

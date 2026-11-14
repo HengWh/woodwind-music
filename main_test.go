@@ -129,10 +129,10 @@ func lrc(t *testing.T, path, text string) {
 }
 
 // TestShots saves pictures of the app's pages, for a person to look at:
-// WOODWIND_SHOTS=1 go tool nsgo test -target macos -run TestShots.
+// WOOD_WIND_SHOTS=1 go tool nsgo test -target macos -run TestShots.
 func TestShots(t *testing.T) {
-	if os.Getenv("WOODWIND_SHOTS") == "" {
-		t.Skip("set WOODWIND_SHOTS=1 to save screenshots")
+	if os.Getenv("WOOD_WIND_SHOTS") == "" {
+		t.Skip("set WOOD_WIND_SHOTS=1 to save screenshots")
 	}
 	data := t.TempDir()
 	music := t.TempDir()
@@ -148,10 +148,10 @@ func TestShots(t *testing.T) {
 		t.Fatal(err)
 	}
 	settings := map[string]any{}
-	if os.Getenv("WOODWIND_LIGHT") != "" {
+	if os.Getenv("WOOD_WIND_LIGHT") != "" {
 		settings["appearance"] = "light"
 	}
-	if os.Getenv("WOODWIND_EN") != "" {
+	if os.Getenv("WOOD_WIND_EN") != "" {
 		settings["language"] = "en"
 	}
 	if len(settings) > 0 {
@@ -160,7 +160,7 @@ func TestShots(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", data)
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", data)
 	app := nsgotest.Start(t, app.Root, nsgotest.Size(1180, 780))
 	app.WaitUntil(8*time.Second, func() bool { return app.Exists("text:迷跡波") })
 	shot := func(name string) {

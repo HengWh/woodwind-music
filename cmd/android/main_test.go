@@ -8,6 +8,15 @@ import (
 	"testing"
 )
 
+func TestReleaseAPKUsesConfiguredProductName(t *testing.T) {
+	var p project
+	p.Name, p.Version, p.Build.Output = "wood wind music", "0.1.26", "dist"
+	want := filepath.Join("dist", "releases", "wood-wind-music-0.1.26-android-arm64.apk")
+	if got := p.releaseAPK(); got != want {
+		t.Fatalf("release APK = %q, want %q", got, want)
+	}
+}
+
 func TestMergeKeepsAndroidResourceTableStored(t *testing.T) {
 	dir := t.TempDir()
 	makeZip := func(name string, files map[string]string) string {

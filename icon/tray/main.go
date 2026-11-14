@@ -1,4 +1,4 @@
-// Command tray draws the WoodWind headphones and pine as a monochrome
+// Command tray draws the wood wind music headphones and pine as a monochrome
 // macOS menu bar template, supersampled at 2× of the menu bar's 18 points.
 //
 // Run it from the repository root:

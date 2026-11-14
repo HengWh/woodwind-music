@@ -99,7 +99,7 @@ public final class PlaybackService extends Service {
                     options.inSampleSize = 2;
                     artwork = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
                 }
-            } catch (RuntimeException e) { Log.w("Woodwind", "Invalid cover image", e); }
+            } catch (RuntimeException e) { Log.w("wood wind music", "Invalid cover image", e); }
         }
         MediaMetadata.Builder metadata = new MediaMetadata.Builder()
             .putString(MediaMetadata.METADATA_KEY_TITLE, PlaybackRuntime.text("title"))

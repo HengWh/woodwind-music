@@ -40,7 +40,7 @@ func TestPluginSourcesOnDesktopAndPhone(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()
-			t.Setenv("WOODWIND_MUSIC_DATA_DIR", dir)
+			t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", dir)
 			installDemo(t, dir)
 			var a *app
 			width, height := core.Points(1180), core.Points(780)
@@ -116,9 +116,9 @@ func TestPhonePluginInstallReviewAndRemove(t *testing.T) {
 	ui.Press("id:open-settings")
 	ui.Press("id:phone-settings-plugins")
 	ui.Find("id:plugin-setting-demo/greeting")
-	ui.Type("id:plugin-setting-demo/greeting", "Hello Woodwind")
+	ui.Type("id:plugin-setting-demo/greeting", "Hello wood wind")
 	ui.Press("id:plugin-save-demo/greeting")
-	ui.WaitUntil(time.Second, func() bool { return a.plugins[0].Setting("greeting") == "Hello Woodwind" })
+	ui.WaitUntil(time.Second, func() bool { return a.plugins[0].Setting("greeting") == "Hello wood wind" })
 	a.post(func() { a.installer.open = true; a.installer.remove = "demo"; a.bump() })
 	ui.Settle()
 	ui.Press("id:plugin-remove-confirm")
@@ -216,11 +216,11 @@ func TestAndroidPluginAuthenticatedStream(t *testing.T) {
 }
 
 func TestPluginShots(t *testing.T) {
-	if os.Getenv("WOODWIND_PLUGIN_SHOTS") == "" {
-		t.Skip("set WOODWIND_PLUGIN_SHOTS=1 for visual review")
+	if os.Getenv("WOOD_WIND_PLUGIN_SHOTS") == "" {
+		t.Skip("set WOOD_WIND_PLUGIN_SHOTS=1 for visual review")
 	}
 	dir := t.TempDir()
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", dir)
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", dir)
 	installDemo(t, dir)
 	var a *app
 	ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
@@ -250,7 +250,7 @@ func TestPluginShots(t *testing.T) {
 
 func TestDesktopPluginPlaybackErrorIsVisible(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("WOODWIND_MUSIC_DATA_DIR", dir)
+	t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", dir)
 	source := filepath.Join(dir, "plugins", "restricted")
 	os.MkdirAll(source, 0700)
 	os.WriteFile(filepath.Join(source, "plugin.json"), []byte(`{"id":"restricted"}`), 0600)
@@ -282,7 +282,7 @@ func TestSourceSwitcherMenuSurface(t *testing.T) {
 		for _, appearance := range []string{"light", "dark"} {
 			t.Run(platform.name+"/"+appearance, func(t *testing.T) {
 				dir := t.TempDir()
-				t.Setenv("WOODWIND_MUSIC_DATA_DIR", dir)
+				t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", dir)
 				installDemo(t, dir)
 				var a *app
 				ui := nsgotest.Start(t, func(cx *core.Scope) core.Node {
@@ -324,7 +324,7 @@ func TestSourceSwitcherMenuSurface(t *testing.T) {
 				if !ui.Find("id:source-option-local").Props.Checked {
 					t.Fatal("current source is not marked")
 				}
-				if os.Getenv("WOODWIND_PLUGIN_SHOTS") != "" {
+				if os.Getenv("WOOD_WIND_PLUGIN_SHOTS") != "" {
 					ui.Screenshot("source-menu-" + platform.name + "-" + appearance)
 				}
 				ui.Key("escape")

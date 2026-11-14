@@ -143,7 +143,7 @@ func (s *shell) run(ready chan<- error) {
 		setAppID.Call(uintptr(unsafe.Pointer(wide(s.appID))))
 	}
 	instance, _, _ := getModuleHandle.Call(0)
-	wc := windowClass{Proc: windowCallback, Instance: instance, ClassName: wide("WoodwindMusicShell")}
+	wc := windowClass{Proc: windowCallback, Instance: instance, ClassName: wide("MusicShell")}
 	wc.Size = uint32(unsafe.Sizeof(wc))
 	if atom, _, err := registerClass.Call(uintptr(unsafe.Pointer(&wc))); atom == 0 && err != syscall.Errno(1410) {
 		ready <- fmt.Errorf("register shell window: %w", err)
@@ -151,7 +151,7 @@ func (s *shell) run(ready chan<- error) {
 	}
 	// A hidden top-level window, rather than HWND_MESSAGE, receives Explorer's
 	// TaskbarCreated broadcast and is a valid SMTC interop owner.
-	hwnd, _, err := createWindow.Call(0x80, uintptr(unsafe.Pointer(wc.ClassName)), uintptr(unsafe.Pointer(wide("Woodwind Music"))), 0, 0, 0, 0, 0, 0, 0, instance, 0)
+	hwnd, _, err := createWindow.Call(0x80, uintptr(unsafe.Pointer(wc.ClassName)), uintptr(unsafe.Pointer(wide("wood wind music"))), 0, 0, 0, 0, 0, 0, 0, instance, 0)
 	if hwnd == 0 {
 		ready <- fmt.Errorf("create shell window: %w", err)
 		return

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="resources/icon.png" alt="木听风音乐 · Wood & Wind Music Logo" width="128" />
+  <img src="resources/icon.png" alt="木听风音乐 · wood wind music Logo" width="128" />
 </p>
 
-# 木听风音乐 · Wood & Wind Music
+# 木听风音乐 · wood wind music
 
 基于 [NSGo](https://github.com/nsgo-dev/nsgo) 的本地音乐播放器，支持桌面与安卓，由 [MyGo Music](https://github.com/egoist/mygo-music) 复刻与移植而来。
 
@@ -140,10 +140,10 @@ go run ./cmd/android -install -run
 
 ```sh
 go run ./cmd/android
-.tools/android/platform-tools/adb install -r "dist/releases/woodwind-music-0.1.26-android-arm64.apk"
+.tools/android/platform-tools/adb install -r "dist/releases/wood-wind-music-0.1.26-android-arm64.apk"
 ```
 
-APK 位于 `dist/releases/`，版本号跟随 `nsgo.yaml`。安卓安装后统一显示中文名称“木听风音乐”，桌面图标和系统应用信息使用 `android/AndroidManifest.xml` 中的名称，媒体会话也沿用该名称。本地构建沿用 NSGo 的调试签名，保留安装后的数据。`-device <序列号>` 选择手机，`-debug` 允许开发检查。工具优先使用 `ANDROID_HOME`、`JAVA_HOME`、`R8_JAR` 和 `ADB`，否则使用项目 `.tools/android/` 下的工具。
+APK 位于 `dist/releases/`，版本号跟随 `nsgo.yaml`。产品英文名称统一为 `wood wind music`，桌面图标、系统应用信息和打包路径使用 `nsgo.yaml` 中的名称，媒体会话也沿用该名称。本地构建沿用 NSGo 的调试签名，保留安装后的数据。`-device <序列号>` 选择手机，`-debug` 允许开发检查。工具优先使用 `ANDROID_HOME`、`JAVA_HOME`、`R8_JAR` 和 `ADB`，否则使用项目 `.tools/android/` 下的工具。
 
 请用 `go run ./cmd/android` 构建完整安卓包。裸 `go tool nsgo build -target android_arm64` 只会生成框架的基础包，不含本项目的后台播放宿主。
 
@@ -169,6 +169,10 @@ go run ./icon       # 更新应用 PNG 与 macOS ICNS
 go run ./icon/tray  # 更新菜单栏图标
 ```
 
+当前正式图标是红色渐变背景上的纯白耳机、松树与两片飘叶，源图保存在 `assets/app-icon/source.png`。已生成的春、夏、秋、冬四季配色素材完整保留在 `assets/woodwind-icon-seasons/`，作为后续设计备选。
+
+产品英文名称为 `wood wind music`，例如 macOS 应用位于 `dist/wood wind music-0.1.26-macos_arm64/wood wind music.app`，发布包使用 `wood-wind-music-<版本>-<平台>` 前缀。应用 ID 保持不变，继续沿用既有曲库、歌单与设置。
+
 旧的 `.icon` 文档不参与当前构建。图标打包无需 `actool`；需要完整 Xcode 的其他构建步骤可通过 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 指定工具链。
 
 </details>
@@ -189,14 +193,14 @@ go tool nsgo test -run TestSettingsWindowSurvivesSidebarUpdates
 页面截图覆盖首页、专辑、歌手、播放页、舞台、封面墙、队列、搜索和歌单等：
 
 ```sh
-WOODWIND_SHOTS=1 go tool nsgo test -target macos -run TestShots
+WOOD_WIND_SHOTS=1 go tool nsgo test -target macos -run TestShots
 open .nsgo/test/screenshots/macos
 ```
 
 设置与歌词的专项截图使用固定播放位置，覆盖深浅主题、下拉菜单、长文本、无歌词与窄窗口：
 
 ```sh
-(cd internal/app && WOODWIND_UI_SHOTS=1 go tool nsgo test -target macos -run TestUIShots)
+(cd internal/app && WOOD_WIND_UI_SHOTS=1 go tool nsgo test -target macos -run TestUIShots)
 open internal/app/.nsgo/test/screenshots/macos
 ```
 
@@ -224,7 +228,7 @@ open internal/app/.nsgo/test/screenshots/macos
 
 ## 致谢
 
-木听风音乐（Wood & Wind Music）的实现离不开以下两个开源项目：
+木听风音乐（wood wind music）的实现离不开以下两个开源项目：
 
 - **[NSGo](https://github.com/nsgo-dev/nsgo)**：为本项目提供原生桌面应用框架，承载窗口、界面渲染和交互。感谢 NSGo 作者与贡献者的开发和维护，让使用 Go 构建原生应用成为可能。
 - **[MyGo Music](https://github.com/egoist/mygo-music)**：是本项目复刻与移植的基础。界面设计、交互、文案，以及音频播放、曲库、歌词和队列等核心实现均源自该项目。感谢其作者与贡献者对产品细节的打磨，以及开放源码供大家学习和继续构建。
