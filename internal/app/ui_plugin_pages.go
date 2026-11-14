@@ -302,6 +302,9 @@ func (a *app) phoneSources(p palette) core.Node {
 }
 func (a *app) pluginPhoneLibrary(p palette) core.Node {
 	rows := []core.Node{a.titleBlock(p, a.sourceName(), ""), a.phoneLibraryRow(p, "phone-sources", i18n.T("Music Sources"), a.sourceName(), lucideNote, func() { a.openPhoneSheet("sources") })}
+	if a.can("account") || a.can("signIn") || a.account != nil {
+		rows = append(rows, a.accountRow(p))
+	}
 	rows = append(rows, a.sourceNavigation(p, a.route.GetUntracked(), true)...)
 	for _, pl := range a.mine {
 		list := pl

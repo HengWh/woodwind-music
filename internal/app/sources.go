@@ -66,6 +66,7 @@ func (a *app) initSources() {
 			a.phoneTabs[i].route.src = id
 		}
 	}
+	a.loadAccount(a.source())
 }
 func (a *app) registerPlugin(p *plugin.Plugin) {
 	if p.Info().ID == local.ID {
@@ -101,7 +102,7 @@ func (a *app) activateSource(id string) {
 	a.set.save()
 	a.reloadGen++
 	a.home, a.homeErr, a.recent, a.mine, a.liked = nil, "", nil, nil, nil
-	a.account = nil
+	a.account = a.accountState(src).account
 	a.likedSet = map[string]bool{}
 	a.playlists = map[string]*playlistData{}
 	a.albums = map[string]*albumData{}
@@ -114,17 +115,7 @@ func (a *app) activateSource(id string) {
 	a.searchOpen.Set(false)
 	a.scroll = map[string]core.Points{}
 	a.reload()
-	if src.Can("account") {
-		go func() {
-			account, _ := src.Account()
-			a.post(func() {
-				if a.source() == src {
-					a.account = account
-					a.bump()
-				}
-			})
-		}()
-	}
+	a.loadAccount(src)
 }
 func (a *app) switchSource(id string) {
 	if a.sourceByID(id) == nil || a.sourceByID(id) == a.source() {
@@ -162,6 +153,7 @@ func (a *app) signInSource(src music.Source) {
 		return
 	}
 	a.signingIn = true
+	a.invalidateAccount(src)
 	a.signSource = src
 	a.signGeneration++
 	generation := a.signGeneration
@@ -176,8 +168,11 @@ func (a *app) signInSource(src music.Source) {
 			a.signingIn = false
 			if err != nil {
 				a.say(err.Error())
-			} else if a.source() == src {
-				a.account = account
+			} else if a.sourceByID(src.Info().ID) == src {
+				a.setAccount(src, account)
+				if a.source() != src {
+					a.switchSource(src.Info().ID)
+				}
 				a.reload()
 			}
 			a.bump()

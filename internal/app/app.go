@@ -198,6 +198,7 @@ type app struct {
 	plugins         []*plugin.Plugin
 	installer       pluginInstaller
 	account         *music.Account
+	accounts        map[string]*sourceAccount
 	signingIn       bool
 	signSource      music.Source
 	signGeneration  int

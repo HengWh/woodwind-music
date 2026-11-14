@@ -177,14 +177,7 @@ func (a *app) playlistRow(p palette, pl music.Playlist, selected bool) core.Node
 // sidebarFooter is the settings and the folders.
 func (a *app) sidebarFooter(p palette) core.Node {
 	return core.View{Style: core.Style{Direction: core.Column, Gap: 2, Padding: core.Edges{Top: 8}}, Children: []core.Node{
-		base.Button{Label: i18n.T("Settings"), TestID: "open-settings", OnPress: func(core.PressEvent) { a.openSettings() },
-			Style: core.Style{Height: core.Pt(40), Padding: core.Symmetric(0, 8), Gap: 10, Direction: core.Row,
-				AlignItems: core.AlignCenter, CornerRadius: 10, Hover: &core.Style{Background: p.hover},
-				Active: &core.Style{Background: p.press}}, Children: []core.Node{
-				core.View{Style: core.Style{Width: core.Pt(26), Height: core.Pt(26), AlignItems: core.AlignCenter,
-					JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideSettings, 15, p.muted)}},
-				text(i18n.T("Settings"), 13, core.FontWeightMedium, p.muted),
-			}},
+		core.Dynamic(func(cx *core.Scope) core.Node { a.rev.Get(); return a.accountRow(p) }),
 	}}
 }
 

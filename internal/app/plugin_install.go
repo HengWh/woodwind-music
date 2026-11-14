@@ -169,6 +169,7 @@ func (a *app) removePlugin(id string) {
 			a.sources.Lock()
 			delete(a.sources.items, id)
 			a.sources.Unlock()
+			delete(a.accounts, id)
 			a.plugins = append(a.plugins[:i], a.plugins[i+1:]...)
 			a.installer.remove = ""
 			a.installer.open = false
@@ -195,7 +196,13 @@ func (a *app) pluginCategories() settingsCatDef {
 	for _, plug := range a.plugins {
 		p := plug
 		info := p.Info()
-		rows := []settingsRowDef{{label: info.Name, sub: info.Version, control: func(pal palette) core.Node {
+		a.loadAccount(p)
+		state := a.accountState(p)
+		sub := info.Version
+		if state.account != nil {
+			sub += " · " + i18n.Tf("Signed in as %s", state.account.Name)
+		}
+		rows := []settingsRowDef{{label: info.Name, sub: sub, control: func(pal palette) core.Node {
 			return a.settingsAction(pal, i18n.T("Open"), "plugin-open-"+info.ID, false, func() {
 				a.switchSource(info.ID)
 				a.closeSettings()
@@ -230,14 +237,14 @@ func (a *app) pluginCategories() settingsCatDef {
 				}})
 			}
 		}
-		if p.Can("signIn") {
+		if state.account == nil && p.Can("signIn") && (!p.Can("account") || state.asked) {
 			rows = append(rows, settingsRowDef{label: i18n.T("Account"), control: func(pal palette) core.Node {
 				return a.settingsAction(pal, i18n.T("Sign In"), "plugin-signin-"+info.ID, a.signingIn, func() { a.signInSource(p) })
 			}})
 		}
-		if p.Can("signOut") {
+		if state.account != nil && p.Can("signOut") {
 			rows = append(rows, settingsRowDef{label: i18n.T("Sign Out"), control: func(pal palette) core.Node {
-				return a.settingsAction(pal, i18n.T("Sign Out"), "plugin-signout-"+info.ID, a.signingIn, func() { a.sourceAction(p, p.SignOut, func() { a.account = nil }) })
+				return a.settingsAction(pal, i18n.T("Sign Out"), "plugin-signout-"+info.ID, a.signingIn || state.signingOut, func() { a.signOutSource(p) })
 			}})
 		}
 		if len(p.Permissions().Process) > 0 {
