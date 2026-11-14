@@ -231,12 +231,11 @@ func (a *app) browseSection(p palette, sec music.Section, pageID string, index i
 				core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
 					EstimatedSize: a.trackRowHeight(), Viewport: core.ListViewportParent,
 					Row: func(cx *core.Scope, row core.ListRow) core.Node {
-						if a.phoneLayout(cx) {
-							return core.Dynamic(func(cx *core.Scope) core.Node { return a.phoneTrackRow(p, tracks, row.Index(), "") })
-						}
-						i := row.Index()
-						cur := a.pl.Current()
-						return a.trackRow(p, tracks, i, true, false, true, cur != nil && cur.ID == tracks[i].ID)
+						return core.Dynamic(func(cx *core.Scope) core.Node {
+							i := row.Index()
+							cur := a.pl.Current()
+							return a.trackRow(p, tracks, i, true, false, true, cur != nil && cur.ID == tracks[i].ID)
+						})
 					}},
 			}})
 		}
@@ -470,13 +469,16 @@ func (a *app) trackList(p palette, tracks []music.Track, covers, showAlbum bool,
 	return core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
 		EstimatedSize: a.trackRowHeight(), Viewport: core.ListViewportParent,
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
-			if a.phoneLayout(cx) {
-				return core.Dynamic(func(cx *core.Scope) core.Node { return a.phoneTrackRow(p, tracks, row.Index(), "") })
-			}
-			i := row.Index()
-			tr := tracks[i]
-			r := a.trackRow(p, tracks, i, covers, showAlbum, false, current == tr.ID)
-			return ui.ContextMenu{Trigger: r, Children: a.trackMenu(tr, "", -1)}
+			// List cells are reused; rebuild the row and its actions for the new index.
+			return core.Dynamic(func(cx *core.Scope) core.Node {
+				if a.phoneLayout(cx) {
+					return a.phoneTrackRow(p, tracks, row.Index(), "")
+				}
+				i := row.Index()
+				tr := tracks[i]
+				r := a.trackRow(p, tracks, i, covers, showAlbum, false, current == tr.ID)
+				return ui.ContextMenu{Trigger: r, Children: a.trackMenu(tr, "", -1)}
+			})
 		}}
 }
 
@@ -644,13 +646,15 @@ func (a *app) playlistPage(cx *core.Scope, p palette, id string) core.Node {
 		core.List{Count: func() int { return len(pl.Tracks) }, Key: func(i int) any { return pl.Tracks[i].ID },
 			EstimatedSize: a.trackRowHeight(), Viewport: core.ListViewportParent,
 			Row: func(cx *core.Scope, row core.ListRow) core.Node {
-				if a.phoneLayout(cx) {
-					return core.Dynamic(func(cx *core.Scope) core.Node { return a.phoneTrackRow(p, pl.Tracks, row.Index(), pl.ID) })
-				}
-				i := row.Index()
-				tr := pl.Tracks[i]
-				r := a.trackRow(p, pl.Tracks, i, true, false, true, a.currentID() == tr.ID)
-				return ui.ContextMenu{Trigger: r, Children: a.trackMenu(tr, pl.ID, i)}
+				return core.Dynamic(func(cx *core.Scope) core.Node {
+					if a.phoneLayout(cx) {
+						return a.phoneTrackRow(p, pl.Tracks, row.Index(), pl.ID)
+					}
+					i := row.Index()
+					tr := pl.Tracks[i]
+					r := a.trackRow(p, pl.Tracks, i, true, false, true, a.currentID() == tr.ID)
+					return ui.ContextMenu{Trigger: r, Children: a.trackMenu(tr, pl.ID, i)}
+				})
 			}},
 	})
 }

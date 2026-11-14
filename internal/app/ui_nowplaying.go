@@ -200,27 +200,29 @@ func (a *app) queuePane(cx *core.Scope, white core.Color) core.Node {
 	return core.List{Ref: list, Count: func() int { return len(order) }, Key: func(i int) any { return i },
 		EstimatedSize: 56, Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Gap: 2,
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
-			r := row.Index()
-			i := order[r]
-			tr := queue[i]
-			playing := r == at
-			item := base.Button{Label: tr.Name, OnPress: func(core.PressEvent) { a.pl.Jump(i) },
-				StyleFunc: func() core.Style {
-					s := core.Style{Height: core.Pt(54), Padding: core.Symmetric(0, 10), Gap: 12, Direction: core.Row, AlignItems: core.AlignCenter,
-						CornerRadius: 10, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.07)}}
-					if playing {
-						s.Background = core.RGBA(0xffffff, 0.12)
-					}
-					return s
-				}, Children: []core.Node{
-					a.cover(palette{faint: core.RGBA(0xffffff, 0.3), hover: core.RGBA(0xffffff, 0.08)}, tr.Album.ImageURL, 40, 6),
-					core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Direction: core.Column, Gap: 2}, Children: []core.Node{
-						core.Text{Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 13.5, FontWeight: core.FontWeightMedium, Color: white}},
-						core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: 12, Color: core.RGBA(0xffffff, 0.55)}},
-					}},
-					core.Text{Content: clock(tr.Length()), Style: core.Style{FontSize: 12, Color: core.RGBA(0xffffff, 0.4)}},
-				}}
-			return ui.ContextMenu{Trigger: item, Children: a.trackMenu(tr, "", -1)}
+			return core.Dynamic(func(cx *core.Scope) core.Node {
+				r := row.Index()
+				i := order[r]
+				tr := queue[i]
+				playing := r == at
+				item := base.Button{Label: tr.Name, OnPress: func(core.PressEvent) { a.pl.Jump(i) },
+					StyleFunc: func() core.Style {
+						s := core.Style{Height: core.Pt(54), Padding: core.Symmetric(0, 10), Gap: 12, Direction: core.Row, AlignItems: core.AlignCenter,
+							CornerRadius: 10, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.07)}}
+						if playing {
+							s.Background = core.RGBA(0xffffff, 0.12)
+						}
+						return s
+					}, Children: []core.Node{
+						a.cover(palette{faint: core.RGBA(0xffffff, 0.3), hover: core.RGBA(0xffffff, 0.08)}, tr.Album.ImageURL, 40, 6),
+						core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Direction: core.Column, Gap: 2}, Children: []core.Node{
+							core.Text{Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 13.5, FontWeight: core.FontWeightMedium, Color: white}},
+							core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: 12, Color: core.RGBA(0xffffff, 0.55)}},
+						}},
+						core.Text{Content: clock(tr.Length()), Style: core.Style{FontSize: 12, Color: core.RGBA(0xffffff, 0.4)}},
+					}}
+				return ui.ContextMenu{Trigger: item, Children: a.trackMenu(tr, "", -1)}
+			})
 		}}
 }
 
@@ -253,41 +255,43 @@ func (a *app) wallPane(cx *core.Scope, white core.Color) core.Node {
 		NumColumns: cols, EstimatedSize: 190, ColumnGap: 14, Gap: 14,
 		Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)},
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
-			i := row.Index()
-			tr := rows[i]
-			current := func() bool {
-				a.playRev.Get()
-				o, now := a.pl.PlayOrder()
-				return now >= 0 && now < len(o) && o[now] == queueIndex(queue, tr.ID)
-			}
-			_ = at
-			item := base.Button{Label: tr.Name, TestID: "wall-" + tr.ID, OnPress: func(core.PressEvent) {
-				for qi, q := range queue {
-					if q.ID == tr.ID {
-						a.pl.Jump(qi)
-						return
+			return core.Dynamic(func(cx *core.Scope) core.Node {
+				i := row.Index()
+				tr := rows[i]
+				current := func() bool {
+					a.playRev.Get()
+					o, now := a.pl.PlayOrder()
+					return now >= 0 && now < len(o) && o[now] == queueIndex(queue, tr.ID)
+				}
+				_ = at
+				item := base.Button{Label: tr.Name, TestID: "wall-" + tr.ID, OnPress: func(core.PressEvent) {
+					for qi, q := range queue {
+						if q.ID == tr.ID {
+							a.pl.Jump(qi)
+							return
+						}
 					}
-				}
-			}, StyleFunc: func() core.Style {
-				s := core.Style{Direction: core.Column, Gap: 6, Padding: core.All(6), CornerRadius: 12,
-					Hover: &core.Style{Background: core.RGBA(0xffffff, 0.07)}}
-				if current() {
-					s.Background = core.RGBA(0xffffff, 0.12)
-					s.BorderWidth, s.BorderColor = 1.5, core.RGBA(0xffffff, 0.9)
-				}
-				if tr.Unavailable {
-					s.Opacity = core.Alpha(0.4)
-				}
-				return s
-			}, Children: []core.Node{
-				func() core.Node {
-					pic := a.cover(palette{faint: core.RGBA(0xffffff, 0.3), hover: core.RGBA(0xffffff, 0.08)}, tr.Album.ImageURL, 168, 10)
-					return core.View{Style: core.Style{Width: core.Pct(100), AspectRatio: 1}, Children: []core.Node{pic}}
-				}(),
-				core.Text{Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 12.5, FontWeight: core.FontWeightMedium, Color: white}},
-				core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: 11.5, Color: core.RGBA(0xffffff, 0.5)}},
-			}}
-			return ui.ContextMenu{Trigger: item, Children: a.trackMenu(tr, "", -1)}
+				}, StyleFunc: func() core.Style {
+					s := core.Style{Direction: core.Column, Gap: 6, Padding: core.All(6), CornerRadius: 12,
+						Hover: &core.Style{Background: core.RGBA(0xffffff, 0.07)}}
+					if current() {
+						s.Background = core.RGBA(0xffffff, 0.12)
+						s.BorderWidth, s.BorderColor = 1.5, core.RGBA(0xffffff, 0.9)
+					}
+					if tr.Unavailable {
+						s.Opacity = core.Alpha(0.4)
+					}
+					return s
+				}, Children: []core.Node{
+					func() core.Node {
+						pic := a.cover(palette{faint: core.RGBA(0xffffff, 0.3), hover: core.RGBA(0xffffff, 0.08)}, tr.Album.ImageURL, 168, 10)
+						return core.View{Style: core.Style{Width: core.Pct(100), AspectRatio: 1}, Children: []core.Node{pic}}
+					}(),
+					core.Text{Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 12.5, FontWeight: core.FontWeightMedium, Color: white}},
+					core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: 11.5, Color: core.RGBA(0xffffff, 0.5)}},
+				}}
+				return ui.ContextMenu{Trigger: item, Children: a.trackMenu(tr, "", -1)}
+			})
 		}}
 }
 
