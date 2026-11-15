@@ -149,6 +149,9 @@ func (a *app) stationsPage(cx *core.Scope, p palette, r route) core.Node {
 			}
 		}
 		d.stationAt = max(0, min(d.stationAt, len(d.stations)-1))
+		if a.phoneLayout(cx) {
+			return a.phoneRadioPage(cx, p, d, r)
+		}
 		heading := []core.Node{core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
 			a.titleBlock(p, a.stationsTitle(), i18n.T("Music without end")),
 		}}}

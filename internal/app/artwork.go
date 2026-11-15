@@ -183,11 +183,14 @@ func (a *app) sourceImage(im core.Image) core.Node {
 	}
 	source := a.protectedImages[key]
 	if source == nil {
-		if len(a.protectedImages) >= 64 {
-			a.protectedImages = map[string]*core.Signal[*core.ImageSource]{}
+		// Evict one old entry instead of clearing every visible cover at once.
+		if len(a.protectedImageOrder) >= 128 {
+			delete(a.protectedImages, a.protectedImageOrder[0])
+			a.protectedImageOrder = a.protectedImageOrder[1:]
 		}
 		source = core.NewSignal[*core.ImageSource](a.cx, nil)
 		a.protectedImages[key] = source
+		a.protectedImageOrder = append(a.protectedImageOrder, key)
 		address := im.Source.URI
 		go func() {
 			data, err := music.Fetch(address)

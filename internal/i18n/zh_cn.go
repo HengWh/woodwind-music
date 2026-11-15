@@ -2,6 +2,10 @@ package i18n
 
 // zhCN is the app's text in Simplified Chinese, by its English.
 var zhCN = map[string]string{
+	"More: %s":                        "更多：%s",
+	"Current song":                    "回到当前播放",
+	"No results found":                "没有找到相关内容",
+	"Couldn't load more results":      "更多结果暂时无法加载",
 	"Music source":                    "音乐来源",
 	"Online music":                    "在线音乐",
 	"Manage music sources":            "管理音乐源",

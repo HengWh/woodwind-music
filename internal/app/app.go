@@ -176,11 +176,13 @@ type browseData struct {
 
 // searchData is what a search found, as far as its pages have loaded.
 type searchData struct {
-	res     music.SearchResult
-	loading bool
-	loaded  bool
-	more    bool
-	err     string
+	revision *core.Signal[int]
+	busy     *core.Signal[bool]
+	res      music.SearchResult
+	loading  bool
+	loaded   bool
+	more     bool
+	err      string
 }
 
 // app is the state the window shows. Everything in it is read and
@@ -192,20 +194,21 @@ type app struct {
 	location *time.Location
 	set      settings
 
-	sources         sourceRegistry
-	protectedImages map[string]*core.Signal[*core.ImageSource]
-	active          music.Source
-	plugins         []*plugin.Plugin
-	installer       pluginInstaller
-	account         *music.Account
-	accounts        map[string]*sourceAccount
-	signingIn       bool
-	signSource      music.Source
-	signGeneration  int
-	signPrompt      music.SignInPrompt
-	extra           map[route]*extraData
-	radioStarting   string
-	radioRequest    int
+	sources             sourceRegistry
+	protectedImages     map[string]*core.Signal[*core.ImageSource]
+	protectedImageOrder []string
+	active              music.Source
+	plugins             []*plugin.Plugin
+	installer           pluginInstaller
+	account             *music.Account
+	accounts            map[string]*sourceAccount
+	signingIn           bool
+	signSource          music.Source
+	signGeneration      int
+	signPrompt          music.SignInPrompt
+	extra               map[route]*extraData
+	radioStarting       string
+	radioRequest        int
 
 	local        *local.Source
 	pl           *player.Player
@@ -265,25 +268,28 @@ type app struct {
 	searches  map[route]*searchData
 
 	// Layout state.
-	volumeOpen      bool
-	ticking         bool
-	lastSaved       time.Time
-	lastSearch      route
-	reloadGen       int
-	mutedFrom       float64
-	nowPlaying      bool
-	queueAt         int
-	scroll          map[string]core.Points
-	phoneTab        int
-	compact         bool
-	mineCollapsed   bool
-	savedCollapsed  bool
-	phoneTabs       [3]phoneTabState
-	phoneSheet      *core.Signal[string]
-	phoneMessage    string
-	phoneTrack      music.Track
-	phonePlaylist   string
-	phoneTrackIndex int
+	volumeOpen        bool
+	ticking           bool
+	lastSaved         time.Time
+	lastSearch        route
+	reloadGen         int
+	mutedFrom         float64
+	nowPlaying        bool
+	queueAt           int
+	scroll            map[string]core.Points
+	phoneTab          int
+	compact           bool
+	mineCollapsed     bool
+	savedCollapsed    bool
+	phoneTabs         [3]phoneTabState
+	phoneSheet        *core.Signal[string]
+	phoneLyrics       *core.Signal[bool]
+	phoneQueueOffset  core.Point
+	phoneQueueVisited bool
+	phoneMessage      string
+	phoneTrack        music.Track
+	phonePlaylist     string
+	phoneTrackIndex   int
 
 	// Dialogs.
 	naming           bool
@@ -327,6 +333,7 @@ func newApp(cx *core.Scope) *app {
 		stageTick:        core.NewSignal(cx, 0),
 		toast:            core.NewSignal(cx, ""),
 		phoneSheet:       core.NewSignal(cx, ""),
+		phoneLyrics:      core.NewSignal(cx, false),
 		phoneTabs:        [3]phoneTabState{{route: route{page: pageHome}}, {route: route{page: pageLibrary}}, {route: route{page: pageSearch}}},
 		artRev:           core.NewSignal(cx, 0),
 		dailyHover:       core.NewSignal(cx, false),
@@ -709,7 +716,8 @@ func (a *app) loadSearch(r route, again bool) {
 	if d.loading || d.loaded && !again {
 		return
 	}
-	d.loading, d.loaded, d.err = true, false, ""
+	d.loading, d.err = true, ""
+	a.searchChanged(d)
 	src := a.source()
 	go func() {
 		res, err := src.Search(r.query, r.kind, 0)
@@ -723,13 +731,13 @@ func (a *app) loadSearch(r route, again bool) {
 			d.loading = false
 			if err != nil {
 				d.err = err.Error()
-				a.bump()
+				a.searchChanged(d)
 				return
 			}
 			d.res = *res
 			d.loaded = true
-			d.more = res.More
-			a.bump()
+			d.more = res.More && searchResultCount(*res, r.kind) > 0
+			a.searchChanged(d)
 		})
 	}()
 }
@@ -740,8 +748,8 @@ func (a *app) loadMoreSearch(r route) {
 		return
 	}
 	d.loading, d.err = true, ""
-	offset := d.res.Len()
-	a.bump()
+	offset := searchResultCount(d.res, r.kind)
+	a.searchChanged(d)
 	src := a.source()
 	go func() {
 		res, err := src.Search(r.query, r.kind, offset)
@@ -761,11 +769,24 @@ func (a *app) loadMoreSearch(r route) {
 				d.res.Artists = append(d.res.Artists, res.Artists...)
 				d.res.Playlists = append(d.res.Playlists, res.Playlists...)
 				d.res.Shows = append(d.res.Shows, res.Shows...)
-				d.res.More, d.more = res.More, res.More
+				d.res.More, d.more = res.More, res.More && searchResultCount(*res, r.kind) > 0
 			}
-			a.bump()
+			a.searchChanged(d)
 		})
 	}()
+}
+
+func (a *app) searchChanged(d *searchData) {
+	if d.busy != nil {
+		d.busy.Set(d.loading)
+	}
+	if d.revision != nil {
+		if !d.loading || !d.loaded {
+			d.revision.Update(func(n int) int { return n + 1 })
+		}
+	} else {
+		a.bump()
+	}
 }
 
 // open shows r, remembering the page before.
@@ -830,6 +851,7 @@ func (a *app) closeNowPlaying() {
 	if a.nowPlaying {
 		a.nowPlaying = false
 		a.np.Set(false)
+		a.phoneLyrics.Set(false)
 	}
 }
 
@@ -900,12 +922,23 @@ func (a *app) isTrackLiked(tr music.Track) bool {
 	}
 	return a.trackLikes[tr.Source][tr.ID]
 }
+func (a *app) canLikeTrack(tr music.Track) bool {
+	src := a.sourceByID(tr.Source)
+	if tr.Source == "" {
+		src = a.source()
+	}
+	return src != nil && (src.Can("like") || tr.ShowID != "" && src.Can("likeEpisode"))
+}
+
 func (a *app) toggleTrackLike(tr music.Track) {
 	src := a.sourceByID(tr.Source)
 	if tr.Source == "" {
 		src = a.source()
 	}
 	if src == nil {
+		return
+	}
+	if !(src.Can("like") || tr.ShowID != "" && src.Can("likeEpisode")) {
 		return
 	}
 	on := !a.isTrackLiked(tr)
@@ -1292,7 +1325,7 @@ func (a *app) setup(cx *core.Scope) {
 			case a.phoneSheet.GetUntracked() != "":
 				a.phoneSheet.Set("")
 			case a.settingsInMain:
-				a.closeSettings()
+				a.backSettings()
 			case a.nowPlaying:
 				a.closeNowPlaying()
 			case len(a.history) > 0:
@@ -1349,7 +1382,7 @@ func (a *app) shortcuts(cx *core.Scope) {
 			return true
 		}
 		if a.settingsInMain {
-			a.closeSettings()
+			a.backSettings()
 			return true
 		}
 		if a.nowPlaying {
@@ -1368,7 +1401,22 @@ func (a *app) shortcuts(cx *core.Scope) {
 	}
 }
 
-func (a *app) closeSettings() { a.settingsInMain = false; a.bump() }
+func (a *app) closeSettings() {
+	a.settingsInMain = false
+	if a.phoneLayout(a.cx) {
+		a.settingsPage = ""
+	}
+	a.bump()
+}
+
+func (a *app) backSettings() {
+	if a.phoneLayout(a.cx) && a.settingsPage != "" {
+		a.settingsPage = ""
+		a.bump()
+		return
+	}
+	a.closeSettings()
+}
 
 // searchFieldFocus focuses the sidebar's search field.
 func (a *app) searchFieldFocus(cx *core.Scope) {

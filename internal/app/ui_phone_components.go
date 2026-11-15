@@ -51,7 +51,7 @@ func (a *app) phoneAccountSheet(p palette) core.Node {
 	} else if a.can("signIn") {
 		rows = append(rows, a.phoneSheetAction(p, "phone-account-signin", i18n.T("Sign In"), lucideUser, close(func() { a.signInSource(src) })))
 	}
-	rows = append(rows, a.phoneSheetAction(p, "open-settings", i18n.T("Settings"), lucideSettings, close(a.openSettings)), a.phoneSheetAction(p, "phone-account-sources", i18n.T("Music Sources"), lucideNote, func() { a.phoneSheet.Set("sources") }))
+	rows = append(rows, a.phoneSheetAction(p, "phone-account-settings", i18n.T("Settings"), lucideSettings, close(a.openSettings)), a.phoneSheetAction(p, "phone-account-sources", i18n.T("Music Sources"), lucideNote, func() { a.phoneSheet.Set("sources") }))
 	if a.home != nil && a.home.Subtitle != "" {
 		rows = append(rows, core.Text{Content: a.home.Subtitle, Style: core.Style{FontSize: phoneFontCaption, Color: p.muted, Padding: core.Symmetric(8, 0)}})
 	}

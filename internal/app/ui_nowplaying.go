@@ -149,6 +149,7 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 // npLikeButton is the heart of Now Playing.
 func (a *app) npLikeButton(p palette, tr music.Track, size core.Points, style core.Style) core.Node {
 	liked := func() bool {
+		a.playRev.Get()
 		a.rev.Get()
 		return a.isTrackLiked(tr)
 	}

@@ -8,11 +8,28 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 
 	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/music"
 )
 
 // The cover and lyrics occupy the same stage; controls stay within thumb reach.
 func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
-	lyrics := core.NewSignal(cx, false)
+	lyrics := a.phoneLyrics
+	// Transport changes update their controls without rebuilding the lyric list.
+	song := core.NewMemo(cx, func() struct {
+		track  *music.Track
+		loaded bool
+		count  int
+		radio  string
+	} {
+		a.playRev.Get()
+		lines, loaded := a.pl.Lyrics()
+		return struct {
+			track  *music.Track
+			loaded bool
+			count  int
+			radio  string
+		}{a.pl.Current(), loaded, len(lines), a.pl.Radio()}
+	})
 	white := core.RGB(0xffffff)
 	ink := palette{bg: core.RGB(0x202024), text: white, muted: core.RGBA(0xffffff, 0.6), faint: core.RGBA(0xffffff, 0.3),
 		sidebar: core.RGBA(0xffffff, 0.1), hover: core.RGBA(0xffffff, 0.1), press: core.RGBA(0xffffff, 0.16), accent: white, onAccent: p.bg}
@@ -67,8 +84,7 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 			}),
 		}},
 		core.Dynamic(func(cx *core.Scope) core.Node {
-			a.playRev.Get()
-			tr := a.pl.Current()
+			tr := song.Get().track
 			if tr == nil {
 				return a.emptyNote(ink, i18n.T("Not Playing"), i18n.T("Choose a song to start listening"))
 			}
@@ -89,21 +105,34 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 							}}
 					}},
 				}},
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, FlexShrink: 0, Padding: core.Edges{Top: 8, Bottom: 10}}, Children: []core.Node{
+				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, FlexShrink: 0}, StyleFunc: func() core.Style {
+					if lyrics.Get() {
+						return core.Style{Padding: core.Edges{Top: 4, Bottom: 4}}
+					}
+					return core.Style{Padding: core.Edges{Top: 8, Bottom: 10}}
+				}, Children: []core.Node{
 					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 6}, Children: []core.Node{
 						a.radioChip(),
 						core.Text{TestID: "np-title", Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: phoneFontTitle, FontWeight: core.FontWeightSemibold, Color: white}},
-						core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: phoneFontTranslation, Color: ink.muted}},
+						core.Show{When: func() bool { return !lyrics.Get() }, Then: func(*core.Scope) core.Node {
+							return core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: phoneFontTranslation, Color: ink.muted}}
+						}},
 					}},
-					a.npLikeButton(p, *tr, 23, core.Style{Width: core.Pt(48), Height: core.Pt(48), FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
-						CornerRadius: 24, Active: &core.Style{Background: ink.press}}),
+					core.Show{When: func() bool { return a.canLikeTrack(*tr) }, Then: func(*core.Scope) core.Node {
+						return a.npLikeButton(p, *tr, 23, core.Style{Width: core.Pt(48), Height: core.Pt(48), FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, CornerRadius: 24, Active: &core.Style{Background: ink.press}})
+					}},
 				}},
 				a.phoneProgress(ink),
 				core.View{Style: core.Style{Direction: core.Row, JustifyContent: core.JustifySpaceBetween, FlexShrink: 0}, Children: []core.Node{
 					core.Text{ContentFunc: func() string { a.tick.Get(); return clock(a.pl.Position()) }, Style: core.Style{FontSize: 10.5, Color: ink.muted}},
 					core.Text{ContentFunc: func() string { a.tick.Get(); return clock(a.pl.Duration()) }, Style: core.Style{FontSize: 10.5, Color: ink.muted}},
 				}},
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween, FlexShrink: 0, Padding: core.Edges{Top: 12, Bottom: 12}}, Children: []core.Node{
+				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween, FlexShrink: 0}, StyleFunc: func() core.Style {
+					if lyrics.Get() {
+						return core.Style{Padding: core.Symmetric(4, 0)}
+					}
+					return core.Style{Padding: core.Symmetric(12, 0)}
+				}, Children: []core.Node{
 					a.playbackModeButton("np-playback-mode", 23, white, sideStyle),
 					a.phoneIcon(ink, "np-previous", i18n.T("Previous"), lucidePrev, white, a.pl.Prev),
 					a.phonePlayButton(ink, "np-play-pause", true),

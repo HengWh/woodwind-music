@@ -133,6 +133,7 @@ func TestPhoneSettingsFollowSystemAfterLanguageOverride(t *testing.T) {
 	ui, a := startPhone(t)
 	ui.Press("id:phone-tab-library")
 	ui.Press("id:open-settings")
+	ui.Press("id:phone-settings-general")
 	ui.Press("id:settings-language")
 	ui.Press("id:settings-language-1")
 	if a.set.Language != i18n.English || i18n.Language() != i18n.English {
@@ -146,6 +147,8 @@ func TestPhoneSettingsFollowSystemAfterLanguageOverride(t *testing.T) {
 	}
 	ui.Find("text:语言")
 	ui.Find("text:外观")
+	ui.Press("id:settings-back")
+	ui.Find("id:phone-settings-general")
 	ui.Press("id:settings-back")
 	ui.Find("id:phone-header >> text:音乐库")
 }
@@ -176,7 +179,7 @@ func TestPhoneTrackActionsAndPlaylist(t *testing.T) {
 	ui.Press("id:phone-tab-library")
 	ui.Press("id:playlist-" + pl.ID)
 	ui.WaitUntil(time.Second, func() bool { d := a.playlists[pl.ID]; return d != nil && d.playlist != nil })
-	ui.Press("id:track-more-" + track.ID)
+	ui.Press(fmt.Sprintf("label:%q", i18n.Tf("More: %s", track.Name)))
 	ui.Press("id:phone-track-remove")
 	ui.WaitUntil(time.Second, func() bool { p, _ := a.local.Playlist(pl.ID); return p != nil && len(p.Tracks) == 0 })
 	ui.Press("id:phone-back")
@@ -272,9 +275,13 @@ func TestPhoneLargeLibrary(t *testing.T) {
 	ui.Settle()
 	scroll := ui.Find("id:phone-page-scroll")
 	ui.ScrollTo("id:phone-page-scroll", core.Point{Y: scroll.Content.Height - scroll.Frame.Size.Height})
-	ui.Find("id:track-large-99")
-	phoneWithin(t, ui, "track-more-large-99", 390, 844)
-	ui.Press("id:track-more-large-99")
+	ui.Find(`label:"Song 99"`)
+	more := ui.Find(fmt.Sprintf("label:%q", i18n.Tf("More: %s", "Song 99")))
+	b := reviewBounds(more)
+	if b.Origin.X+b.Size.Width > 390 || b.Size.Height < 48 {
+		t.Fatalf("recycled row has invalid action bounds: %+v", b)
+	}
+	ui.Press(fmt.Sprintf("label:%q", i18n.Tf("More: %s", "Song 99")))
 	if a.phoneTrack.ID != "large-99" {
 		t.Fatal("virtualized row menu retained another song")
 	}

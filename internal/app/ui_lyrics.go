@@ -11,7 +11,7 @@ import (
 	"github.com/HengWh/woodwind-music/internal/lyrics"
 )
 
-// lyricsPane keeps the sung line a third of the way down. Browsing the lyrics
+// lyricsPane centers the sung line on phones. Browsing the lyrics
 // temporarily suspends following; seeking a line returns to following at once.
 func (a *app) lyricsPane(cx *core.Scope, white core.Color) core.Node {
 	lines, loaded := a.pl.Lyrics()
@@ -30,6 +30,12 @@ func (a *app) lyricsPane(cx *core.Scope, white core.Color) core.Node {
 			Children: []core.Node{text(i18n.T("No lyrics. Enjoy the music."), a.headingSize(24, phoneFontSection), a.headingWeight(), core.RGBA(0xffffff, 0.4))}}
 	}
 	list := new(core.Ref)
+	phone := a.phoneLayout(cx)
+	anchor := float32(0.30)
+	if phone {
+		anchor = 0.5
+	}
+	layout := core.NewSignal(cx, 0)
 	frame := core.NewSignal(cx, 0)
 	height := core.NewSignal(cx, max(core.Points(0), cx.Env().Window().Height-120))
 	current := core.NewMemo(cx, func() int {
@@ -58,6 +64,7 @@ func (a *app) lyricsPane(cx *core.Scope, white core.Color) core.Node {
 	})
 	last := -2
 	browsing := core.NewSignal(cx, false)
+	var settleLayout func() bool
 	var release func() bool
 	resume := func() {
 		if release != nil {
@@ -83,7 +90,7 @@ func (a *app) lyricsPane(cx *core.Scope, white core.Color) core.Node {
 	}
 	cx.Effect(func() {
 		cur := current.Get()
-		frame.Get()
+		layout.Get()
 		if browsing.Get() {
 			return
 		}
@@ -95,7 +102,7 @@ func (a *app) lyricsPane(cx *core.Scope, white core.Color) core.Node {
 		if cur < 0 {
 			list.ScrollTo(core.Point{}, animated)
 		} else {
-			list.ScrollToIndexAt(cur, 0.30, 0, animated)
+			list.ScrollToIndexAt(cur, anchor, 0, animated)
 		}
 	})
 	mask := core.LinearGradient(180, white, white)
@@ -107,12 +114,26 @@ func (a *app) lyricsPane(cx *core.Scope, white core.Color) core.Node {
 		OnLayout: func(b core.Bounds) {
 			height.Set(b.Size.Height)
 			last = -2
-			frame.Update(func(n int) int { return n + 1 })
+			layout.Update(func(n int) int { return n + 1 })
+			// Font or viewport changes can deliver a native offset based on
+			// the previous row measurements. Re-pin after those have settled.
+			if settleLayout != nil {
+				settleLayout()
+			}
+			settleLayout = cx.AfterFunc(80*time.Millisecond, func() {
+				last = -2
+				layout.Update(func(n int) int { return n + 1 })
+			})
 		},
 		OnScrollDragStart: startBrowse, OnScrollDragEnd: endBrowse,
 		OnMomentumStart: startBrowse, OnMomentumEnd: endBrowse,
-		Header: core.View{Style: core.Style{Height: core.Pt(18)}},
-		Footer: core.View{StyleFunc: func() core.Style { return core.Style{Height: core.Pt(height.Get() * 0.70)} }},
+		Header: core.View{StyleFunc: func() core.Style {
+			if phone {
+				return core.Style{Height: core.Pt(height.Get() * 0.5)}
+			}
+			return core.Style{Height: core.Pt(18)}
+		}},
+		Footer: core.View{StyleFunc: func() core.Style { return core.Style{Height: core.Pt(height.Get() * core.Points(1-anchor))} }},
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
 			// A virtualized cell can move to another line. Rebuild its bindings
 			// with that line, rather than retaining the first index it displayed.
@@ -133,9 +154,12 @@ func (a *app) lyricLine(cx *core.Scope, line lyrics.Line, index int, current *co
 		fontSize, translationSize = phoneFontLyrics, phoneFontTranslation
 	}
 	weight, translationWeight := core.FontWeight(800), core.FontWeightSemibold
+	align, textAlign := core.AlignStart, core.TextAlignStart
+	origin := core.Pt(0)
 	padding := core.Symmetric(10, 12)
 	lineHeight, spacing, minHeight := float32(1.25), core.Points(-0.4), core.Points(0)
 	if a.phoneLayout(cx) {
+		align, textAlign, origin = core.AlignCenter, core.TextAlignCenter, core.Pct(50)
 		weight, translationWeight = core.FontWeightSemibold, core.FontWeightNormal
 		lineHeight, spacing, minHeight = 1.35, 0, 48
 		padding = core.Symmetric(8, 8)
@@ -156,8 +180,8 @@ func (a *app) lyricLine(cx *core.Scope, line lyrics.Line, index int, current *co
 	})
 	return core.View{OnMouseEnter: func(core.MouseEvent) { hover.Set(true) }, OnMouseLeave: func(core.MouseEvent) { hover.Set(false) }, Children: []core.Node{
 		base.Button{TestID: fmt.Sprintf("lyric-line-%d", index), Label: line.Text, OnPress: func(core.PressEvent) { seek() },
-			Style: core.Style{MinHeight: core.Pt(minHeight), Padding: padding, CornerRadius: 12, Direction: core.Column, AlignItems: core.AlignStart,
-				TransformOrigin: core.ObjectPosition{X: core.PositionAxis{Offset: core.Pt(0)}, Y: core.PositionAxis{Offset: core.Pct(50)}},
+			Style: core.Style{Width: core.Pct(100), MinHeight: core.Pt(minHeight), Padding: padding, CornerRadius: 12, Direction: core.Column, AlignItems: align,
+				TransformOrigin: core.ObjectPosition{X: core.PositionAxis{Offset: origin}, Y: core.PositionAxis{Offset: core.Pct(50)}},
 				Animated:        &core.AnimatedStyle{Scale: scale}, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.06)},
 				FocusVisible: &core.Style{OutlineWidth: 2, OutlineColor: core.RGBA(0xffffff, 0.4)}},
 			Children: []core.Node{core.View{StyleFunc: func() core.Style {
@@ -171,7 +195,7 @@ func (a *app) lyricLine(cx *core.Scope, line lyrics.Line, index int, current *co
 				if cx.Env().ReduceMotion() {
 					duration = 0
 				}
-				return core.Style{Direction: core.Column, AlignItems: core.AlignStart, Gap: 6, Opacity: core.Alpha(alpha),
+				return core.Style{Width: core.Pct(100), Direction: core.Column, AlignItems: align, Gap: 6, Opacity: core.Alpha(alpha),
 					Transition: core.Transition{Duration: duration, Properties: core.TransitionOpacity}}
 			}, Children: []core.Node{
 				core.Text{TestID: fmt.Sprintf("lyric-text-%d", index), SpansFunc: func() []core.Span {
@@ -187,9 +211,9 @@ func (a *app) lyricLine(cx *core.Scope, line lyrics.Line, index int, current *co
 						spans[i] = core.Span{Content: w.Text, Style: core.Style{Color: core.RGBA(0xffffff, float32(0.38+0.62*lit))}}
 					}
 					return spans
-				}, Style: core.Style{FontSize: fontSize, FontWeight: weight, LineHeightMultiple: lineHeight, LetterSpacing: spacing, Color: core.RGB(0xffffff)}},
+				}, Style: core.Style{Width: core.Pct(100), TextAlign: textAlign, FontSize: fontSize, FontWeight: weight, LineHeightMultiple: lineHeight, LetterSpacing: spacing, Color: core.RGB(0xffffff)}},
 				core.Show{When: func() bool { return line.Translation != "" }, Then: func(*core.Scope) core.Node {
-					return core.Text{Content: line.Translation, Style: core.Style{FontSize: translationSize, FontWeight: translationWeight,
+					return core.Text{Content: line.Translation, Style: core.Style{Width: core.Pct(100), TextAlign: textAlign, FontSize: translationSize, FontWeight: translationWeight,
 						Color: core.RGBA(0xffffff, 0.7), LineHeightMultiple: 1.4}}
 				}},
 			}}}},

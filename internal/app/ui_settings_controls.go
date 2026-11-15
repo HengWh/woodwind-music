@@ -39,6 +39,14 @@ func (s settingsChoice[T]) Render(cx *core.Scope) core.Node {
 	if s.Touch {
 		height = 48
 	}
+	fieldStyle := core.Style{Height: core.Pt(height), BorderWidth: 1, BorderColor: p.hairline, CornerRadius: 6, Background: p.hover, Hover: &core.Style{Background: p.press}, FocusVisible: &core.Style{OutlineWidth: 3, OutlineColor: ui.Alpha(p.accent, .25)}}
+	valueColor, align := p.text, core.TextAlignStart
+	if s.Touch {
+		fieldStyle.BorderWidth = 0
+		fieldStyle.Background = core.Transparent
+		valueColor = p.muted
+		align = core.TextAlignEnd
+	}
 	return base.Select{Label: s.Label, TestID: s.TestID,
 		Items: func() []base.SelectItem {
 			items := make([]base.SelectItem, len(s.Options))
@@ -60,11 +68,10 @@ func (s settingsChoice[T]) Render(cx *core.Scope) core.Node {
 			}
 		},
 		RootStyle: core.Style{FlexShrink: 0}.Merge(s.Style),
-		Style: core.Style{Height: core.Pt(height), BorderWidth: 1, BorderColor: p.hairline, CornerRadius: 6, Background: p.hover,
-			Hover: &core.Style{Background: p.press}, FocusVisible: &core.Style{OutlineWidth: 3, OutlineColor: ui.Alpha(p.accent, 0.25)}},
+		Style:     fieldStyle,
 		Trigger: core.View{Style: core.Style{FlexGrow: 1, Direction: core.Row, AlignItems: core.AlignCenter,
 			Padding: core.Symmetric(0, 9), Gap: 8}, Children: []core.Node{
-			core.Text{Content: title, MaxLines: 1, Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 13, Color: p.text}},
+			core.Text{Content: title, MaxLines: 1, Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 13, Color: valueColor, TextAlign: align}},
 			icon(lucideChevronDown, 11, p.muted),
 		}},
 		PopupStyle: core.Style{Background: p.sidebar, BorderWidth: 1, BorderColor: p.hairline, CornerRadius: 8,

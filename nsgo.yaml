@@ -1,7 +1,7 @@
 name: 木听风音乐
 # Stable identity: preserves existing library, playlists and settings.
 id: dev.oneo.nsgo.music
-version: 0.1.28
+version: 0.1.30
 
 icon:
   apple: resources/icon.icns

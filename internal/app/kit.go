@@ -164,6 +164,7 @@ func (a *app) cover(p palette, url string, size core.Points, radius core.Points)
 			Background: p.sidebar, Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 			Children: []core.Node{icon(lucideNote, size*0.32, p.faint)}}
 	}
+	url = music.SizedImage(url, int(float32(size)*a.cx.Env().PixelRatio()))
 	return a.sourceImage(core.Image{Source: imageSource(url), ResizeMode: core.Cover, FadeDuration: 160 * time.Millisecond,
 		Style: core.Style{Width: core.Pt(size), Height: core.Pt(size), CornerRadius: radius, Overflow: core.Hidden, Background: p.sidebar}})
 }

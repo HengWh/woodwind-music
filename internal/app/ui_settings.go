@@ -259,6 +259,23 @@ func (a *app) settingsGroupCard(p palette, g settingsGroupDef) core.Node {
 			row.Style.AlignItems = core.AlignStretch
 			row.Style.Gap = 8
 			row.Style.Padding = core.Symmetric(10, 12)
+			// Short choices and switches stay beside their labels. Compound
+			// plugin controls and folder actions can use the whole next line.
+			switch control := children[len(children)-1].(type) {
+			case settingsSwitch:
+				row.Style.Direction = core.Row
+				row.Style.AlignItems = core.AlignCenter
+			case settingsChoice[string]:
+				control.Style = core.Style{Width: core.Pct(52), MaxWidth: core.Pt(190), FlexShrink: 1}
+				row.Children[len(row.Children)-1] = control
+				row.Style.Direction = core.Row
+				row.Style.AlignItems = core.AlignCenter
+			case settingsChoice[int]:
+				control.Style = core.Style{Width: core.Pct(52), MaxWidth: core.Pt(190), FlexShrink: 1}
+				row.Children[len(row.Children)-1] = control
+				row.Style.Direction = core.Row
+				row.Style.AlignItems = core.AlignCenter
+			}
 		}
 		if i < len(g.rows)-1 {
 			row.Style.Borders = core.Edges{Bottom: 1}
@@ -314,7 +331,11 @@ func (a *app) settingsCategories(p palette) []settingsCatDef {
 				control: a.growFromCoverControl},
 		}}}}
 
-	return []settingsCatDef{general, playback, library, a.pluginCategories(), cache, experiments}
+	cats := []settingsCatDef{general, playback, library, a.pluginCategories(), cache}
+	if !(a.settingsInMain && a.phoneLayout(a.cx)) {
+		cats = append(cats, experiments)
+	}
+	return cats
 }
 
 // generalRows are the language, the appearance, and on macOS where the
@@ -324,7 +345,7 @@ func (a *app) generalRows() []settingsRowDef {
 		{label: i18n.T("Language"), control: a.languageControl},
 		{label: i18n.T("Appearance"), control: a.appearanceControl},
 	}
-	if runtime.GOOS == "darwin" && a.cx.Env().OS() != core.OSAndroid {
+	if runtime.GOOS == "darwin" && a.cx.Env().OS() != core.OSAndroid && !(a.settingsInMain && a.phoneLayout(a.cx)) {
 		rows = append(rows, settingsRowDef{label: i18n.T("App Icon"),
 			sub:     i18n.T("Shown in the menu bar, it opens the window again after you close it"),
 			control: a.appIconControl})
@@ -440,6 +461,23 @@ func (a *app) languageControl(p palette) core.Node {
 }
 
 func (a *app) appearanceControl(p palette) core.Node {
+	if a.settingsInMain && a.phoneLayout(a.cx) {
+		return settingsChoice[string]{palette: p, Touch: true, Label: i18n.T("Appearance"), TestID: "settings-appearance",
+			Options: []ui.Option[string]{{Value: "system", Label: i18n.T("System")}, {Value: "light", Label: i18n.T("Light")}, {Value: "dark", Label: i18n.T("Dark")}},
+			Value:   func() string { return a.set.Appearance }, OnChange: func(v string) {
+				a.set.Appearance = v
+				a.set.save()
+				switch v {
+				case "light":
+					a.cx.SetAppearance(core.AppearanceLight)
+				case "dark":
+					a.cx.SetAppearance(core.AppearanceDark)
+				default:
+					a.cx.SetAppearance(core.AppearanceSystem)
+				}
+				a.bump()
+			}}
+	}
 	var buttons []core.Node
 	width := core.Points(70)
 	if i18n.Language() == i18n.Chinese {

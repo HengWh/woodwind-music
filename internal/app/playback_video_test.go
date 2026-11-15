@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,8 +44,8 @@ func TestAndroidImportAndNativePlayback(t *testing.T) {
 		t.Fatalf("imported tracks: %v, %v", res, err)
 	}
 	track := res.Tracks[0]
-	app.WaitUntil(2*time.Second, func() bool { return app.Exists("id:track-" + track.ID) })
-	app.Press("id:track-" + track.ID)
+	app.WaitUntil(2*time.Second, func() bool { return app.Exists(fmt.Sprintf("label:%q", track.Name)) })
+	app.Press(fmt.Sprintf("label:%q", track.Name))
 	app.WaitUntil(2*time.Second, func() bool { return a.video.request.GetUntracked() != nil })
 	video := app.FindMounted("id:android-audio")
 	if root := app.Find("id:app-root"); video.Parent != root.Parent {

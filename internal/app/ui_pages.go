@@ -56,9 +56,11 @@ func (a *app) pageScroll(p palette, children ...core.Node) core.Node {
 	if a.phoneLayout(a.cx) {
 		key := phoneScrollKey(a.route.GetUntracked())
 		return core.Scroll{TestID: "phone-page-scroll", ContentOffset: core.Point{Y: a.scroll[key]},
-			OnScroll: func(e core.ScrollEvent) { a.scroll[key] = e.Offset.Y },
-			Behavior: core.ScrollBehavior{KeyboardDismissMode: core.KeyboardDismissOnDrag},
-			Style:    core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
+			OnScroll:            func(e core.ScrollEvent) { a.scroll[key] = e.Offset.Y },
+			OnScrollEnd:         func(e core.ScrollEvent) { a.scroll[key] = e.Offset.Y },
+			ScrollEventThrottle: 64 * time.Millisecond,
+			Behavior:            core.ScrollBehavior{KeyboardDismissMode: core.KeyboardDismissOnDrag},
+			Style:               core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 				core.View{Style: core.Style{Direction: core.Column, Padding: core.Edges{Top: 8, Left: 16, Right: 16, Bottom: 24}}, Children: children},
 			}}
 	}
@@ -274,12 +276,17 @@ func (a *app) browseSection(p palette, sec music.Section, pageID string, index i
 // it is on, its tracks at least 156 points wide, so a narrower window wraps
 // its cards instead of cutting them off.
 func (a *app) cardGrid(p palette, n int, card func(i int) core.Node) core.Node {
+	if a.phoneLayout(a.cx) {
+		width := (a.cx.Env().Window().Width - 46) / 2
+		return core.List{Count: func() int { return n }, Key: func(i int) any { return i }, Viewport: core.ListViewportParent, NumColumns: 2,
+			EstimatedSize: width + 72, ColumnGap: 14, Gap: 24, Style: core.Style{Width: core.Pct(100), Margin: core.Edges{Top: 12}},
+			Row: func(cx *core.Scope, row core.ListRow) core.Node {
+				return core.Dynamic(func(*core.Scope) core.Node { return card(row.Index()) })
+			}}
+	}
 	var cards []core.Node
 	for i := 0; i < n; i++ {
 		cards = append(cards, card(i))
-	}
-	if a.phoneLayout(a.cx) {
-		return core.View{Style: core.Style{Display: core.DisplayGrid, Width: core.Pct(100), GridTemplateColumns: "repeat(2, minmax(0, 1fr))", Gap: 14, RowGap: 24, Margin: core.Edges{Top: 12}}, Children: cards}
 	}
 	return core.View{Style: core.Style{Padding: core.Symmetric(0, 12)}, Children: []core.Node{
 		core.View{Style: core.Style{Display: core.DisplayGrid, Width: core.Pct(100),
@@ -475,11 +482,10 @@ func (a *app) trackList(p palette, tracks []music.Track, covers, showAlbum bool,
 	return core.List{Count: func() int { return len(tracks) }, Key: func(i int) any { return tracks[i].ID },
 		EstimatedSize: a.trackRowHeight(), Viewport: core.ListViewportParent,
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
-			// List cells are reused; rebuild the row and its actions for the new index.
+			if a.phoneLayout(cx) {
+				return a.phoneTrackCell(cx, p, func() []music.Track { return tracks }, row, "")
+			}
 			return core.Dynamic(func(cx *core.Scope) core.Node {
-				if a.phoneLayout(cx) {
-					return a.phoneTrackRow(p, tracks, row.Index(), "")
-				}
 				i := row.Index()
 				tr := tracks[i]
 				r := a.trackRow(p, tracks, i, covers, showAlbum, false, current == tr.ID)
@@ -649,6 +655,9 @@ func (a *app) playlistPage(cx *core.Scope, p palette, id string) core.Node {
 	d := a.playlists[id]
 	if d == nil || d.playlist == nil {
 		if d != nil && d.err != "" {
+			if a.phoneLayout(cx) {
+				return a.pageScroll(p, a.phoneNotice(p, "phone-playlist-retry", i18n.T("Couldn't load this playlist"), d.err, func() { a.loadPlaylist(id, true); a.bump() }))
+			}
 			return a.emptyNote(p, i18n.T("Couldn't load this playlist"), d.err)
 		}
 		return a.loadingPage(p)
@@ -665,10 +674,10 @@ func (a *app) playlistPage(cx *core.Scope, p palette, id string) core.Node {
 		core.List{Count: func() int { return len(pl.Tracks) }, Key: func(i int) any { return pl.Tracks[i].ID },
 			EstimatedSize: a.trackRowHeight(), Viewport: core.ListViewportParent,
 			Row: func(cx *core.Scope, row core.ListRow) core.Node {
+				if a.phoneLayout(cx) {
+					return a.phoneTrackCell(cx, p, func() []music.Track { return pl.Tracks }, row, pl.ID)
+				}
 				return core.Dynamic(func(cx *core.Scope) core.Node {
-					if a.phoneLayout(cx) {
-						return a.phoneTrackRow(p, pl.Tracks, row.Index(), pl.ID)
-					}
 					i := row.Index()
 					tr := pl.Tracks[i]
 					r := a.trackRow(p, pl.Tracks, i, true, true, true, a.currentID() == tr.ID)
@@ -682,6 +691,9 @@ func (a *app) albumPage(cx *core.Scope, p palette, id string) core.Node {
 	d := a.albums[id]
 	if d == nil || d.album == nil {
 		if d != nil && d.err != "" {
+			if a.phoneLayout(cx) {
+				return a.pageScroll(p, a.phoneNotice(p, "phone-album-retry", i18n.T("Couldn't load this album"), d.err, func() { a.loadAlbum(id); a.bump() }))
+			}
 			return a.emptyNote(p, i18n.T("Couldn't load this album"), d.err)
 		}
 		return a.loadingPage(p)
@@ -728,6 +740,9 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 	d := a.artists[id]
 	if d == nil || d.page == nil {
 		if d != nil && d.err != "" {
+			if a.phoneLayout(cx) {
+				return a.pageScroll(p, a.phoneNotice(p, "phone-artist-retry", i18n.T("Couldn't load this artist"), d.err, func() { a.loadArtist(id); a.bump() }))
+			}
 			return a.emptyNote(p, i18n.T("Couldn't load this artist"), d.err)
 		}
 		return a.loadingPage(p)
@@ -843,6 +858,9 @@ func (a *app) browsePage(cx *core.Scope, p palette, id string) core.Node {
 	d := a.browses[id]
 	if d == nil || d.browse == nil {
 		if d != nil && d.err != "" {
+			if a.phoneLayout(cx) {
+				return a.pageScroll(p, a.phoneNotice(p, "phone-page-retry", i18n.T("Couldn't load this page"), d.err, func() { a.loadBrowse(id, true); a.bump() }))
+			}
 			return a.emptyNote(p, i18n.T("Couldn't load this page"), d.err)
 		}
 		return a.loadingPage(p)
@@ -880,6 +898,12 @@ func (a *app) searchPage(cx *core.Scope, p palette, r route) core.Node {
 		return a.searchHistoryPage(p)
 	}
 	d := a.searches[r]
+	if d != nil && a.phoneLayout(cx) {
+		return a.phoneSearchResults(cx, p, r, d)
+	}
+	if d != nil && d.revision != nil {
+		d.revision.Get()
+	}
 	if d == nil || d.loading && !d.loaded {
 		if a.phoneLayout(cx) {
 			return a.pageScroll(p, a.searchHeader(p, r), a.phoneSkeletonRows(p, 5))
