@@ -210,6 +210,9 @@ export async function suggest({ query }) {
 
 // Starting programs takes both the permission and the listener's say-so.
 func TestSpawnNeedsPermissionAndGrant(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skip("desktop programs are unavailable on Android")
+	}
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -243,6 +246,9 @@ func TestSpawnNeedsPermissionAndGrant(t *testing.T) {
 // A plugin starts only the programs its process permission names, even once
 // the listener allowed it.
 func TestSpawnOnlyNamedPrograms(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skip("desktop programs are unavailable on Android")
+	}
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -309,6 +315,9 @@ func TestProcessTrueMeansAny(t *testing.T) {
 
 // Programs end with the plugin, rather than staying around after the app.
 func TestCloseEndsPrograms(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skip("desktop programs are unavailable on Android")
+	}
 	if runtime.GOOS == "windows" {
 		t.Skip("signal 0 doesn't tell here")
 	}
@@ -565,6 +574,9 @@ export function suggest({ query }) { host.removeDataDir(query); return []; }`)
 // A program that stops says why, for the plugin to tell the listener rather than
 // leave them waiting.
 func TestProgramSaysWhyItStopped(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skip("desktop programs are unavailable on Android")
+	}
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -584,6 +596,20 @@ export async function suggest() {
 	}
 	if got[0] != "1" || !strings.Contains(got[1], "the reason it stopped") {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestAndroidRejectsProgramsEvenWithGrant(t *testing.T) {
+	if runtime.GOOS != "android" {
+		t.Skip("Android-specific program restriction")
+	}
+	p := load(t, `{"id":"x","permissions":{"process":true}}`, `
+export function suggest() { host.spawn("/system/bin/sh", ["-c", "true"]); return []; }`)
+	if err := p.Grant(true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.Suggest(""); err == nil || !strings.Contains(err.Error(), "desktop programs cannot run on Android") {
+		t.Fatalf("Android allowed a desktop process: %v", err)
 	}
 }
 

@@ -135,11 +135,18 @@ func (a *app) playlistHero(p palette, pl *music.Playlist) core.Node {
 	cover := core.View{TestID: "playlist-cover", Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), FlexShrink: 0, CornerRadius: 14,
 		Shadows: []core.BoxShadow{{Offset: core.Point{Y: 18}, Blur: 40, Spread: -10, Color: p.cardShade}}}, Children: []core.Node{pic}}
 	if a.phoneLayout(a.cx) {
-		cover.Style.AlignSelf = core.AlignCenter
-		details = details[1:]
-		details[0] = core.Text{TestID: "playlist-title", Content: pl.Name, MaxLines: 3, Style: core.Style{FontSize: phoneFontDisplay, FontWeight: core.FontWeightSemibold, Color: p.text}}
-		return core.View{Style: core.Style{Gap: 12, Margin: core.Edges{Top: 8, Bottom: 16}}, Children: append([]core.Node{cover}, details...)}
+		return core.View{TestID: "playlist-header", Style: core.Style{Gap: 14, Margin: core.Edges{Top: 8, Bottom: 18}}, Children: []core.Node{
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 16}, Children: []core.Node{
+				core.View{TestID: "playlist-cover", Style: core.Style{Width: core.Pt(112), Height: core.Pt(112), FlexShrink: 0, CornerRadius: 14, Overflow: core.Hidden}, Children: []core.Node{a.cover(p, pl.ImageURL, 112, 14)}},
+				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 8}, Children: []core.Node{
+					text(i18n.T("Playlist"), 11, core.FontWeightMedium, p.muted), core.Text{TestID: "playlist-title", Content: pl.Name, MaxLines: 3, Style: core.Style{FontSize: phoneFontTitle, FontWeight: core.FontWeightSemibold, LineHeightMultiple: 1.2, Color: p.text}}, text(strings.Join(meta, " · "), 12, core.FontWeightNormal, p.muted),
+				}},
+			}}, core.Show{When: func() bool { return strings.TrimSpace(pl.Description) != "" }, Then: func(*core.Scope) core.Node {
+				return core.Text{Content: strings.Join(strings.Fields(pl.Description), " "), MaxLines: 2, Style: core.Style{FontSize: 12, Color: p.muted, LineHeightMultiple: 1.4}}
+			}}, core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: actions},
+		}}
 	}
+
 	return core.View{TestID: "playlist-header", Style: core.Style{Direction: core.Row, Gap: 28, AlignItems: core.AlignEnd, Padding: core.Edges{Bottom: 26}}, Children: []core.Node{
 		cover,
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 8}, Children: details},

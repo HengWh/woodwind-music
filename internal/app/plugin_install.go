@@ -170,6 +170,7 @@ func (a *app) removePlugin(id string) {
 			delete(a.sources.items, id)
 			a.sources.Unlock()
 			delete(a.accounts, id)
+			delete(a.sourceHomes, id)
 			a.plugins = append(a.plugins[:i], a.plugins[i+1:]...)
 			a.installer.remove = ""
 			a.installer.open = false

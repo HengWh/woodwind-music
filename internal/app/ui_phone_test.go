@@ -11,6 +11,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 
+	"github.com/HengWh/woodwind-music/internal/i18n"
 	"github.com/HengWh/woodwind-music/internal/music"
 )
 
@@ -126,6 +127,27 @@ func TestPhonePlayerAndSheets(t *testing.T) {
 	}
 	ui.Resize(390, 844)
 	ui.Find("id:phone-navigation")
+}
+
+func TestPhoneSettingsFollowSystemAfterLanguageOverride(t *testing.T) {
+	ui, a := startPhone(t)
+	ui.Press("id:phone-tab-library")
+	ui.Press("id:open-settings")
+	ui.Press("id:settings-language")
+	ui.Press("id:settings-language-1")
+	if a.set.Language != i18n.English || i18n.Language() != i18n.English {
+		t.Fatal("English selection did not apply")
+	}
+	ui.Find("text:Language")
+	ui.Press("id:settings-language")
+	ui.Press("id:settings-language-0")
+	if a.set.Language != i18n.System || i18n.Language() != i18n.Chinese {
+		t.Fatalf("system selection kept the previous override: setting=%q, shown=%q, locale=%q", a.set.Language, i18n.Language(), a.cx.Env().Locale())
+	}
+	ui.Find("text:语言")
+	ui.Find("text:外观")
+	ui.Press("id:settings-back")
+	ui.Find("id:phone-header >> text:音乐库")
 }
 
 func TestPhoneTrackActionsAndPlaylist(t *testing.T) {

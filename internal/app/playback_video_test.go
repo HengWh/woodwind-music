@@ -117,5 +117,8 @@ func TestAndroidImportAndNativePlayback(t *testing.T) {
 	}
 	app.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: id, Text: "unsupported media"})
 	app.WaitUntil(time.Second, func() bool { return a.pl.Err() != "" })
+	app.Find("text:Playback unavailable")
+	app.Press("id:bar-open")
 	app.Find("text:unsupported media")
+	app.Find("id:phone-playback-retry")
 }

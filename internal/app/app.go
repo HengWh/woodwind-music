@@ -243,14 +243,18 @@ type app struct {
 	forward  []route
 	scrolled route
 
-	home       *music.Browse
-	homeBusy   bool
-	homeErr    string
-	recent     []music.Track
-	mine       []music.Playlist
-	liked      []music.Track
-	likedSet   map[string]bool
-	trackLikes map[string]map[string]bool
+	home          *music.Browse
+	homeBusy      bool
+	homeErr       string
+	playlistsBusy bool
+	playlistsErr  string
+	likedBusy     bool
+	sourceHomes   map[string]sourceHomeSnapshot
+	recent        []music.Track
+	mine          []music.Playlist
+	liked         []music.Track
+	likedSet      map[string]bool
+	trackLikes    map[string]map[string]bool
 
 	searchRef *core.Ref
 
@@ -276,6 +280,7 @@ type app struct {
 	savedCollapsed  bool
 	phoneTabs       [3]phoneTabState
 	phoneSheet      *core.Signal[string]
+	phoneMessage    string
 	phoneTrack      music.Track
 	phonePlaylist   string
 	phoneTrackIndex int
@@ -475,48 +480,79 @@ func (a *app) applyLanguage() {
 // reload reads what the sidebar and Home show: the playlists, the liked
 // songs, what played lately and Home.
 func (a *app) reload() {
-	a.homeBusy = true
+	a.homeBusy, a.playlistsBusy, a.likedBusy = true, true, true
+	a.homeErr, a.playlistsErr = "", ""
 	a.reloadGen++
-	gen := a.reloadGen
-	src := a.source()
-	go func() {
-		home, homeErr := src.Home()
-		playlists, _ := src.Playlists()
-		liked, _ := src.Liked(0)
-		recent, _ := src.Recent()
+	gen, src := a.reloadGen, a.source()
+	pending := 4
+	// Each source request can await network independently on the JS event loop.
+	// Publish partial answers immediately; retain old answers on transient errors.
+	publish := func(update func()) {
 		a.post(func() {
-			if gen != a.reloadGen {
-				return // a later read won
+			if gen != a.reloadGen || src != a.source() {
+				return
 			}
-			a.homeBusy = false
-			a.home, a.homeErr = home, ""
-			if homeErr != nil {
-				a.homeErr = homeErr.Error()
+			update()
+			pending--
+			if pending == 0 {
+				a.homeBusy = false
+				a.playlists = map[string]*playlistData{}
+				a.albums = map[string]*albumData{}
+				a.artists = map[string]*artistData{}
+				a.browses = map[string]*browseData{}
+				a.searches = map[route]*searchData{}
+				a.extra = map[route]*extraData{}
+				a.reloadPage(a.route.GetUntracked())
 			}
-			a.mine = playlists
+			a.bump()
+		})
+	}
+	go func() {
+		home, err := src.Home()
+		publish(func() {
+			if err == nil {
+				a.home = home
+			}
+			a.homeErr = sourceLoadError(err)
+		})
+	}()
+	go func() {
+		lists, err := src.Playlists()
+		publish(func() {
+			a.playlistsBusy = false
+			a.playlistsErr = sourceLoadError(err)
+			if err == nil {
+				a.mine = lists
+			}
+		})
+	}()
+	go func() {
+		page, err := src.Liked(0)
+		publish(func() {
+			a.likedBusy = false
+			if err != nil {
+				return
+			}
 			a.liked = nil
-			if liked != nil {
-				a.liked = liked.Tracks
+			if page != nil {
+				a.liked = page.Tracks
 			}
 			a.likedSet = map[string]bool{}
 			if a.trackLikes == nil {
 				a.trackLikes = map[string]map[string]bool{}
 			}
 			a.trackLikes[src.Info().ID] = a.likedSet
-			for _, t := range a.liked {
-				a.likedSet[t.ID] = true
+			for _, tr := range a.liked {
+				a.likedSet[tr.ID] = true
 			}
-			a.recent = recent
-			// What pages loaded is of the library before: read it again as
-			// they open, keeping only what the sidebar shows.
-			a.playlists = map[string]*playlistData{}
-			a.albums = map[string]*albumData{}
-			a.artists = map[string]*artistData{}
-			a.browses = map[string]*browseData{}
-			a.searches = map[route]*searchData{}
-			a.extra = map[route]*extraData{}
-			a.reloadPage(a.route.GetUntracked())
-			a.bump()
+		})
+	}()
+	go func() {
+		tracks, err := src.Recent()
+		publish(func() {
+			if err == nil {
+				a.recent = tracks
+			}
 		})
 	}()
 }

@@ -47,7 +47,7 @@ func TestPhoneTypographyAcrossPages(t *testing.T) {
 					root := ui.FindMounted("id:app-root")
 					var walk func(*nsgotest.View)
 					walk = func(v *nsgotest.View) {
-						if v.Text != "" && float64(v.TextStyle.Font.Size) > 22*float64(scale)+.05 {
+						if v.Text != "" && float64(v.TextStyle.Font.Size) > 20*float64(scale)+.05 {
 							t.Errorf("%s oversized text %q: %g", name, v.Text, v.TextStyle.Font.Size)
 						}
 						for _, child := range v.Children {
@@ -56,7 +56,7 @@ func TestPhoneTypographyAcrossPages(t *testing.T) {
 					}
 					walk(root)
 					for _, v := range ui.QueryMounted("text:/.+/") {
-						if v.Text != "" && float64(v.TextStyle.Font.Size) > 22*float64(scale)+.05 {
+						if v.Text != "" && float64(v.TextStyle.Font.Size) > 20*float64(scale)+.05 {
 							t.Errorf("%s oversized overlay %q: %g", name, v.Text, v.TextStyle.Font.Size)
 						}
 					}
@@ -102,7 +102,7 @@ func TestPhoneTypographyAcrossPages(t *testing.T) {
 				for _, id := range []string{"np-cover", "np-title", "np-play-pause", "np-queue", "progress"} {
 					phoneWithin(t, ui, id, size.Width, size.Height)
 				}
-				if got := ui.Find("id:np-title").TextStyle.Font.Size; math.Abs(float64(got)-20*float64(scale)) > .05 {
+				if got := ui.Find("id:np-title").TextStyle.Font.Size; math.Abs(float64(got)-18*float64(scale)) > .05 {
 					t.Fatalf("system font scale lost: %g", got)
 				}
 				check("player")

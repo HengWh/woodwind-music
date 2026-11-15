@@ -176,9 +176,9 @@ func (a *app) sectionPage(cx *core.Scope, p palette, r route) core.Node {
 		title = sec.Title
 	}
 	if a.phoneLayout(cx) {
-		var pic core.Node = a.cover(p, "", 212, 14)
+		var pic core.Node = a.cover(p, "", a.headingSize(212, 112), 14)
 		if len(tracks) > 0 {
-			pic = a.cover(p, tracks[0].Album.ImageURL, 212, 14)
+			pic = a.cover(p, tracks[0].Album.ImageURL, a.headingSize(212, 112), 14)
 		}
 		return a.pageScroll(p, a.hero(p, pic, i18n.T("Songs"), title, i18n.Songs(len(tracks)), tracks), a.trackList(p, tracks, true, false, a.currentID()))
 	}
@@ -205,6 +205,9 @@ func (a *app) sectionPage(cx *core.Scope, p palette, r route) core.Node {
 
 // browseSection is one heading of a source's page, and what it lists.
 func (a *app) browseSection(p palette, sec music.Section, pageID string, index int) []core.Node {
+	if a.phoneLayout(a.cx) {
+		return a.phoneBrowseSection(p, sec, pageID, index)
+	}
 	var out []core.Node
 	first := index == 0
 	// The songs of a source's Home lead it with a card of their own.
@@ -571,6 +574,12 @@ func (a *app) trackMenu(tr music.Track, playlist string, index int) []core.Node 
 
 // playButtons are the Play and Shuffle buttons of a page.
 func (a *app) playButtons(p palette, tracks []music.Track) core.Node {
+	if a.phoneLayout(a.cx) {
+		return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
+			base.Button{Label: i18n.T("Play"), Disabled: func() bool { return len(tracks) == 0 }, OnPress: func(core.PressEvent) { a.playTracks(tracks, 0) }, Style: core.Style{FlexGrow: 1, Height: core.Pt(48), Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 8, CornerRadius: 24, Background: p.accent, Active: &core.Style{Opacity: core.Alpha(.8)}}, Children: []core.Node{icon(lucidePlay, 18, p.onAccent), text(i18n.T("Play"), 14, core.FontWeightSemibold, p.onAccent)}},
+			base.Button{Label: i18n.T("Shuffle"), Disabled: func() bool { return len(tracks) == 0 }, OnPress: func(core.PressEvent) { a.pl.PlayShuffled(tracks); a.heartbeat() }, Style: core.Style{Width: core.Pt(48), Height: core.Pt(48), FlexShrink: 0, CornerRadius: 24, Background: p.sidebar, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideShuffle, 20, p.text)}},
+		}}
+	}
 	return core.View{Style: core.Style{Direction: core.Row, Gap: 10, Margin: core.Edges{Top: 10}}, Children: []core.Node{
 		a.pillButton(p, lucidePlay, i18n.T("Play"), p.accent, p.onAccent, func() {
 			if a.pl.Shuffle() {
@@ -592,13 +601,16 @@ func (a *app) hero(p palette, pic core.Node, kind, title, sub string, tracks []m
 // heroNode is hero with a line of the app's own under the title.
 func (a *app) heroNode(p palette, pic core.Node, kind, title string, sub core.Node, tracks []music.Track) core.Node {
 	if a.phoneLayout(a.cx) {
-		return core.View{Style: core.Style{Direction: core.Column, Gap: 12, Margin: core.Edges{Top: 8, Bottom: 16}}, Children: []core.Node{
-			core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), AlignSelf: core.AlignCenter}, Children: []core.Node{pic}},
-			core.Text{Content: title, MaxLines: 3, Style: core.Style{FontSize: phoneFontDisplay, FontWeight: core.FontWeightSemibold, Color: p.text}},
-			sub,
-			core.Show{When: func() bool { return len(tracks) > 0 }, Then: func(*core.Scope) core.Node { return a.playButtons(p, tracks) }},
+		return core.View{TestID: "phone-detail-header", Style: core.Style{Gap: 16, Margin: core.Edges{Top: 8, Bottom: 18}}, Children: []core.Node{
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 16}, Children: []core.Node{
+				core.View{Style: core.Style{Width: core.Pt(112), Height: core.Pt(112), FlexShrink: 0, CornerRadius: 14, Overflow: core.Hidden}, Children: []core.Node{pic}},
+				core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 8}, Children: []core.Node{
+					text(kind, 11, core.FontWeightMedium, p.muted), core.Text{Content: title, MaxLines: 3, Style: core.Style{FontSize: phoneFontTitle, FontWeight: core.FontWeightSemibold, LineHeightMultiple: 1.2, Color: p.text}}, sub,
+				}},
+			}}, core.Show{When: func() bool { return len(tracks) > 0 }, Then: func(*core.Scope) core.Node { return a.playButtons(p, tracks) }},
 		}}
 	}
+
 	return core.View{Style: core.Style{Direction: core.Row, Gap: 28, AlignItems: core.AlignEnd, Padding: core.Symmetric(0, 12),
 		Margin: core.Edges{Bottom: 24}}, Children: []core.Node{
 		core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), CornerRadius: 14,
@@ -615,8 +627,8 @@ func (a *app) heroNode(p palette, pic core.Node, kind, title string, sub core.No
 func (a *app) likedPage(cx *core.Scope, p palette) core.Node {
 	tracks := a.liked
 	if len(tracks) == 0 {
-		pic := core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), CornerRadius: 14, Background: p.accent,
-			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideHeart, 64, p.onAccent)}}
+		pic := core.View{Style: core.Style{Width: core.Pt(a.headingSize(212, 112)), Height: core.Pt(a.headingSize(212, 112)), CornerRadius: 14, Background: p.accent,
+			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideHeart, a.headingSize(64, 38), p.onAccent)}}
 		return a.pageScroll(p,
 			a.hero(p, pic, i18n.T("Playlist"), i18n.T("Liked Songs"), i18n.Songs(0), nil),
 			core.View{Style: core.Style{Direction: core.Column, AlignItems: core.AlignCenter, Gap: 8, Padding: core.Symmetric(48, 0)}, Children: []core.Node{
@@ -625,8 +637,8 @@ func (a *app) likedPage(cx *core.Scope, p palette) core.Node {
 				text(i18n.T("Touch the heart of a song to keep it."), 13, core.FontWeightNormal, p.muted),
 			}})
 	}
-	pic := core.View{Style: core.Style{Width: core.Pt(212), Height: core.Pt(212), CornerRadius: 14, Background: p.accent,
-		Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideHeart, 64, p.onAccent)}}
+	pic := core.View{Style: core.Style{Width: core.Pt(a.headingSize(212, 112)), Height: core.Pt(a.headingSize(212, 112)), CornerRadius: 14, Background: p.accent,
+		Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(lucideHeart, a.headingSize(64, 38), p.onAccent)}}
 	return a.pageScroll(p,
 		a.hero(p, pic, i18n.T("Playlist"), i18n.T("Liked Songs"), i18n.Songs(len(tracks)), tracks),
 		a.trackList(p, tracks, true, false, a.currentID()),
@@ -698,7 +710,7 @@ func (a *app) albumPage(cx *core.Scope, p palette, id string) core.Node {
 	}
 	spans = append(spans, core.Span{Content: strings.Join(meta, " · ")})
 	sub := core.Text{Spans: spans, Style: core.Style{FontSize: 13, Color: p.muted}}
-	nodes := []core.Node{a.heroNode(p, a.cover(p, al.ImageURL, 212, 14), i18n.T("Album"), al.Name, sub, tracks)}
+	nodes := []core.Node{a.heroNode(p, a.cover(p, al.ImageURL, a.headingSize(212, 112), 14), i18n.T("Album"), al.Name, sub, tracks)}
 	if a.can("saveAlbum") {
 		src := a.source()
 		on := !al.Saved
@@ -767,7 +779,7 @@ func (a *app) artistPage(cx *core.Scope, p palette, id string) core.Node {
 		}},
 	}}
 	if a.phoneLayout(cx) {
-		header = a.heroNode(p, a.coverRound(p, page.Artist.ImageURL, 212), i18n.T("Artist"), page.Artist.Name, text(strings.Join(meta, " · "), 13, core.FontWeightNormal, p.muted), page.Tracks).(core.View)
+		header = a.heroNode(p, a.coverRound(p, page.Artist.ImageURL, 112), i18n.T("Artist"), page.Artist.Name, text(strings.Join(meta, " · "), 13, core.FontWeightNormal, p.muted), page.Tracks).(core.View)
 	}
 
 	tabs := core.View{Style: core.Style{Direction: core.Row, Gap: 2, Padding: core.All(2), Background: p.hover,
@@ -843,8 +855,10 @@ func (a *app) browsePage(cx *core.Scope, p palette, id string) core.Node {
 	if b.Description != "" {
 		body = append(body, text(b.Description, 14, core.FontWeightNormal, p.muted))
 	}
-	if b.Title != "" {
+	if b.Title != "" && !a.phoneLayout(cx) {
 		body = append(body, a.titleBlock(p, b.Title, b.Subtitle))
+	} else if b.Subtitle != "" {
+		body = append(body, core.Text{Content: b.Subtitle, Style: core.Style{FontSize: 12, Color: p.muted, Margin: core.Edges{Bottom: 12}}})
 	}
 	for i, sec := range b.Sections {
 		body = append(body, a.browseSection(p, sec, id, i)...)
@@ -853,6 +867,9 @@ func (a *app) browsePage(cx *core.Scope, p palette, id string) core.Node {
 }
 
 func (a *app) loadingPage(p palette) core.Node {
+	if a.phoneLayout(a.cx) {
+		return a.phoneSkeleton(p, false)
+	}
 	return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
 		Children: []core.Node{text(i18n.T("Loading…"), 13, core.FontWeightNormal, p.muted)}}
 }
@@ -864,9 +881,15 @@ func (a *app) searchPage(cx *core.Scope, p palette, r route) core.Node {
 	}
 	d := a.searches[r]
 	if d == nil || d.loading && !d.loaded {
+		if a.phoneLayout(cx) {
+			return a.pageScroll(p, a.searchHeader(p, r), a.phoneSkeletonRows(p, 5))
+		}
 		return a.pageScroll(p, a.searchHeader(p, r), a.loadingPage(p))
 	}
 	if d.err != "" && !d.loaded {
+		if a.phoneLayout(cx) {
+			return a.pageScroll(p, a.searchHeader(p, r), a.phoneNotice(p, "phone-search-retry", i18n.T("The search failed"), d.err, func() { a.loadSearch(r, false) }))
+		}
 		return a.pageScroll(p, a.searchHeader(p, r), a.emptyNote(p, i18n.T("The search failed"), d.err))
 	}
 	var body []core.Node
@@ -943,9 +966,17 @@ func (a *app) searchHeader(p palette, r route) core.Node {
 		if selected {
 			fg, bg = p.text, p.hover
 		}
+		tabStyle := core.Style{MinHeight: core.Pt(minHeight), JustifyContent: core.JustifyCenter, Padding: core.Symmetric(6, 14), CornerRadius: 999, Background: bg, Hover: &core.Style{Background: p.sidebar}}
+		if a.phoneLayout(a.cx) {
+			tabStyle = core.Style{MinHeight: core.Pt(48), JustifyContent: core.JustifyCenter, Padding: core.Symmetric(6, 12), BorderColor: p.accent}
+			if selected {
+				fg = p.accent
+				tabStyle.Borders = core.Edges{Bottom: 2}
+			}
+		}
 		tabs = append(tabs, base.Button{TestID: "search-tab-" + string(kind), Label: i18n.T(k.label), OnPress: func(core.PressEvent) {
 			a.open(route{page: pageSearch, query: r.query, kind: kind})
-		}, Style: core.Style{MinHeight: core.Pt(minHeight), JustifyContent: core.JustifyCenter, Padding: core.Symmetric(6, 14), CornerRadius: 999, Background: bg, Hover: &core.Style{Background: p.sidebar}},
+		}, Style: tabStyle,
 			Children: []core.Node{text(i18n.T(k.label), 13, core.FontWeightSemibold, fg)}})
 	}
 	if a.phoneLayout(a.cx) {
@@ -963,6 +994,9 @@ func (a *app) searchHeader(p palette, r route) core.Node {
 }
 
 func (a *app) searchHistoryPage(p palette) core.Node {
+	if a.phoneLayout(a.cx) {
+		return a.phoneSearchHistory(p)
+	}
 	height := core.Points(38)
 	if a.phoneLayout(a.cx) {
 		height = 48

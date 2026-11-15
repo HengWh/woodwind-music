@@ -156,6 +156,38 @@ func TestPluginOldSearchCannotReplaceNewSource(t *testing.T) {
 	}
 }
 
+func TestPhonePluginPageActionsHaveTouchTargets(t *testing.T) {
+	ui, a := startPhone(t)
+	p, err := plugin.Load(demoPluginPath(), a.pluginDataDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(a.closePlugins)
+	a.post(func() {
+		a.plugins = append(a.plugins, p)
+		a.registerPlugin(p)
+		a.switchSource("demo")
+	})
+	for _, test := range []struct {
+		r   route
+		ids []string
+	}{
+		{route{page: pageComments, id: "t1"}, []string{"comment-like-c1", "comment-send"}},
+		{route{page: pageShow, id: "s1"}, []string{"show-subscribe"}},
+	} {
+		a.post(func() { a.open(test.r) })
+		ui.WaitUntil(2*time.Second, func() bool {
+			d := a.extra[a.route.GetUntracked()]
+			return d != nil && d.loaded
+		})
+		for _, id := range test.ids {
+			if height := ui.Find("id:" + id).Frame.Size.Height; height < 48 {
+				t.Errorf("%s has a %g-point touch target, want at least 48", id, height)
+			}
+		}
+	}
+}
+
 func TestAndroidPluginAuthenticatedStream(t *testing.T) {
 	ui, a := startPhone(t)
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -98,13 +98,20 @@ func (a *app) activateSource(id string) {
 	}
 	a.trackLikes[a.source().Info().ID] = a.likedSet
 	a.cancelRadioStart()
+	a.rememberSourceHome()
 	a.active = src
 	a.set.Source = id
 	a.set.save()
 	a.reloadGen++
 	a.home, a.homeErr, a.recent, a.mine, a.liked = nil, "", nil, nil, nil
+	if cached, ok := a.sourceHomes[id]; ok {
+		a.home, a.recent, a.mine, a.liked = cached.home, cached.recent, cached.mine, cached.liked
+	}
 	a.account = a.accountState(src).account
 	a.likedSet = map[string]bool{}
+	for _, track := range a.liked {
+		a.likedSet[track.ID] = true
+	}
 	a.playlists = map[string]*playlistData{}
 	a.albums = map[string]*albumData{}
 	a.artists = map[string]*artistData{}

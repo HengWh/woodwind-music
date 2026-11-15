@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -49,6 +50,15 @@ func (a *app) phoneSheets(cx *core.Scope, p palette) core.Node {
 				}
 				if last == "sources" {
 					return a.phoneSources(p)
+				}
+				if last == "account" {
+					return a.phoneAccountSheet(p)
+				}
+				if last == "playback-error" {
+					return a.phonePlaybackIssue(p)
+				}
+				if last == "message" {
+					return a.phoneMessageSheet(p)
 				}
 				if last == "queue" {
 					a.modeRev.Get()
@@ -99,8 +109,8 @@ func (a *app) phoneQueue(cx *core.Scope, p palette) core.Node {
 						Style: core.Style{Height: core.Pt(phoneTwoLineHeight(cx, phoneFontSong)), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, CornerRadius: 10, Active: &core.Style{Background: p.hover}}, Children: []core.Node{
 							a.cover(p, tr.Album.ImageURL, 44, 8),
 							core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 4}, Children: []core.Node{
-								core.Text{Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: 15, FontWeight: core.FontWeightMedium, Color: color}},
-								core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: 12, Color: p.muted}},
+								core.Text{Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: phoneFontSong, FontWeight: core.FontWeightMedium, Color: color}},
+								core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: phoneFontCaption, Color: p.muted}},
 							}}, icon(func() *core.SVG {
 								if row.Index() == at {
 									return lucideVolume
@@ -133,7 +143,7 @@ func (a *app) phoneActions(cx *core.Scope, p palette, kind string) core.Node {
 			a.cover(p, tr.Album.ImageURL, 52, 10),
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 5}, Children: []core.Node{
 				core.Text{Content: tr.Name, MaxLines: 2, Style: core.Style{FontSize: phoneFontSong, FontWeight: core.FontWeightMedium, Color: p.text}},
-				core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: 13, Color: p.muted}},
+				core.Text{Content: tr.ArtistNames(), MaxLines: 1, Style: core.Style{FontSize: phoneFontBody, Color: p.muted}},
 			}},
 		}})
 		switch kind {
@@ -152,6 +162,23 @@ func (a *app) phoneActions(cx *core.Scope, p palette, kind string) core.Node {
 				text(i18n.T("Artists")+" · "+tr.ArtistNames(), phoneFontBody, core.FontWeightNormal, p.text),
 				text(i18n.T("Duration")+" · "+clock(tr.Length()), phoneFontBody, core.FontWeightNormal, p.muted),
 				a.phoneSheetAction(p, "phone-copy-title", i18n.T("Copy Title"), lucideNote, close(func() { a.cx.SetClipboard(tr.Name) })))
+			if src := a.sourceByID(tr.Source); src != nil {
+				name := src.Info().Name
+				if src == a.local {
+					name = i18n.T("Local Files")
+				}
+				body = append(body, text(i18n.T("Music source")+" · "+name, phoneFontBody, core.FontWeightNormal, p.muted))
+			}
+			if current := a.pl.Current(); current != nil && current.ID == tr.ID && current.Source == tr.Source {
+				if stream := a.pl.Stream(); stream != nil {
+					label := strings.ToUpper(stream.Type)
+					if stream.BitRate > 0 {
+						label += fmt.Sprintf(" · %d kbps", stream.BitRate)
+					}
+					body = append(body, text(label, phoneFontBody, core.FontWeightNormal, p.muted))
+				}
+			}
+
 		default:
 			if src := a.sourceByID(tr.Source); src != nil && src.Can("comments") {
 				body = append(body, a.phoneSheetAction(p, "phone-comments", i18n.T("Comments"), lucideNote, close(func() { a.openTrackPage(tr, pageComments, tr.ID) })))

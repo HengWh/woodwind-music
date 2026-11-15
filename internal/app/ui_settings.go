@@ -428,12 +428,12 @@ func (a *app) languageControl(p palette) core.Node {
 	}, OnChange: func(v string) {
 		a.set.Language = v
 		a.set.save()
-		a.applyLanguage()
 		if v == i18n.System {
 			a.cx.SetLocale("")
 		} else {
 			a.cx.SetLocale(v)
 		}
+		a.applyLanguage()
 		a.menu(a.cx)
 		a.bump()
 	}, TestID: "settings-language", Label: i18n.T("Language"), Style: core.Style{Width: core.Pt(170)}}
@@ -607,10 +607,12 @@ func (a *app) clearCacheControl(p palette) core.Node {
 func (a *app) settingsAction(p palette, label, testID string, disabled bool, onPress func()) core.Node {
 	fg := p.text
 	style := core.Style{Padding: core.Symmetric(4, 10), CornerRadius: 7, Background: p.hover}
-	if a.settingsInMain && a.phoneLayout(a.cx) {
+	fontSize := core.Points(12)
+	if a.phoneLayout(a.cx) {
 		style.MinHeight = core.Pt(48)
 		style.AlignItems = core.AlignCenter
 		style.JustifyContent = core.JustifyCenter
+		fontSize = phoneFontBody
 	}
 	if disabled {
 		fg = p.faint
@@ -623,7 +625,7 @@ func (a *app) settingsAction(p palette, label, testID string, disabled bool, onP
 			if !disabled && onPress != nil {
 				onPress()
 			}
-		}, Style: style, Children: []core.Node{text(label, 12, core.FontWeightMedium, fg)}}
+		}, Style: style, Children: []core.Node{text(label, fontSize, core.FontWeightMedium, fg)}}
 }
 
 // cacheLabel names a size of the cache.

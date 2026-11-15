@@ -92,7 +92,10 @@ func (a *app) signOutSource(src music.Source) {
 				a.say(err.Error())
 			} else {
 				a.setAccount(src, nil)
+				delete(a.sourceHomes, src.Info().ID)
 				if a.source() == src {
+					a.home, a.mine, a.liked, a.recent = nil, nil, nil, nil
+					a.likedSet = map[string]bool{}
 					a.reload()
 				}
 			}
@@ -136,14 +139,14 @@ func (a *app) accountRow(p palette) core.Node {
 		}
 		return base.Button{Label: label, TestID: id, Disabled: func() bool { return unknown || a.signingIn },
 			OnPress: func(core.PressEvent) { action() },
-			Style: core.Style{Height: core.Pt(40), Padding: core.Symmetric(0, 8), Gap: 10, Direction: core.Row,
+			Style: core.Style{Height: core.Pt(a.headingSize(40, 48)), Padding: core.Symmetric(0, 8), Gap: 10, Direction: core.Row,
 				AlignItems: core.AlignCenter, CornerRadius: 10, Hover: &core.Style{Background: p.hover}, Active: &core.Style{Background: p.press}},
 			Children: []core.Node{core.View{Style: core.Style{Width: core.Pt(26), Height: core.Pt(26), AlignItems: core.AlignCenter,
 				JustifyContent: core.JustifyCenter}, Children: []core.Node{icon(glyph, 15, p.muted)}},
 				core.Text{Content: label, MaxLines: 1, Style: core.Style{FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 13, FontWeight: core.FontWeightMedium, Color: p.muted}}}}
 	}
 	account := a.account
-	row := core.View{Style: core.Style{Height: core.Pt(40), Direction: core.Row, AlignItems: core.AlignCenter,
+	row := core.View{Style: core.Style{Height: core.Pt(a.headingSize(40, 48)), Direction: core.Row, AlignItems: core.AlignCenter,
 		Padding: core.Symmetric(0, 8), Gap: 10, CornerRadius: 10, Hover: &core.Style{Background: p.hover}}, Children: []core.Node{
 		a.accountAvatar(p, account, 26),
 		core.Text{TestID: "account-name", Content: account.Name, MaxLines: 1, Style: core.Style{FlexGrow: 1, FlexShrink: 1,

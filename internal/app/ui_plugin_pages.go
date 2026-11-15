@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/HengWh/woodwind-music/internal/i18n"
 	"github.com/HengWh/woodwind-music/internal/music"
@@ -259,33 +260,56 @@ func (a *app) sourceNavigation(p palette, r route, phone bool) []core.Node {
 }
 
 func (a *app) phoneSources(p palette) core.Node {
-	rows := []core.Node{text(i18n.T("Music Sources"), phoneFontTitle, core.FontWeightSemibold, p.text),
-		a.phoneSheetAction(p, "source-local", i18n.T("Local Files"), lucideFolder, func() { a.phoneSheet.Set(""); a.switchSource("local") })}
-	for _, p1 := range a.plugins {
-		id := p1.Info().ID
-		rows = append(rows, a.phoneSheetAction(p, "source-"+id, p1.Info().Name, lucideNote, func() { a.phoneSheet.Set(""); a.switchSource(id) }))
+	rows := []core.Node{text(i18n.T("Music Sources"), phoneFontTitle, core.FontWeightSemibold, p.text), core.View{Style: core.Style{Height: core.Pt(10)}}}
+	add := func(id, name, sub string, svg *core.SVG) {
+		selected := a.source().Info().ID == id
+		bg := core.Color(0)
+		if selected {
+			bg = p.accent.Faded(.055)
+		}
+		var mark core.Node = core.View{Style: core.Style{Width: core.Pt(20), Height: core.Pt(20)}}
+		if selected {
+			mark = icon(lucideCheck, 20, p.accent)
+		}
+		var symbol core.Node = icon(svg, 21, p.muted)
+		if id != "local" {
+			initial := []rune(name)
+			if len(initial) > 0 {
+				symbol = text(string(initial[0]), 18, core.FontWeightSemibold, p.accent)
+			}
+		}
+		rows = append(rows, base.Button{TestID: "source-" + id, Label: name, Selected: func() bool { return selected }, OnPress: func(core.PressEvent) { a.phoneSheet.Set(""); a.switchSource(id) }, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, MinHeight: core.Pt(72), Padding: core.All(10), CornerRadius: 14, Background: bg, Margin: core.Edges{Bottom: 6}, Active: &core.Style{Background: p.hover}}, Children: []core.Node{
+			core.View{Style: core.Style{Width: core.Pt(40), Height: core.Pt(40), FlexShrink: 0, CornerRadius: 12, Background: p.sidebar, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, Children: []core.Node{symbol}},
+			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 5}, Children: []core.Node{core.Text{Content: name, MaxLines: 1, Style: core.Style{FontSize: phoneFontSong, FontWeight: core.FontWeightMedium, Color: p.text}}, core.Text{Content: sub, MaxLines: 1, Style: core.Style{FontSize: phoneFontCaption, Color: p.muted}}}}, mark,
+		}})
 	}
-	rows = append(rows, a.phoneSheetAction(p, "source-manage", i18n.T("Plugins"), lucideSettings, func() { a.phoneSheet.Set(""); a.settingsPage = "plugins"; a.openSettings() }))
+	add("local", i18n.T("Local Files"), i18n.Songs(a.local.TrackCount()), lucideFolder)
+	a.sources.RLock()
+	var sources []music.Source
+	for id, src := range a.sources.items {
+		if id != "local" {
+			sources = append(sources, src)
+		}
+	}
+	a.sources.RUnlock()
+	sort.Slice(sources, func(i, j int) bool { return sources[i].Info().Name < sources[j].Info().Name })
+	for _, src := range sources {
+		sub := i18n.T("Online music")
+		if state := a.accountState(src); state.account != nil {
+			sub = state.account.Name
+		}
+		add(src.Info().ID, src.Info().Name, sub, lucideNote)
+	}
+	rows = append(rows, a.phoneSheetAction(p, "source-manage", i18n.T("Manage music sources"), lucideSettings, func() { a.phoneSheet.Set(""); a.settingsPage = "plugins"; a.openSettings() }))
 	return core.Scroll{Style: core.Style{MaxHeight: core.Pt(a.cx.Env().Window().Height * .65)}, Children: rows}
-}
-func (a *app) pluginPhoneLibrary(p palette) core.Node {
-	rows := []core.Node{a.titleBlock(p, a.sourceName(), ""), a.phoneLibraryRow(p, "phone-sources", i18n.T("Music Sources"), a.sourceName(), lucideNote, func() { a.openPhoneSheet("sources") })}
-	if a.can("account") || a.can("signIn") || a.account != nil {
-		rows = append(rows, a.accountRow(p))
-	}
-	rows = append(rows, a.sourceNavigation(p, a.route.GetUntracked(), true)...)
-	for _, pl := range a.mine {
-		list := pl
-		rows = append(rows, a.phoneLibraryRow(p, "playlist-"+pl.ID, pl.Name, playlistLine(pl), lucideList, func() { a.open(route{page: pagePlaylist, id: list.ID}) }))
-	}
-	if a.can("createPlaylist") {
-		rows = append(rows, a.phoneLibraryRow(p, "new-playlist", i18n.T("New Playlist"), "", lucidePlus, a.newPlaylist))
-	}
-	return a.pageScroll(p, rows...)
 }
 
 func sourceNavIcon(name string, page pageKind) *core.SVG {
 	switch name {
+	case "calendar":
+		return lucide.CalendarDays()
+	case "chart":
+		return lucide.ChartNoAxesCombined()
 	case "home":
 		return lucideHome
 	case "album":

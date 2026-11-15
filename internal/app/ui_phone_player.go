@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"time"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -45,7 +46,19 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 		}, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Height: core.Pt(56), FlexShrink: 0, Padding: core.Symmetric(0, 12)}, Children: []core.Node{
 			a.phoneIcon(ink, "np-close", i18n.T("Close"), lucideChevronDown, white, a.closeNowPlaying),
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), AlignItems: core.AlignCenter}, Children: []core.Node{
-				text(i18n.T("Now Playing"), 13, core.FontWeightMedium, ink.muted),
+				text(i18n.T("Now Playing"), 10.5, core.FontWeightMedium, ink.muted),
+				core.Text{ContentFunc: func() string {
+					a.playRev.Get()
+					if tr := a.pl.Current(); tr != nil {
+						if src := a.sourceByID(tr.Source); src != nil {
+							if src == a.local {
+								return i18n.T("Local Files")
+							}
+							return src.Info().Name
+						}
+					}
+					return ""
+				}, MaxLines: 1, Style: core.Style{FontSize: phoneFontCaption, FontWeight: core.FontWeightMedium, Color: white, Margin: core.Edges{Top: 3}}},
 			}},
 			a.phoneIcon(ink, "np-more", i18n.T("More"), lucideMore, white, func() {
 				if tr := a.pl.Current(); tr != nil {
@@ -60,7 +73,7 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 				return a.emptyNote(ink, i18n.T("Not Playing"), i18n.T("Choose a song to start listening"))
 			}
 			safe, size := cx.Env().SafeArea(), cx.Env().Window()
-			coverSize := min(size.Width-safe.Left-safe.Right-64, max(100, size.Height-safe.Top-safe.Bottom-370-core.Points(max(0, cx.Env().FontScale()-1))*100), 340)
+			coverSize := min(size.Width-safe.Left-safe.Right-64, max(100, size.Height-safe.Top-safe.Bottom-350-core.Points(max(0, cx.Env().FontScale()-1))*100), 340)
 			return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Padding: core.Edges{Left: 24, Right: 24, Bottom: 8}, Direction: core.Column}, Children: []core.Node{
 				core.View{TestID: "phone-player-stage", Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinHeight: core.Pt(0), Overflow: core.Hidden}, Children: []core.Node{
 					core.Show{When: lyrics.Get, Then: func(cx *core.Scope) core.Node { return a.lyricsPane(cx, white) }, Else: func(cx *core.Scope) core.Node {
@@ -76,7 +89,7 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 							}}
 					}},
 				}},
-				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, FlexShrink: 0, Padding: core.Edges{Top: 12, Bottom: 8}}, Children: []core.Node{
+				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, FlexShrink: 0, Padding: core.Edges{Top: 8, Bottom: 10}}, Children: []core.Node{
 					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 6}, Children: []core.Node{
 						a.radioChip(),
 						core.Text{TestID: "np-title", Content: tr.Name, MaxLines: 1, Style: core.Style{FontSize: phoneFontTitle, FontWeight: core.FontWeightSemibold, Color: white}},
@@ -87,8 +100,8 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 				}},
 				a.phoneProgress(ink),
 				core.View{Style: core.Style{Direction: core.Row, JustifyContent: core.JustifySpaceBetween, FlexShrink: 0}, Children: []core.Node{
-					core.Text{ContentFunc: func() string { a.tick.Get(); return clock(a.pl.Position()) }, Style: core.Style{FontSize: 11, Color: ink.muted}},
-					core.Text{ContentFunc: func() string { a.tick.Get(); return clock(a.pl.Duration()) }, Style: core.Style{FontSize: 11, Color: ink.muted}},
+					core.Text{ContentFunc: func() string { a.tick.Get(); return clock(a.pl.Position()) }, Style: core.Style{FontSize: 10.5, Color: ink.muted}},
+					core.Text{ContentFunc: func() string { a.tick.Get(); return clock(a.pl.Duration()) }, Style: core.Style{FontSize: 10.5, Color: ink.muted}},
 				}},
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween, FlexShrink: 0, Padding: core.Edges{Top: 12, Bottom: 12}}, Children: []core.Node{
 					a.playbackModeButton("np-playback-mode", 23, white, sideStyle),
@@ -99,24 +112,41 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 				}},
 				core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween, FlexShrink: 0}, Children: []core.Node{
 					base.Button{TestID: "phone-toggle-lyrics", Label: i18n.T("Lyrics"), OnPress: func(core.PressEvent) { lyrics.Update(func(v bool) bool { return !v }) },
-						Style: core.Style{Height: core.Pt(48), MinWidth: core.Pt(80), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{icon(lucideMic, 21, ink.muted),
+						Style: core.Style{Height: core.Pt(48), MinWidth: core.Pt(86), Padding: core.Symmetric(0, 12), CornerRadius: 16, Background: ink.hover, Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 7}, Children: []core.Node{icon(lucideMic, 17, ink.muted),
 							core.Text{ContentFunc: func() string {
 								if lyrics.Get() {
 									return i18n.T("Cover")
 								}
 								return i18n.T("Lyrics")
-							}, Style: core.Style{FontSize: 13, Color: ink.muted}}}},
-					core.Text{TestID: "np-status", ContentFunc: func() string {
-						a.tick.Get()
-						if e := a.pl.Err(); e != "" {
-							return e
+							}, Style: core.Style{FontSize: phoneFontBody, Color: ink.muted}}}},
+					base.Button{TestID: "np-details", Label: i18n.T("Details"), OnPress: func(core.PressEvent) {
+						if err := a.pl.Err(); err != "" {
+							a.phoneMessage = err
+							a.openPhoneSheet("playback-error")
+						} else if tr := a.pl.Current(); tr != nil {
+							a.phoneTrack = *tr
+							a.openPhoneSheet("info")
 						}
-						if a.pl.Loading() {
-							return i18n.T("Buffering…")
-						}
-						return ""
-					},
-						MaxLines: 1, Style: core.Style{FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 11, Color: ink.muted}},
+
+					}, Style: core.Style{MinWidth: core.Pt(48), MinHeight: core.Pt(48), FlexShrink: 1, AlignItems: core.AlignEnd, JustifyContent: core.JustifyCenter}, Children: []core.Node{
+						core.Text{TestID: "np-status", ContentFunc: func() string {
+							a.tick.Get()
+							if a.pl.Err() != "" {
+								return i18n.T("Playback unavailable") + " · " + i18n.T("Details")
+							}
+							if a.pl.Loading() {
+								return i18n.T("Buffering…")
+							}
+							if stream := a.pl.Stream(); stream != nil {
+								label := strings.ToUpper(stream.Type)
+								if stream.Quality == "lossless" {
+									label = i18n.T("Lossless") + " · " + label
+								}
+								return label
+							}
+							return ""
+						}, MaxLines: 1, Style: core.Style{FontSize: 10.5, Color: ink.muted}},
+					}},
 				}},
 			}}
 		}),

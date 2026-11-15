@@ -23,7 +23,7 @@ func (a *app) phoneSettings(cx *core.Scope, p palette, cats []settingsCatDef) co
 		}
 		tabs = append(tabs, base.Button{TestID: "phone-settings-" + cat.id, Label: cat.label, OnPress: func(core.PressEvent) { a.settingsPage = cat.id; a.bump() },
 			Style: core.Style{Height: core.Pt(48), FlexShrink: 0, Padding: core.Symmetric(0, 16), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
-				CornerRadius: 24, Background: bg}, Children: []core.Node{text(cat.label, 14, core.FontWeightMedium, color)}})
+				CornerRadius: 24, Background: bg}, Children: []core.Node{text(cat.label, phoneFontBody, core.FontWeightMedium, color)}})
 	}
 	return core.View{TestID: "phone-settings", Style: core.Style{Width: core.Pct(100), Height: core.Pct(100), Direction: core.Column, Background: p.bg,
 		PaddingEnv: core.EnvAll(core.EnvSafeArea)}, Children: []core.Node{

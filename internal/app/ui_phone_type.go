@@ -7,22 +7,23 @@ import (
 )
 
 // Mobile sizes are logical points. NSGo applies the user's system font scale.
-// Keep secondary labels readable instead of shrinking the whole interface.
+// Compact editorial sizes, calibrated against the phone's music apps.
 const (
-	phoneFontDisplay     core.Points = 22
-	phoneFontTitle       core.Points = 20
-	phoneFontSection     core.Points = 17
-	phoneFontSong        core.Points = 15
-	phoneFontBody        core.Points = 14
-	phoneFontCaption     core.Points = 12
-	phoneFontLyrics      core.Points = 21
-	phoneFontTranslation core.Points = 13
+	phoneFontDisplay     core.Points = 18
+	phoneFontHeader      core.Points = 17
+	phoneFontTitle       core.Points = 18
+	phoneFontSection     core.Points = 14
+	phoneFontSong        core.Points = 13
+	phoneFontBody        core.Points = 12
+	phoneFontCaption     core.Points = 11
+	phoneFontLyrics      core.Points = 19
+	phoneFontTranslation core.Points = 11.5
 )
 
 // Two-line rows grow with accessibility text while retaining a 48-point target.
 func phoneTwoLineHeight(cx *core.Scope, title core.Points) core.Points {
 	scale := max(float64(1), float64(cx.Env().FontScale()))
-	return max(64, core.Points(math.Ceil(float64(title+phoneFontCaption)*1.35*scale+20)))
+	return max(58, core.Points(math.Ceil(float64(title+phoneFontCaption)*1.3*scale+18)))
 }
 
 func (a *app) headingSize(desktop, mobile core.Points) core.Points {
