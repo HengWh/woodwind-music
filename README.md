@@ -2,7 +2,7 @@
   <img src="resources/icon.png" alt="木听风音乐 Logo" width="128" />
 </p>
 
-<h1 align="center">木听风音乐 · wood wind music</h1>
+<h1 align="center">木听风音乐 · Wood &amp; Wind Music</h1>
 
 <p align="center">用熟悉的曲库，在桌面和手机上继续聆听。</p>
 
@@ -254,7 +254,7 @@ go run ./cmd/android -install -run
 
 ### 应用配置与数据
 
-应用名称、ID、版本、图标和构建目标统一配置在 [`nsgo.yaml`](nsgo.yaml)。当前目标为 `macos_arm64`、`windows_x64` 和 `android_arm64`，英文名称为 `wood wind music`，稳定应用 ID 为 `dev.oneo.nsgo.music`。
+应用名称、ID、版本、图标和构建目标统一配置在 [`nsgo.yaml`](nsgo.yaml)。当前目标为 `macos_arm64`、`windows_x64` 和 `android_arm64`，产品英文名称为 **Wood & Wind Music**，稳定应用 ID 为 `dev.oneo.nsgo.music`。
 
 曲库、歌单、喜欢、设置与插件数据保存在本机应用数据目录。Windows 默认使用 `%APPDATA%\dev.oneo.nsgo.music`；桌面开发或隔离数据时可设置 `WOOD_WIND_MUSIC_DATA_DIR` 指定目录。插件代码位于其下的 `plugins/`，插件配置与登录存储位于 `plugin-data/<ID>/`。
 
