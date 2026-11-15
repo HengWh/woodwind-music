@@ -1,108 +1,200 @@
 <p align="center">
-  <img src="resources/icon.png" alt="木听风音乐 · wood wind music Logo" width="128" />
+  <img src="resources/icon.png" alt="木听风音乐 Logo" width="128" />
 </p>
 
-# 木听风音乐 · wood wind music
+<h1 align="center">木听风音乐 · wood wind music</h1>
 
-基于 [NSGo](https://github.com/nsgo-dev/nsgo) 的本地音乐播放器，支持桌面与安卓，由 [MyGo Music](https://github.com/egoist/mygo-music) 复刻与移植而来。
+<p align="center">用熟悉的曲库，在桌面和手机上继续聆听。</p>
 
-这是一个持续开发中的个人自用项目，主要用于本地音乐播放，以及探索 NSGo 的桌面界面与交互。开发与功能取舍以个人使用需求为主，源码公开供参考。
+<p align="center">
+  macOS · Windows · Android<br />
+  本地音乐 · 插件音乐源 · 同步歌词 · 歌单与收藏
+</p>
 
-NSGo 提供窗口、界面渲染和交互框架；MyGo Music 是界面设计、交互、文案，以及播放、曲库、歌词和队列等核心实现的来源。项目在迁移 UI 框架的基础上，进行平台适配与体验调整。详见[致谢](#致谢)与[许可证](#许可证)。
+木听风音乐是一款基于 Go 与 [NSGo](https://github.com/nsgo-dev/nsgo) 构建的音乐播放器，由 [MyGo Music](https://github.com/egoist/mygo-music) 复刻与移植而来。支持管理和播放本地音乐，也可以通过兼容的 JS/TS 插件接入其他音乐源。
 
-当前主要在 **macOS Apple Silicon（arm64）** 上开发与验证。
+桌面端采用侧栏、曲库卡片和底部播放条；安卓移动端提供独立的手机界面、底部导航、全屏播放页，以及后台和熄屏播放。两种界面共用曲库、队列、歌词、歌单与会话恢复逻辑。
 
-安卓端已接入 NSGo 的 `core.Video` 原生媒体播放，提供 arm64 APK；已在荣耀 GT（Android 16）完成曲库导入、实际歌曲播放进度、后台/熄屏播放及系统媒体控制验证。
+这是一个持续开发中的个人自用开源项目，功能与体验会随实际使用继续调整。
 
-现已补充 **Windows x64** 构建与桌面适配，提供安装包和便携版。当前已完成交叉编译和共享功能测试，Windows 真机播放与系统集成仍待验收。详见 [Windows 使用与验证](docs/WINDOWS.md)。
+[下载与安装](#下载与安装) · [界面预览](#界面预览) · [功能介绍](#功能介绍) · [开始使用](#开始使用) · [开发与构建](#开发与构建)
+
+## 平台支持
+
+| 平台 | 当前构建 | 支持情况 |
+| --- | --- | --- |
+| macOS | Apple Silicon / arm64，DMG | 主要开发与验证平台；支持菜单栏、媒体键和系统“正在播放” |
+| Windows | Windows 10 / 11 x64，安装版与便携版 | 已完成构建与共享逻辑回归，已接入 WASAPI、托盘和系统媒体控制；完整真机验收仍待完成 |
+| Android | Android 9+ / API 28+，arm64 APK | 独立手机界面；已在荣耀 GT（Android 16）验证曲库导入、实际歌曲播放、后台/熄屏播放与系统媒体控制 |
+
+当前移动端支持 Android，尚未提供 iOS 版本。macOS Intel、Windows ARM64 和 Linux 暂无本项目的发布构建。桌面与手机上的数据分别保存在本机，当前没有跨设备同步。
+
+## 下载与安装
+
+在 [GitHub Releases](https://github.com/HengWh/woodwind-music/releases) 查看发布版本与附件；也可以按下文从源码构建。下载时根据系统和处理器架构选择对应文件，文件名中的 `<版本>` 随发布版本变化。
+
+| 平台 | 文件名 | 安装方式 |
+| --- | --- | --- |
+| macOS | `wood-wind-music-<版本>-macos-arm64.dmg` | 打开镜像，将 `wood wind music.app` 拖入“应用程序” |
+| Windows 安装版 | `wood-wind-music-<版本>-windows-x64-setup.exe` | 运行安装程序，安装到当前用户目录 |
+| Windows 便携版 | `wood-wind-music-<版本>-windows-x64-portable.zip` | 解压后运行 `wood wind music.exe`，保留同目录资源文件 |
+| Android | `wood-wind-music-<版本>-android-arm64.apk` | 在手机上打开 APK，按系统提示允许对应来源安装 |
+
+本地构建的 Windows 程序尚未做代码签名，Android 包沿用 NSGo 的调试签名。升级前请退出桌面应用；安卓使用相同签名覆盖安装可保留现有数据。发布包附带 `.sha256` 校验文件。
+
+Windows 便携版表示无需安装，它与安装版仍共用当前用户的应用数据。更多说明见 [Windows 使用与验证](docs/WINDOWS.md)。
 
 ## 界面预览
 
-以下截图来自本地曲库，界面仍在持续调整。
+### 桌面端
+
+![桌面首页：最近播放与专辑卡片](docs/home.png)
+
+<details>
+<summary>查看专辑、正在播放与设置</summary>
+
+![专辑详情](docs/album.png)
+
+![正在播放与同步歌词](docs/now-playing.png)
+
+![桌面设置](docs/settings.png)
+
+</details>
 
 ### 安卓移动端
 
-以下为 **荣耀 GT · Android 16 · 0.1.26** 上的实际应用截图，保留手机 115% 系统字体设置。播放示例选用本地歌曲《Legends Never Die 传奇永不熄》，展示封面取色背景、歌词与迷你播放条。
+以下截图来自荣耀 GT、Android 16、应用 0.1.26，保留 115% 系统字体设置，使用本地实际曲库。
 
 <table>
   <tr><th>首页</th><th>正在播放</th><th>歌词</th></tr>
   <tr>
     <td><img src="docs/android-home.png" width="240" alt="安卓首页：最近播放与迷你播放条" /></td>
-    <td><img src="docs/android-player.png" width="240" alt="安卓正在播放：实际专辑封面与播放控制" /></td>
-    <td><img src="docs/android-lyrics.png" width="240" alt="安卓歌词：实际歌曲播放中的逐字高亮" /></td>
+    <td><img src="docs/android-player.png" width="240" alt="安卓播放页：专辑封面与播放控制" /></td>
+    <td><img src="docs/android-lyrics.png" width="240" alt="安卓歌词：同步滚动与逐字高亮" /></td>
   </tr>
 </table>
 
 <details>
-<summary>查看音乐库、播放队列与手机设置</summary>
+<summary>查看音乐库、播放队列与设置</summary>
 
 <table>
   <tr><th>音乐库</th><th>播放队列</th><th>设置</th></tr>
   <tr>
-    <td><img src="docs/android-library.png" width="240" alt="安卓音乐库：本地歌曲、专辑、歌手与歌单" /></td>
-    <td><img src="docs/android-queue.png" width="240" alt="安卓播放队列：底部面板与当前歌曲" /></td>
+    <td><img src="docs/android-library.png" width="240" alt="安卓音乐库：歌曲、专辑、歌手与歌单" /></td>
+    <td><img src="docs/android-queue.png" width="240" alt="安卓播放队列底部面板" /></td>
     <td><img src="docs/android-settings.png" width="240" alt="安卓设置：语言与外观" /></td>
   </tr>
 </table>
 
 </details>
 
-移动端交互与验证范围见 [安卓移动端界面](docs/ANDROID-MOBILE-UI.md)，后台和锁屏实测记录见 [Android 真机验证](docs/ANDROID-VALIDATION.md)。
+## 功能介绍
 
-### 桌面端
+### 曲库与音乐管理
 
-![首页：最近播放与专辑](docs/home.png)
+- 导入本地音乐文件夹，按歌曲、专辑、歌手和歌单浏览。
+- 读取音乐标签、内嵌封面、同目录封面与 `.lrc` 歌词。
+- 首页展示最近播放与曲库内容；搜索支持歌曲、专辑、歌手、歌单及搜索历史。
+- 新建、重命名和删除歌单，添加或移除歌曲、调整歌曲顺序，收藏喜欢的音乐。
+- 在设置中添加或移除音乐目录、重新扫描曲库。
 
-<details>
-<summary>查看专辑、正在播放与设置界面</summary>
+桌面播放支持 MP3、FLAC、Ogg Vorbis、WAV、M4A（ALAC / FLAC / AAC-LC）和 AAC-LC。安卓使用系统解码器，具体格式支持取决于系统与设备。
 
-![专辑页：周杰伦《魔杰座》](docs/album.png)
+### 播放与歌词
 
-![正在播放：歌词页](docs/now-playing.png)
+- 播放队列、上一首/下一首、随机播放、单曲循环、列表循环和进度跳转。
+- 保存播放会话，重启后恢复队列与播放位置。
+- 同步歌词、逐字高亮、当前行缩放、点击歌词跳转，以及手动浏览后的跟随恢复。
+- 播放页背景随封面取色；桌面端还提供舞台（Flow / Steps / Tilt、Sparks）、接下来与封面墙视图。
+- 桌面音频链路支持音量调节、暂停淡出、响度归一化和磁盘缓存；可设置缓存上限并清除缓存。
 
-![设置：通用](docs/settings.png)
+普通 LRC 没有逐字时间信息，逐字效果沿用上游按每行时长分配文字进度的方式。音质选项会传给支持音质选择的插件音乐源。
 
-</details>
+### 桌面体验
 
-更多布局示例见[窄窗口歌词预览](docs/lyrics-narrow.png)。
+- 侧栏导航、返回/前进、搜索、曲库卡片与常驻播放条。
+- macOS 支持隐藏标题栏、自绘顶部区域、菜单栏图标、媒体键与系统“正在播放”。
+- Windows 使用 WASAPI 输出，支持通知区域托盘、窗口隐藏与恢复，并已接入系统媒体信息和播放控制。
+- macOS 使用独立设置窗口；Windows 设置在主窗口内打开。
 
-## 功能与移植范围
+### 手机体验
 
-### 已实现
+- 首页、音乐库、搜索三个底部入口，分别保留浏览层级与滚动位置。
+- 常驻迷你播放条，点击展开全屏播放页；大封面与歌词可切换。
+- 队列、歌曲操作、歌曲信息与歌单管理使用底部面板。
+- 适配系统安全区、系统字号与键盘避让，系统返回键按层关闭面板并返回页面。
+- 支持后台/熄屏播放、媒体通知、锁屏和耳机媒体控制；音量使用手机系统音量键调节。
 
-- 本地文件：MP3、FLAC、Ogg Vorbis、WAV、M4A（ALAC/FLAC/AAC）与 AAC，含标签、内嵌封面、同目录封面、`.lrc` 歌词
-- 首页、最近播放、专辑/歌手/歌曲页、搜索结果（歌曲/专辑/歌手/歌单）
-- 歌单：新建、重命名、删除、添加/移除歌曲、上下移动
-- 喜欢的音乐
-- 播放器：队列、随机、单曲/列表循环、进度拖动、音量、暂停淡出、响度归一化、磁盘缓存、会话恢复
-- Now Playing：封面、歌词、舞台（Flow / Steps / Tilt 与 Sparks）、接下来、封面墙；歌词逐字高亮、当前行缩放与淡入淡出、点击跳转、手动浏览后恢复跟随，背景随封面取色
-- 首页主推卡片、专辑/歌手/歌单卡片、歌手页歌曲/专辑切换、查看全部、搜索历史下拉与设置页侧栏/搜索
-- 侧栏、返回/前进、搜索历史、空状态
-- 设置窗口：侧栏分页与搜索（通用、播放、资料库、缓存、实验性功能）、跟随系统/English/简体中文、外观、应用图标（程序坞与菜单栏）、音质、音量均衡、重新扫描与添加/移除目录、缓存上限与清除
-- macOS：隐藏标题栏、自绘顶部区域、菜单栏图标、媒体键与系统“正在播放”
-- Windows：WASAPI 输出、原生托盘与窗口恢复、系统媒体控制适配、主窗口内设置页
-- Android：独立手机布局、底部导航、迷你播放条、大封面/歌词切换、队列与歌曲操作面板，以及后台/熄屏播放和系统媒体控制
-- 插件音乐源：兼容 MyGo Music 的 JS/TS 插件，支持 GitHub/ZIP 安装、手动更新、配置、扫码/浏览器回调登录、音乐源切换，以及播客、电台与评论；详见 [插件使用与平台边界](docs/PLUGINS.md)
-- 英文与简体中文，跟随系统语言
+界面会根据可用窗口宽度切换：小于 720 个逻辑点时使用手机布局。详细交互见 [安卓移动端界面](docs/ANDROID-MOBILE-UI.md)。
 
-普通 LRC 的逐字进度沿用上游逻辑，将每行时长分配给行内文字。音质设置会传给支持音质选择的音乐源。
+### 插件音乐源
 
-### 当前范围
+桌面和安卓共用 MyGo Music 兼容的 JS/TS 插件宿主。通过「设置 → 插件 → 安装」添加 GitHub 仓库或插件 ZIP，查看权限并确认后即可使用，也支持配置、手动检查更新、扫码及浏览器回调登录。
 
-当前围绕本地与插件音乐源播放持续完善。以下上游能力尚未完整移植，也不作为功能承诺：
+插件可按自身能力提供首页、自定义页面、搜索、歌词、音质、账号、收藏、歌单、播客订阅、电台和评论等功能。不同插件提供的入口和可用内容可能不同，实际服务的登录与播放能力取决于插件及服务端。
 
-- 插件的网页 Cookie 登录窗口、插件仓库订阅目录与自动更新检查（扫码/浏览器回调登录、GitHub/ZIP 安装、手动检查更新已接入）
-- 播客字幕与本地语音识别（sherpa-onnx）
-- 雾效、进度条烟雾、封面飞入与封面墙的自由拖动等细节动画
-- 自动更新与勾选通知等发布相关功能
+- 桌面端从侧栏顶部切换音乐源；手机从「音乐库 → 音乐源」切换。
+- MusicFree、洛雪等应用的插件协议不直接兼容。
+- 安卓插件需使用纯 JS/TS 与网络接口，不能运行桌面可执行程序。
+- 示例插件位于 [`examples/demo-plugin`](examples/demo-plugin)，可用于离线开发验证。
 
-刘海迷你播放器明确不在移植范围内。实验性功能面板中的雾效、进度条烟雾和封面飞入设置仍保留，相关效果尚未完成移植。
+安装、账号、权限和平台限制见 [插件与音乐源](docs/PLUGINS.md)，已有第三方插件的测试记录见 [第三方插件实测](docs/PLUGIN-VALIDATION.md)。
 
-## 开发与运行
+### 外观与语言
 
-需要 Go 1.26 或更高版本。NSGo 通过 Go Modules 从远程获取，版本固定在 `go.mod` 中，本地开发与 CI 使用同一个提交，无需单独克隆框架。
+支持跟随系统的深浅外观，以及 English、简体中文和跟随系统语言。设置提供分类导航与搜索，包含播放、资料库、缓存、插件和实验性功能等选项；macOS 还可调整程序坞与菜单栏图标。
 
-### 环境准备
+## 开始使用
+
+### 桌面端导入音乐
+
+1. 启动应用，点击首页或侧栏的“添加文件夹…”，也可以按 `⌘O`（macOS）或 `Ctrl+O`（Windows）。
+2. 选择存放音乐的文件夹，等待扫描完成。
+3. 在歌曲、专辑或歌手页开始播放，使用喜欢和歌单整理曲库。
+4. 需要更新目录内容时，在「设置 → 资料库」重新扫描。
+
+桌面端直接读取原目录中的音乐文件，请保留文件位置。Windows 关闭主窗口后会隐藏到托盘并继续播放，可点击托盘图标恢复，或从托盘菜单明确退出；若托盘创建失败，关闭窗口会正常退出。
+
+### 安卓导入与播放
+
+1. 点击顶部文件夹按钮，或进入「音乐库 → 添加文件夹…」。
+2. 通过系统目录选择器选择音乐文件夹，等待文件复制与曲库索引完成。
+3. 从音乐库播放歌曲，点击底部迷你播放条打开封面与歌词；队列按钮可展开播放列表。
+4. 返回桌面或关闭屏幕后，可继续通过系统媒体通知控制播放。
+
+**安卓导入会把音乐、封面和 LRC 歌词复制到应用私有存储，占用额外空间。** 原目录的后续变化不会自动同步，需要重新导入。复制完成后无需持续保留原目录授权。
+
+设置中的“移除目录”仅移除曲库记录，不删除已导入的副本；卸载应用或清除应用数据会删除这些副本及其他本机数据。后台播放通过媒体前台服务维持，系统强制停止应用仍会停止播放。
+
+### 桌面常用快捷键
+
+下表的 `Mod` 在 macOS 上为 `⌘`，在 Windows 上为 `Ctrl`。
+
+| 快捷键 | 操作 |
+| --- | --- |
+| `Space` | 播放 / 暂停（未编辑文本时） |
+| `Mod + →` / `Mod + ←` | 下一首 / 上一首 |
+| `Mod + O` | 添加音乐文件夹 |
+| `Mod + F` | 搜索 |
+| `Mod + N` | 新建歌单 |
+| `Mod + Shift + P` | 打开正在播放 |
+| `Mod + ,` | 打开设置 |
+| `Mod + [` / `Mod + ]` | 返回 / 前进 |
+| `Mod + Q` | 退出应用 |
+
+## 当前限制
+
+- **平台验证**：Windows 的完整播放、安装升级、托盘与设备切换仍待真机验收；安卓已验证的设备与范围见 [Android 真机验证](docs/ANDROID-VALIDATION.md)，真实蓝牙、来电和整夜后台播放尚未覆盖。
+- **安卓播放差异**：使用 NSGo `core.Video` 调用系统 MediaPlayer，不经过桌面 PCM 混音链路；暂停淡出、PCM 频谱与桌面音频下载缓存不适用，响度增益上限为 1。带鉴权请求头的插件音频通过应用内临时回环转发播放，支持进度拖动。
+- **插件边界**：尚未接入隔离网页 Cookie 登录、插件仓库订阅目录、自动更新检查与远程设备选择界面；已支持扫码/浏览器回调登录、单插件安装与手动更新。
+- **尚未完整移植**：播客字幕、本地语音识别（sherpa-onnx）、雾效、进度条烟雾、封面飞入和封面墙自由拖动。部分实验性开关仍保留，但对应效果尚未完成。
+- **发布与同步**：应用自动更新、双击音乐文件关联和跨设备同步尚未接入。刘海迷你播放器不在移植范围内。
+
+## 开发与构建
+
+### 获取源码
+
+需要 **Go 1.26 或更高版本**。NSGo 通过 Go Modules 获取，版本固定在 [`go.mod`](go.mod)，无需单独克隆框架。
 
 ```sh
 git clone https://github.com/HengWh/woodwind-music.git
@@ -110,101 +202,98 @@ cd woodwind-music
 go mod download
 ```
 
-需要联调本地 NSGo 时，可以在项目根目录执行 `go work init . ../nsgo`（假设框架位于相邻的 `nsgo` 目录）。`go.work` 和 `go.work.sum` 已忽略，不提交到仓库；设置 `GOWORK=off` 可临时恢复使用远程依赖。
-
-### 常用命令
-
 在项目根目录执行：
 
 ```sh
 go tool nsgo dev        # 开发运行，保存后热重载
-go tool nsgo test       # 无窗口运行全部测试
+go tool nsgo test       # 无窗口运行测试
 go tool nsgo check      # 静态检查
-go tool nsgo build      # 按 nsgo.yaml 的目标本地打包
 ```
 
-启动后，点击侧栏底部的“添加文件夹…”导入本地音乐。
+需要联调相邻目录中的 NSGo 时，可执行 `go work init . ../nsgo`。`go.work` 和 `go.work.sum` 已忽略；设置 `GOWORK=off` 可恢复使用远程依赖。
 
-### 安卓真机运行
+### macOS 桌面构建
 
-当前 NSGo 安卓运行时要求 **Android 9（API 28）或更高版本**；这里打包的是 arm64 真机版本。
+```sh
+go tool nsgo build -target macos_arm64
+```
 
-手机开启开发者选项和 USB 调试，连接电脑并允许调试。本项目提供独立安卓宿主以支持后台播放。在 macOS Apple Silicon 的项目根目录执行：
+应用与 DMG 产物分别位于 `dist/` 和 `dist/releases/`。当前使用预生成的 `resources/icon.icns`，图标打包不需要 `actool`。
+
+### Windows 桌面构建
+
+```sh
+go tool nsgo build -target windows_x64
+go run scripts/package-windows.go
+```
+
+生成安装程序需要 **NSIS 3**，并确保 `makensis` 位于 PATH 中；便携版由第二条命令生成。发布文件位于 `dist/releases/`。
+
+[Windows 工作流](.github/workflows/windows.yml) 在 Windows runner 上执行测试、检查和打包，上传安装版与便携版产物，不会自动发布 GitHub Release。环境准备与验收清单见 [Windows 使用与验证](docs/WINDOWS.md)。
+
+### Android 移动端构建
+
+在 macOS Apple Silicon 上，可以使用项目提供的工具准备脚本：
 
 ```sh
 ./android/bootstrap.sh
+go run ./cmd/android
+```
+
+脚本将 Android SDK、JDK、D8 和 ADB 下载到已忽略的 `.tools/android/`。其他开发主机需要自行准备工具，通过 `ANDROID_HOME`、`JAVA_HOME`、`R8_JAR` 和 `ADB` 指定。编译使用 SDK Platform 36，应用最低支持 API 28、目标 API 35。
+
+手机开启开发者选项和 USB 调试、连接电脑并允许调试后，可直接构建、安装并启动：
+
+```sh
 go run ./cmd/android -install -run
 ```
 
-也可以先生成 APK，稍后再安装：
+使用 `-device <序列号>` 选择设备，`-debug` 开启开发检查。完整 APK 输出到 `dist/releases/wood-wind-music-<版本>-android-arm64.apk`，构建过程会校验签名并更新 SHA-256 文件。
 
-```sh
-go run ./cmd/android
-.tools/android/platform-tools/adb install -r "dist/releases/wood-wind-music-0.1.26-android-arm64.apk"
-```
+**Android 请使用 `go run ./cmd/android` 打包。** 直接执行 `go tool nsgo build -target android_arm64`，或只执行默认的多目标构建，会生成不含本项目后台播放宿主的安卓基础包。宿主实现与诊断说明见 [Android host](android/README.md)。
 
-APK 位于 `dist/releases/`，版本号跟随 `nsgo.yaml`。产品英文名称统一为 `wood wind music`，桌面图标、系统应用信息和打包路径使用 `nsgo.yaml` 中的名称，媒体会话也沿用该名称。本地构建沿用 NSGo 的调试签名，保留安装后的数据。`-device <序列号>` 选择手机，`-debug` 允许开发检查。工具优先使用 `ANDROID_HOME`、`JAVA_HOME`、`R8_JAR` 和 `ADB`，否则使用项目 `.tools/android/` 下的工具。
+### 应用配置与数据
 
-请用 `go run ./cmd/android` 构建完整安卓包。裸 `go tool nsgo build -target android_arm64` 只会生成框架的基础包，不含本项目的后台播放宿主。
+应用名称、ID、版本、图标和构建目标统一配置在 [`nsgo.yaml`](nsgo.yaml)。当前目标为 `macos_arm64`、`windows_x64` 和 `android_arm64`，英文名称为 `wood wind music`，稳定应用 ID 为 `dev.oneo.nsgo.music`。
 
-手机顶部的文件夹按钮或「音乐库 → 添加文件夹…」打开系统目录选择器。安卓选择的目录会将音乐、封面和 LRC 歌词**复制到应用私有存储**，然后进入现有曲库；导入会占用额外空间，原目录后续变化不会自动同步，需要重新导入。复制完成后无需保持外部目录授权即可再次播放；设置中的“移除目录”只移除曲库记录，不删除导入副本，卸载或清除应用数据才会清除这些副本。
-
-安卓端通过 `core.Video` 调用系统 MediaPlayer，复用现有队列、随机、单曲/列表循环、歌词和会话恢复；手机宽度下使用独立的移动端界面：首页、音乐库和搜索位于底部导航，单行迷你播放条常驻其上；全屏播放页支持大封面/歌词切换，队列和歌曲菜单从底部展开。三个入口分别保留浏览层级与滚动位置，系统返回键按层关闭面板、播放页、设置并返回上一页。界面预览与验证范围见 [安卓移动端界面](docs/ANDROID-MOBILE-UI.md)。页面和主题切换不会重建播放节点。
-
-与桌面端不同，安卓使用系统解码，具体格式支持取决于系统与设备；解码失败会显示错误。当前不经过 Go 的 PCM 混音链路，因此不提供桌面端的暂停淡出、频谱分析和音频下载缓存，响度增益上限为 1。`core.Video` 没有自定义 HTTP 请求头接口，带鉴权头的插件音频通过应用内的临时回环转发服务播放，支持 Range 请求和进度拖动。详见 [插件使用与平台边界](docs/PLUGINS.md)。
-
-安卓宿主提供 `mediaPlayback` 前台服务、系统 MediaSession、媒体通知和锁屏/耳机控制。播放时保持 CPU 唤醒，暂停时释放；临时失去音频焦点时暂停并在恢复焦点后继续，永久失去焦点或拔出耳机时暂停。播放中的 NSGo 运行时由服务保留，界面离开或销毁后不主动停止；再次打开会接回同一个运行时。暂停五分钟后退出前台服务，界面也已关闭时释放运行时。系统强制停止应用仍会停止播放。
-
-建议真机按顺序检查：导入包含中文名称的音乐目录；播放 WAV、MP3、FLAC、AAC/M4A；暂停/恢复、静音与音量；拖动进度；上一首/下一首、随机与循环；打开歌词和队列；退出重开后恢复到暂停位置。蓝牙切换、音频焦点以及切后台/锁屏的实际表现也应单独记录。
+曲库、歌单、喜欢、设置与插件数据保存在本机应用数据目录。Windows 默认使用 `%APPDATA%\dev.oneo.nsgo.music`；桌面开发或隔离数据时可设置 `WOOD_WIND_MUSIC_DATA_DIR` 指定目录。插件代码位于其下的 `plugins/`，插件配置与登录存储位于 `plugin-data/<ID>/`。
 
 <details>
-<summary>本地打包与图标更新</summary>
-
-应用名称、ID、版本和构建目标在 `nsgo.yaml` 中配置。当前打包目标为 `macos_arm64`、`windows_x64`，产物保存在 `dist/`，安装镜像与安装包保存在 `dist/releases/`。单独构建 Windows 使用 `go tool nsgo build -target windows_x64`，随后运行 `go run scripts/package-windows.go` 生成便携版；完整说明见 [Windows 使用与验证](docs/WINDOWS.md)。
-
-开发运行与本地打包使用相同图标，macOS 使用预生成的 `resources/icon.icns`。更新图标后，在项目根目录执行：
+<summary>更新应用与菜单栏图标</summary>
 
 ```sh
-go run ./icon       # 更新应用 PNG 与 macOS ICNS
-go run ./icon/tray  # 更新菜单栏图标
+go run ./icon       # 生成应用 PNG 与 macOS ICNS
+go run ./icon/tray  # 生成菜单栏图标
 ```
 
-当前正式图标是红色渐变背景上的纯白耳机、松树与两片飘叶，源图保存在 `assets/app-icon/source.png`。已生成的春、夏、秋、冬四季配色素材完整保留在 `assets/woodwind-icon-seasons/`，作为后续设计备选。
-
-产品英文名称为 `wood wind music`，例如 macOS 应用位于 `dist/wood wind music-0.1.26-macos_arm64/wood wind music.app`，发布包使用 `wood-wind-music-<版本>-<平台>` 前缀。应用 ID 保持不变，继续沿用既有曲库、歌单与设置。
-
-旧的 `.icon` 文档不参与当前构建。图标打包无需 `actool`；需要完整 Xcode 的其他构建步骤可通过 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 指定工具链。
+正式图标源图位于 `assets/app-icon/source.png`；四季配色备选保存在 `assets/woodwind-icon-seasons/`。
 
 </details>
 
 ## 测试与验证
 
-日常回归使用 `go tool nsgo test` 与 `go tool nsgo check`，无需启动真实应用窗口。现有 UI 测试覆盖设置窗口、主题切换、歌词交互，以及主窗口和播放条的尺寸变化。
+日常回归使用 `go tool nsgo test` 与 `go tool nsgo check`。现有测试覆盖本地导入、格式与播放、队列和会话恢复、歌词、桌面与手机布局、设置、插件宿主，以及安卓媒体协议和构建逻辑。
+
+真实系统集成与设备行为需要另行验收，自动化测试通过不等于所有平台均已完成真机验证。
 
 <details>
-<summary>专项回归与真实窗口截图</summary>
-
-设置窗口回归覆盖侧栏刷新、重复打开、隐藏后唤回和关闭后重开：
+<summary>可选界面截图与专项回归</summary>
 
 ```sh
+# 设置窗口生命周期回归
 go tool nsgo test -run TestSettingsWindowSurvivesSidebarUpdates
-```
 
-页面截图覆盖首页、专辑、歌手、播放页、舞台、封面墙、队列、搜索和歌单等：
-
-```sh
+# 桌面页面截图
 WOOD_WIND_SHOTS=1 go tool nsgo test -target macos -run TestShots
-open .nsgo/test/screenshots/macos
-```
 
-设置与歌词的专项截图使用固定播放位置，覆盖深浅主题、下拉菜单、长文本、无歌词与窄窗口：
-
-```sh
+# 设置与歌词专项截图
 (cd internal/app && WOOD_WIND_UI_SHOTS=1 go tool nsgo test -target macos -run TestUIShots)
-open internal/app/.nsgo/test/screenshots/macos
+
+# 手机布局截图
+WOOD_WIND_PHONE_SHOTS=1 go tool nsgo test -target macos -run '^TestPhoneShots$' ./internal/app
 ```
 
-截图测试使用独立的临时应用数据。
+截图测试使用独立的临时应用数据，截图位于对应测试目录下的 `.nsgo/test/screenshots/macos/`。Windows 原生媒体会话测试方法见 [Windows 使用与验证](docs/WINDOWS.md)。
 
 </details>
 
@@ -212,29 +301,30 @@ open internal/app/.nsgo/test/screenshots/macos
 
 | 路径 | 内容 |
 | --- | --- |
-| `main.go` | 入口，交给 `internal/app` |
-| `internal/app` | 窗口、页面、播放条、Now Playing、设置与菜单 |
-| `internal/player` | 播放队列、流式解码、缓存、淡入淡出、会话恢复 |
-| `internal/audio` | 各平台音频输出，以及 MP3、FLAC、Vorbis、AAC、ALAC、WAV 解码 |
-| `internal/plugin` | MyGo 兼容的 JS/TS 插件宿主、权限、存储、安装与更新 |
-| `internal/local` | 本地文件源：扫描、标签、封面、播放列表、喜欢、最近播放 |
-| `internal/music` | 播放器与视图共用的音乐模型和源接口 |
-| `internal/lyrics` | LRC 解析与逐字歌词 |
-| `internal/nowplaying` | macOS / Windows 播放信息与系统媒体命令桥接 |
-| `internal/winshell` | Windows 原生托盘、窗口恢复与系统媒体会话 |
-| `internal/i18n` | 英文 / 简体中文 |
-| `resources`、`icon` | 应用图标与生成工具 |
-| `docs` | 供目视核对的界面截图 |
+| `main.go` | 应用入口 |
+| `internal/app` | 桌面与手机界面、导航、播放页、设置和平台交互 |
+| `internal/player` | 队列、流式播放、缓存、淡出与会话恢复 |
+| `internal/audio` | 桌面音频输出与音频格式解码 |
+| `internal/local` | 本地扫描、标签、封面、歌单、喜欢与最近播放 |
+| `internal/music` | 共用音乐模型、音乐源接口与请求转发 |
+| `internal/lyrics` | LRC 解析与歌词时间处理 |
+| `internal/plugin` | MyGo 兼容 JS/TS 宿主、权限、存储、安装与更新 |
+| `internal/nowplaying`、`internal/winshell` | 桌面系统媒体信息与 Windows 托盘集成 |
+| `internal/i18n` | English / 简体中文 |
+| `android`、`cmd/android` | 安卓宿主、后台播放服务与完整 APK 构建 |
+| `resources`、`icon`、`assets` | 应用资源、图标工具与设计素材 |
+| `examples/demo-plugin` | 离线示例音乐源插件 |
+| `scripts`、`.github/workflows` | 打包与持续集成 |
+| `docs` | 平台说明、验证记录与界面截图 |
 
 ## 致谢
 
-木听风音乐（wood wind music）的实现离不开以下两个开源项目：
+- **[MyGo Music](https://github.com/egoist/mygo-music)**：本项目复刻与移植的基础，提供界面设计、交互、文案，以及播放、曲库、歌词和队列等核心实现。
+- **[NSGo](https://github.com/nsgo-dev/nsgo)**：提供应用框架、窗口、界面渲染、交互与安卓原生媒体能力，使 Go 界面可以用于桌面和手机。
+- **[MyGo](https://github.com/egoist/mygo)**：提供 `internal/audio` 所使用的音频引擎代码。
 
-- **[NSGo](https://github.com/nsgo-dev/nsgo)**：为本项目提供原生桌面应用框架，承载窗口、界面渲染和交互。感谢 NSGo 作者与贡献者的开发和维护，让使用 Go 构建原生应用成为可能。
-- **[MyGo Music](https://github.com/egoist/mygo-music)**：是本项目复刻与移植的基础。界面设计、交互、文案，以及音频播放、曲库、歌词和队列等核心实现均源自该项目。感谢其作者与贡献者对产品细节的打磨，以及开放源码供大家学习和继续构建。
-
-本项目主要将 MyGo Music 的界面迁移到 NSGo，并根据个人使用需求进行平台适配与体验调整。感谢两个项目的作者与贡献者。
+感谢上述项目的作者与贡献者。本项目在其基础上迁移界面框架，并继续进行桌面与移动平台适配。
 
 ## 许可证
 
-上游 mygo-music 为 AGPL-3.0，本项目作为其复刻/衍生作品同样以 AGPL-3.0 发布，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。NSGo 为 Apache-2.0；`internal/audio` 来自 MIT 许可的 MyGo，见 [LICENSES/MyGo-MIT.txt](LICENSES/MyGo-MIT.txt)。
+本项目作为 MyGo Music 的复刻与衍生作品，以 **AGPL-3.0** 发布，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。NSGo 使用 Apache-2.0；来自 MyGo 的 `internal/audio` 代码使用 MIT，见 [LICENSES/MyGo-MIT.txt](LICENSES/MyGo-MIT.txt)。
