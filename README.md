@@ -24,7 +24,7 @@
 | 平台 | 当前构建 | 支持情况 |
 | --- | --- | --- |
 | macOS | Apple Silicon / arm64，DMG | 主要开发与验证平台；支持菜单栏、媒体键和系统“正在播放” |
-| Windows | Windows 10 / 11 x64，安装版与便携版 | 已完成构建与共享逻辑回归，已接入 WASAPI、托盘和系统媒体控制；完整真机验收仍待完成 |
+| Windows | Windows 10 / 11 x64，安装版与便携版（实验性支持） | 已完成构建与共享逻辑回归，已接入 WASAPI、托盘和系统媒体控制；完整真机验收仍待完成 |
 | Android | Android 9+ / API 28+，arm64 APK | 独立手机界面；已在荣耀 GT（Android 16）验证曲库导入、实际歌曲播放、后台/熄屏播放与系统媒体控制 |
 
 当前移动端支持 Android，尚未提供 iOS 版本。macOS Intel、Windows ARM64 和 Linux 暂无本项目的发布构建。桌面与手机上的数据分别保存在本机，当前没有跨设备同步。
@@ -35,12 +35,14 @@
 
 | 平台 | 文件名 | 安装方式 |
 | --- | --- | --- |
-| macOS | `wood-wind-music-<版本>-macos-arm64.dmg` | 打开镜像，将 `wood wind music.app` 拖入“应用程序” |
+| macOS | `wood-wind-music-<版本>-macos-arm64.dmg` | 打开镜像，将 `木听风音乐.app` 拖入“应用程序” |
 | Windows 安装版 | `wood-wind-music-<版本>-windows-x64-setup.exe` | 运行安装程序，安装到当前用户目录 |
-| Windows 便携版 | `wood-wind-music-<版本>-windows-x64-portable.zip` | 解压后运行 `wood wind music.exe`，保留同目录资源文件 |
+| Windows 便携版 | `wood-wind-music-<版本>-windows-x64-portable.zip` | 解压后运行 `木听风音乐.exe`，保留同目录资源文件 |
 | Android | `wood-wind-music-<版本>-android-arm64.apk` | 在手机上打开 APK，按系统提示允许对应来源安装 |
 
 本地构建的 Windows 程序尚未做代码签名，Android 包沿用 NSGo 的调试签名。升级前请退出桌面应用；安卓使用相同签名覆盖安装可保留现有数据。发布包附带 `.sha256` 校验文件。
+
+**0.1.0 为首个公开版本**，基于 NSGo 0.1.0；三平台使用相同的应用版本。Android 内部版本码为 131，可从此前私用的 0.1.30 覆盖升级。发布包不预装第三方音乐源插件，不包含账号、Cookie、登录凭据或个人曲库；新安装默认使用本地音乐，插件需自行安装和登录。覆盖升级会继续保留本机已有数据。完整变更见 [0.1.0 发布说明](docs/RELEASE-0.1.0.md)。
 
 Windows 便携版表示无需安装，它与安装版仍共用当前用户的应用数据。更多说明见 [Windows 使用与验证](docs/WINDOWS.md)。
 
@@ -196,7 +198,7 @@ Windows 便携版表示无需安装，它与安装版仍共用当前用户的应
 
 ### 获取源码
 
-需要 **Go 1.26 或更高版本**。NSGo 通过 Go Modules 获取，版本固定在 [`go.mod`](go.mod)，无需单独克隆框架。
+需要 **Go 1.27.3 或更高版本**。NSGo 通过 Go Modules 获取，版本固定为 [`go.mod`](go.mod) 中的 **v0.1.0**，无需单独克隆框架。
 
 ```sh
 git clone https://github.com/HengWh/woodwind-music.git
@@ -253,6 +255,21 @@ go run ./cmd/android -install -run
 使用 `-device <序列号>` 选择设备，`-debug` 开启开发检查。完整 APK 输出到 `dist/releases/wood-wind-music-<版本>-android-arm64.apk`，构建过程会校验签名并更新 SHA-256 文件。
 
 **Android 请使用 `go run ./cmd/android` 打包。** 直接执行 `go tool nsgo build -target android_arm64`，或只执行默认的多目标构建，会生成不含本项目后台播放宿主的安卓基础包。宿主实现与诊断说明见 [Android host](android/README.md)。
+
+### 准备三平台发布
+
+在具备上述平台构建工具的主机上执行：
+
+```sh
+go tool nsgo test
+go tool nsgo check -target macos_arm64,windows_x64,android_arm64
+go tool nsgo build -target macos_arm64,windows_x64
+go run ./cmd/android
+go run scripts/package-windows.go
+python3 scripts/prepare-release.py
+```
+
+最后一步统一下载文件名，校验 macOS 应用、Windows 便携包和完整 APK 的文件清单，确认只带入批准的图标资源，并重新生成校验文件。它会移除缺少后台播放宿主的安卓基础包。发布时只上传 `dist/releases/` 中最终的四个安装/便携包及校验文件，可附带两个安装脚本；不要上传本机应用数据、插件目录、构建日志或签名私钥。
 
 ### 应用配置与数据
 

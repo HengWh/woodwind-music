@@ -15,6 +15,8 @@ go run ./cmd/android -install -run
 
 The bootstrap script downloads the official Android SDK tools, D8, and an Adoptium JDK into the ignored `.tools/android/` directory. Other development hosts can provide `ANDROID_HOME`, `JAVA_HOME`, `R8_JAR`, and `ADB` instead. The Go command first builds the NSGo executable, compiles the existing NSGo Java sources together with this host (replacing only the launcher activity), packages the manifest/resources, aligns the APK and signs it with the project's existing NSGo debug key. It also updates the APK checksum. Use `-device SERIAL` to select a phone and `-debug` to enable `run-as` inspection during development.
 
+The public 0.1.0 release uses `build_number: 131`, independently of its display version, so it can upgrade private 0.1.30 builds (versionCode 130) with the same app ID and signing key. Keep that key private and backed up; replacing it breaks existing installs' update path. The release APK is not debuggable and disables Android backup. Third-party plugins and their account stores are loaded only from each installation's private data, never seeded from the APK. Existing installations retain their own plugins and login state on an upgrade; new installations start without them.
+
 Use this command for the complete Android package. A bare `go tool nsgo build -target android_arm64` produces the framework's base package, without this playback service.
 
 ## Ownership and lifecycle

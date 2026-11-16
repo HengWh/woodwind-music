@@ -202,9 +202,9 @@ func TestDailyUsesMainWindowSize(t *testing.T) {
 	if !stackMounted() {
 		t.Fatal("the cover stack was hidden in a 1180-point main window while the app scope had zero width")
 	}
-	window.Resize(core.Size{Width: 880, Height: 780})
+	window.Resize(core.Size{Width: 880, Height: 780}, core.Geometry{})
 	window.Commit()
-	window.Resize(core.Size{Width: 1180, Height: 780})
+	window.Resize(core.Size{Width: 1180, Height: 780}, core.Geometry{})
 	if !stackMounted() {
 		t.Fatal("widening the main window did not restore the cover stack")
 	}

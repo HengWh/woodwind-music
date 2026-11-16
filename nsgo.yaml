@@ -1,7 +1,9 @@
 name: 木听风音乐
 # Stable identity: preserves existing library, playlists and settings.
 id: dev.oneo.nsgo.music
-version: 0.1.30
+version: 0.1.0
+# Keep Android upgrades newer than the private 0.1.30 build (versionCode 130).
+build_number: 131
 
 icon:
   apple: resources/icon.icns

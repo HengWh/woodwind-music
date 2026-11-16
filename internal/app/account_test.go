@@ -12,6 +12,22 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
+func TestFreshInstallStartsWithoutPluginsOrAccounts(t *testing.T) {
+	for _, os := range []core.OS{core.OSMacOS, core.OSWindows, core.OSAndroid} {
+		t.Run(string(os), func(t *testing.T) {
+			t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
+			var a *app
+			ui := nsgotest.Start(t, func(cx *core.Scope) core.Node { a = newApp(cx); return a.view(cx) },
+				nsgotest.Environment(core.Environment{OS: os}))
+			defer a.closePlugins()
+			ui.WaitUntil(time.Second, func() bool { return !a.homeBusy })
+			if len(a.plugins) != 0 || len(a.sources.items) != 0 || a.active != a.local || a.account != nil {
+				t.Fatal("a fresh install must contain only local music, with no plugins or signed-in account")
+			}
+		})
+	}
+}
+
 func installAccountPlugin(t *testing.T, dir string, signedIn bool) {
 	t.Helper()
 	path := filepath.Join(dir, "plugins", "account-test")

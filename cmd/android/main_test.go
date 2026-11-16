@@ -10,10 +10,21 @@ import (
 
 func TestReleaseAPKUsesConfiguredProductName(t *testing.T) {
 	var p project
-	p.Name, p.Version, p.Build.Output = "wood wind music", "0.1.26", "dist"
-	want := filepath.Join("dist", "releases", "wood-wind-music-0.1.26-android-arm64.apk")
+	p.Name, p.Version, p.Build.Output = "木听风音乐", "0.1.0", "dist"
+	want := filepath.Join("dist", "releases", "wood-wind-music-0.1.0-android-arm64.apk")
 	if got := p.releaseAPK(); got != want {
 		t.Fatalf("release APK = %q, want %q", got, want)
+	}
+}
+
+func TestPublicVersionUpgradesPrivateAndroidBuild(t *testing.T) {
+	p := project{Version: "0.1.0", BuildNumber: 131}
+	if got := p.versionCode(); got <= 130 {
+		t.Fatalf("public versionCode %d must upgrade private 0.1.30 (130)", got)
+	}
+	p.BuildNumber = 0
+	if got := p.versionCode(); got != 100 {
+		t.Fatalf("fallback versionCode = %d, want 100", got)
 	}
 }
 

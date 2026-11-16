@@ -24,6 +24,8 @@ func TestStarts(t *testing.T) {
 	var a *app
 	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
+		a.set.Language = i18n.English
+		a.applyLanguage()
 		return a.view(cx)
 	}, nsgotest.Size(1180, 780))
 	app.Find("text:Home")
@@ -86,6 +88,8 @@ func TestPlaysFile(t *testing.T) {
 	var a *app
 	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a = newApp(cx)
+		a.set.Language = i18n.English
+		a.applyLanguage()
 		return a.view(cx)
 	}, nsgotest.Size(1180, 780))
 	a.local.AddFolders(musicDir)

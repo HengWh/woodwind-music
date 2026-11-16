@@ -45,7 +45,7 @@ func run() error {
 	if err = os.MkdirAll(releases, 0o755); err != nil {
 		return err
 	}
-	name := strings.ToLower(strings.ReplaceAll(config.Name, " ", "-")) + "-" + config.Version + "-windows-x64-portable.zip"
+	name := "wood-wind-music-" + config.Version + "-windows-x64-portable.zip"
 	path := filepath.Join(releases, name)
 	out, err := os.Create(path)
 	if err != nil {
@@ -112,6 +112,24 @@ func run() error {
 	if closeErr != nil {
 		return closeErr
 	}
+	if err := writeChecksum(path); err != nil {
+		return err
+	}
+	fmt.Println(path)
+	// NSGo falls back to "music" for the Chinese display name. Keep download
+	// filenames stable across the framework, portable package and CI.
+	setup := filepath.Join(releases, "music-"+config.Version+"-windows-x64-setup.exe")
+	canonical := filepath.Join(releases, "wood-wind-music-"+config.Version+"-windows-x64-setup.exe")
+	if err := os.Rename(setup, canonical); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Remove(setup + ".sha256"); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return writeChecksum(canonical)
+}
+
+func writeChecksum(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -121,9 +139,8 @@ func run() error {
 	if _, err = io.Copy(hash, f); err != nil {
 		return err
 	}
-	if err = os.WriteFile(path+".sha256", []byte(fmt.Sprintf("%x  %s\n", hash.Sum(nil), name)), 0o644); err != nil {
+	if err = os.WriteFile(path+".sha256", []byte(fmt.Sprintf("%x  %s\n", hash.Sum(nil), filepath.Base(path))), 0o644); err != nil {
 		return err
 	}
-	fmt.Println(path)
 	return nil
 }

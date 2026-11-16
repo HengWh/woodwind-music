@@ -24,10 +24,11 @@ import (
 )
 
 type project struct {
-	Name    string `yaml:"name"`
-	ID      string `yaml:"id"`
-	Version string `yaml:"version"`
-	Icon    struct {
+	Name        string `yaml:"name"`
+	ID          string `yaml:"id"`
+	Version     string `yaml:"version"`
+	BuildNumber int    `yaml:"build_number"`
+	Icon        struct {
 		PNG string `yaml:"png"`
 	} `yaml:"icon"`
 	Build struct {
@@ -144,7 +145,7 @@ func build(install, launch bool, device string, debug bool) error {
 		return err
 	}
 	escape := func(s string) string { var b bytes.Buffer; xml.EscapeText(&b, []byte(s)); return b.String() }
-	manifest = []byte(strings.NewReplacer("$APP_ID", escape(p.ID), "$LABEL", escape(p.Name), "$VERSION_CODE", strconv.Itoa(apk.VersionCode(p.Version)), "$VERSION", escape(p.Version), "$DEBUG", strconv.FormatBool(debug)).Replace(string(manifest)))
+	manifest = []byte(strings.NewReplacer("$APP_ID", escape(p.ID), "$LABEL", escape(p.Name), "$VERSION_CODE", strconv.Itoa(p.versionCode()), "$VERSION", escape(p.Version), "$DEBUG", strconv.FormatBool(debug)).Replace(string(manifest)))
 	manifestPath := filepath.Join(stage, "AndroidManifest.xml")
 	os.WriteFile(manifestPath, manifest, 0600)
 	res := filepath.Join(stage, "res", "drawable")
@@ -222,8 +223,14 @@ func build(install, launch bool, device string, debug bool) error {
 }
 
 func (p project) releaseAPK() string {
-	slug := strings.ToLower(strings.Join(strings.Fields(p.Name), "-"))
-	return filepath.Join(p.Build.Output, "releases", slug+"-"+p.Version+"-android-arm64.apk")
+	return filepath.Join(p.Build.Output, "releases", "wood-wind-music-"+p.Version+"-android-arm64.apk")
+}
+
+func (p project) versionCode() int {
+	if p.BuildNumber > 0 {
+		return p.BuildNumber
+	}
+	return apk.VersionCode(p.Version)
 }
 
 func command(name string, args ...string) error {

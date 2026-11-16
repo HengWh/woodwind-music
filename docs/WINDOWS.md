@@ -1,11 +1,11 @@
 # Windows 使用与验证
 
-本次提供 Windows x64 构建，目标为 Windows 10 / 11 x64。当前开发环境是 macOS：已完成交叉编译和共享逻辑回归，尚未在 Windows 真机验证完整播放流程。Windows ARM64 暂不作为本次交付目标。
+0.1.0 提供 Windows x64 构建，目标为 Windows 10 / 11 x64，标为实验性支持。当前开发环境是 macOS：已完成交叉编译和共享逻辑回归，尚未在 Windows 真机验证完整播放流程。Windows ARM64 暂不作为本次交付目标。
 
 ## 安装与运行
 
 - 安装版：运行 `wood-wind-music-<版本>-windows-x64-setup.exe`，安装到当前用户目录。
-- 便携版：解压 `wood-wind-music-<版本>-windows-x64-portable.zip`，双击 `wood wind music.exe`。请保留同目录资源文件。
+- 便携版：解压 `wood-wind-music-<版本>-windows-x64-portable.zip`，双击 `木听风音乐.exe`。请保留同目录资源文件。
 - 点击首页的“添加音乐文件夹”，或使用 `Ctrl+O`，导入自己的音乐。
 - 关闭主窗口会隐藏到通知区域，音乐继续播放。单击托盘图标恢复窗口；右键可控制播放、打开设置或退出。
 - 若通知区域图标创建失败，关闭窗口会正常退出，避免留下无法找回的后台进程。
