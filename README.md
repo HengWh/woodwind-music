@@ -210,7 +210,7 @@ go mod download
 
 ```sh
 go tool nsgo dev        # 开发运行，保存后热重载
-go tool nsgo test       # 无窗口运行测试
+go run scripts/test-quiet.go # 无窗口、无声音、隔离数据的检查与测试
 go tool nsgo check      # 静态检查
 ```
 
@@ -261,7 +261,7 @@ go run ./cmd/android -install -run
 在具备上述平台构建工具的主机上执行：
 
 ```sh
-go tool nsgo test
+go run scripts/test-quiet.go
 go tool nsgo check -target macos_arm64,windows_x64,android_arm64
 go tool nsgo build -target macos_arm64,windows_x64
 go run ./cmd/android
@@ -291,16 +291,28 @@ go run ./icon/tray  # 生成菜单栏图标
 
 ## 测试与验证
 
-日常回归使用 `go tool nsgo test` 与 `go tool nsgo check`。现有测试覆盖本地导入、格式与播放、队列和会话恢复、歌词、桌面与手机布局、设置、插件宿主，以及安卓媒体协议和构建逻辑。
+日常回归统一使用以下入口，macOS 与 Windows 均可运行：
+
+```sh
+go run scripts/test-quiet.go
+# 仅检查和测试相关目录；选项放在目录前
+go run scripts/test-quiet.go -run 'TestPause|TestSeek' ./internal/player
+```
+
+入口先运行 `go tool nsgo check`，再运行无窗口的 NSGo 测试；使用 `woodwind_quiet` 构建标签，将系统音频输出替换为空输出，并关闭系统“正在播放”接入。每次创建独立的临时应用数据目录，结束后清理；构建缓存保存在当前 checkout 的 `.nsgo/quiet-go-cache/`。不使用本机 `go.work`，并移除继承的原生测试、截图及个人数据目录开关。它不接受平台目标、设备或其他透传参数。原始 `go tool nsgo test` 只保证默认无窗口，不能代替这个无声音、隔离数据的入口。Windows CI 使用同一入口。
+
+开发助手的目录、worktree 和测试约定见 [AGENTS.md](AGENTS.md)：默认留在当前目录；用户明确选择 Worktree 模式、使用可用的 `/worktree` 入口、显式调用个人 `$worktree` 技能，或输入“用 worktree 开发：<任务>”后，才为该任务创建或复用一个 worktree。不自行创建更多 worktree、子代理或并行任务。项目说明不会给应用注册新的斜杠菜单项，文字触发方式不依赖菜单是否显示。
+
+现有测试覆盖本地导入、格式与播放、队列和会话恢复、歌词、桌面与手机布局、设置、插件宿主，以及安卓媒体协议和构建逻辑。
 
 真实系统集成与设备行为需要另行验收，自动化测试通过不等于所有平台均已完成真机验证。
 
 <details>
-<summary>可选界面截图与专项回归</summary>
+<summary>专项回归与需明确要求的界面截图验收</summary>
 
 ```sh
 # 设置窗口生命周期回归
-go tool nsgo test -run TestSettingsWindowSurvivesSidebarUpdates
+go run scripts/test-quiet.go -run TestSettingsWindowSurvivesSidebarUpdates
 
 # 桌面页面截图
 WOOD_WIND_SHOTS=1 go tool nsgo test -target macos -run TestShots
@@ -312,7 +324,7 @@ WOOD_WIND_SHOTS=1 go tool nsgo test -target macos -run TestShots
 WOOD_WIND_PHONE_SHOTS=1 go tool nsgo test -target macos -run '^TestPhoneShots$' ./internal/app
 ```
 
-截图测试使用独立的临时应用数据，截图位于对应测试目录下的 `.nsgo/test/screenshots/macos/`。Windows 原生媒体会话测试方法见 [Windows 使用与验证](docs/WINDOWS.md)。
+带 `-target` 的测试会启动真实窗口或设备，不属于默认验证；仅在用户明确要求相应验收时运行。截图测试使用独立的临时应用数据，但不保证无声音；截图位于对应测试目录下的 `.nsgo/test/screenshots/macos/`。Windows 原生媒体会话测试方法见 [Windows 使用与验证](docs/WINDOWS.md)。
 
 </details>
 

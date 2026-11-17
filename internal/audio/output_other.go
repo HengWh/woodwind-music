@@ -1,4 +1,4 @@
-//go:build android || (!darwin && !(linux && (amd64 || arm64)) && !(windows && (amd64 || arm64)) && !js)
+//go:build (android || (!darwin && !(linux && (amd64 || arm64)) && !(windows && (amd64 || arm64)) && !js)) && !woodwind_quiet
 
 package audio
 

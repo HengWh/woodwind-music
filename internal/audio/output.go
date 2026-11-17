@@ -76,7 +76,11 @@ func run() {
 			setHeld(0)
 		} else {
 			setErr(nil)
-			setHeld(int64(lat.ahead() * sampleRate / time.Second))
+			if _, null := dev.(*nullDevice); null {
+				setHeld(0)
+			} else {
+				setHeld(int64(lat.ahead() * sampleRate / time.Second))
+			}
 		}
 		buf := make([]float32, n*channels)
 		idle := time.Duration(0)

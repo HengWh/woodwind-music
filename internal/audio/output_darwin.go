@@ -1,3 +1,5 @@
+//go:build darwin && !woodwind_quiet
+
 package audio
 
 import (

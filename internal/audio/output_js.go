@@ -1,3 +1,5 @@
+//go:build js && !woodwind_quiet
+
 package audio
 
 import (

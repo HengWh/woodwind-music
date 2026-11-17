@@ -19,10 +19,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - name: Test
-        run: go tool nsgo test
-      - name: Check
-        run: go tool nsgo check
+      - name: Check and test without UI or audio
+        run: go run scripts/test-quiet.go
       - name: Install NSIS
         run: |
           choco install nsis --no-progress -y
