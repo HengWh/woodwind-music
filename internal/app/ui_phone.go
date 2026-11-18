@@ -52,7 +52,7 @@ func (a *app) phoneView(cx *core.Scope, p palette) core.Node {
 		core.Show{When: func() bool { a.rev.Get(); return a.settingsInMain }, Then: func(cx *core.Scope) core.Node {
 			return core.View{TestID: "settings-in-main", Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0), ZIndex: 20}, Children: []core.Node{a.settingsView(cx)}}
 		}},
-		a.phoneSheets(cx, p), a.nameDialog(cx, p), a.deleteDialog(cx, p), a.storedDeleteDialog(cx, p),
+		a.phoneSheets(cx, p), a.nameDialog(cx, p), a.deleteDialog(cx, p), a.storedDeleteDialog(cx, p), a.sleepDialog(cx, p),
 		core.Show{When: func() bool { return a.toast.Get() != "" }, Then: a.toastView},
 	}}
 }

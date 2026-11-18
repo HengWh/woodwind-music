@@ -60,6 +60,7 @@ var (
 	lucidePencil       = lucide.Pencil()
 	lucideListPlus     = lucide.ListPlus()
 	lucideMic          = lucide.AudioLines()
+	lucideTimer        = lucide.Timer()
 	lucideArrowUp      = lucide.ArrowUp()
 	lucideArrowDown    = lucide.ArrowDown()
 )

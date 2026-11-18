@@ -94,6 +94,14 @@ type Player struct {
 	// before loading a queue. Desktop playback continues through audio.
 	Native NativeOutput
 
+	// Sleep callbacks run on the main thread. Expired also fires when
+	// already paused, so the app can cancel automatic focus resumption.
+	SleepTimerChanged func()
+	SleepTimerExpired func()
+	sleepTimer        *time.Timer
+	sleepUntil        time.Time
+	sleepGen          int
+
 	queue   []music.Track
 	order   []int // the queue's indices in play order: shuffled or not
 	at      int   // where in order the current track is, -1 for none
@@ -217,6 +225,9 @@ func (p *Player) announce(t *music.Track, artwork []byte) {
 }
 
 func (p *Player) ended() {
+	if !p.playing {
+		return
+	}
 	if p.repeat == RepeatOne {
 		if p.native != nil {
 			// A completed MediaPlayer does not resume on seek alone.

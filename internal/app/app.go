@@ -236,18 +236,22 @@ type app struct {
 
 	// Signals: rev changes when any data the pages show does; route is
 	// the page shown; tick moves as what plays does, for the clock.
-	rev        *core.Signal[int]
-	playRev    *core.Signal[int]
-	modeRev    *core.Signal[int]
-	speedRev   *core.Signal[int]
-	route      *core.Signal[route]
-	tick       *core.Signal[int]
-	query      *core.Signal[string]
-	searchOpen *core.Signal[bool]
-	np         *core.Signal[bool]
-	npPane     *core.Signal[int]
-	stageTick  *core.Signal[int]
-	toast      *core.Signal[string]
+	rev          *core.Signal[int]
+	playRev      *core.Signal[int]
+	modeRev      *core.Signal[int]
+	speedRev     *core.Signal[int]
+	sleepRev     *core.Signal[int]
+	sleepOpen    *core.Signal[bool]
+	sleepError   *core.Signal[string]
+	sleepMinutes string
+	route        *core.Signal[route]
+	tick         *core.Signal[int]
+	query        *core.Signal[string]
+	searchOpen   *core.Signal[bool]
+	np           *core.Signal[bool]
+	npPane       *core.Signal[int]
+	stageTick    *core.Signal[int]
+	toast        *core.Signal[string]
 
 	// artRev moves as a cover's colors are found, for the daily card.
 	artRev       *core.Signal[int]
@@ -347,6 +351,9 @@ func newApp(cx *core.Scope) *app {
 		playRev:          core.NewSignal(cx, 0),
 		modeRev:          core.NewSignal(cx, 0),
 		speedRev:         core.NewSignal(cx, 0),
+		sleepRev:         core.NewSignal(cx, 0),
+		sleepOpen:        core.NewSignal(cx, false),
+		sleepError:       core.NewSignal(cx, ""),
 		route:            core.NewSignal(cx, route{page: pageHome}),
 		tick:             core.NewSignal(cx, 0),
 		query:            core.NewSignal(cx, ""),
@@ -430,6 +437,16 @@ func newApp(cx *core.Scope) *app {
 	}
 	a.pl.Changed = func() { a.heartbeat(); a.playRev.Update(func(n int) int { return n + 1 }) }
 	a.setupOfflineNetwork()
+	a.pl.SleepTimerChanged = func() {
+		a.sleepRev.Update(func(n int) int { return n + 1 })
+		a.heartbeat()
+	}
+	a.pl.SleepTimerExpired = func() {
+		a.cancelFocusResume()
+		a.cancelRadioStart()
+		a.saveSession()
+		a.say(i18n.T("Sleep timer ended. Playback paused."))
+	}
 	a.pl.SetVolume(a.set.Volume)
 	player.System.Set = func(info player.NowPlaying) {
 		nowplaying.Set(nowplaying.Info{Title: info.Title, Artist: info.Artist, Album: info.Album,
@@ -510,7 +527,7 @@ func (a *app) heartbeat() {
 		if a.cx.Disposed() {
 			return
 		}
-		if a.pl != nil && (a.pl.Playing() || a.pl.Loading()) {
+		if a.pl != nil && (a.pl.Playing() || a.pl.Loading() || a.pl.SleepRemaining() > 0) {
 			a.tick.Update(func(n int) int { return n + 1 })
 			a.cx.AfterFunc(200*time.Millisecond, beat)
 			return
@@ -1335,6 +1352,7 @@ func (a *app) view(cx *core.Scope) core.Node {
 			a.nameDialog(cx, p),
 			a.deleteDialog(cx, p),
 			a.storedDeleteDialog(cx, p),
+			a.sleepDialog(cx, p),
 			core.Show{When: func() bool { return a.toast.Get() != "" }, Then: a.toastView},
 			core.Show{When: func() bool { a.rev.Get(); return a.settingsInMain }, Then: func(cx *core.Scope) core.Node {
 				return core.View{TestID: "settings-in-main", Style: core.Style{Position: core.Absolute,
@@ -1372,6 +1390,8 @@ func (a *app) setup(cx *core.Scope) {
 				a.cancelSignIn()
 			case a.installer.open:
 				a.cancelPluginDialog()
+			case a.sleepOpen.GetUntracked():
+				a.sleepOpen.Set(false)
 			case a.naming:
 				a.naming = false
 				a.bump()

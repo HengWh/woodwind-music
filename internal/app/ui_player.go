@@ -28,8 +28,15 @@ func (a *app) playerBar(cx *core.Scope, p palette) core.Node {
 		return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 2}, Children: a.transport(p, p.muted, 18)}
 	})
 	progress := a.progress(p, false)
+	volumeWidth, trackWidth := core.Points(92), core.Points(150)
+	if cx.Env().Window().Width < 1000 {
+		volumeWidth, trackWidth = 48, 142
+	}
+	// Reserve space for speed and sleep controls alongside both lyric buttons.
+	rightWidth := core.Points(252) - (92 - volumeWidth)
 	var right []core.Node
 	right = append(right, a.playbackSpeedButton("bar-speed", p.muted, 30))
+	right = append(right, a.sleepButton(p, "bar-sleep", 30, false))
 	right = append(right, core.Dynamic(func(cx *core.Scope) core.Node {
 		a.playRev.Get()
 		if a.pl.Current() == nil {
@@ -46,17 +53,18 @@ func (a *app) playerBar(cx *core.Scope, p palette) core.Node {
 	}))
 	if a.supportsDesktopLyrics() {
 		right = append(right, a.desktopLyricsButton(p))
+		rightWidth += 36
 	}
 	right = append(right, base.Button{Label: i18n.T("Volume"), TestID: "volume-icon", OnPress: func(core.PressEvent) {
 		a.mute()
 	}, Style: core.Style{Width: core.Pt(24), Height: core.Pt(24), Direction: core.Row, AlignItems: core.AlignCenter,
 		JustifyContent: core.JustifyCenter, CornerRadius: 6, Hover: &core.Style{Background: p.hover}},
 		Children: []core.Node{icon(lucideVolume, 16, p.muted)}})
-	right = append(right, a.volumeSlider(p))
+	right = append(right, a.volumeSlider(p, volumeWidth))
 	return core.View{TestID: "player-bar", Style: core.Style{Height: core.Pt(playerBarHeight), FlexShrink: 0, Direction: core.Row, AlignItems: core.AlignCenter,
 		Padding: core.Symmetric(0, 18), Gap: 16, Background: p.bg, Borders: core.Edges{Top: 1},
 		BorderColor: p.hairline}, Children: []core.Node{
-		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(150)}, Children: []core.Node{left}},
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(trackWidth)}, Children: []core.Node{left}},
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(192), Direction: core.Column, AlignItems: core.AlignCenter, Gap: 1}, Children: []core.Node{
 			controls,
 			core.View{Style: core.Style{Width: core.Pct(100), MaxWidth: core.Pt(620), Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8},
@@ -68,7 +76,7 @@ func (a *app) playerBar(cx *core.Scope, p palette) core.Node {
 						Style: core.Style{Width: core.Pt(36), FontSize: 10.5, Color: p.faint}},
 				}},
 		}},
-		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6, FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(194), JustifyContent: core.JustifyEnd},
+		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 6, FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(rightWidth), JustifyContent: core.JustifyEnd},
 			Children: right},
 	}}
 }
@@ -219,7 +227,7 @@ func (a *app) progress(p palette, nowPlaying bool) core.Node {
 }
 
 // volumeSlider is the volume in the player bar.
-func (a *app) volumeSlider(p palette) core.Node {
+func (a *app) volumeSlider(p palette, width core.Points) core.Node {
 	pl := a.pl
 	return base.Slider{
 		Value: func() base.SliderValue { a.tick.Get(); return base.SingleValue(pl.Volume() * 100) },
@@ -232,7 +240,7 @@ func (a *app) volumeSlider(p palette) core.Node {
 		},
 		Label:      i18n.T("Volume"),
 		TestID:     "bar-volume",
-		Style:      core.Style{Width: core.Pt(92), Height: core.Pt(18)},
+		Style:      core.Style{Width: core.Pt(width), Height: core.Pt(18)},
 		TrackStyle: core.Style{Height: core.Pt(18)},
 		IndicatorStyle: core.Style{Height: core.Pt(4), CornerRadius: 2,
 			Margin: core.Edges{Top: 7, Left: 0, Right: 0}, Background: p.press},

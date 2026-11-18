@@ -77,6 +77,7 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 					return ""
 				}, MaxLines: 1, Style: core.Style{FontSize: phoneFontCaption, FontWeight: core.FontWeightMedium, Color: white, Margin: core.Edges{Top: 3}}},
 			}},
+			a.sleepButton(ink, "np-sleep", 48, true),
 			a.phoneIcon(ink, "np-more", i18n.T("More"), lucideMore, white, func() {
 				if tr := a.pl.Current(); tr != nil {
 					a.openPhoneTrack(*tr, "", -1)

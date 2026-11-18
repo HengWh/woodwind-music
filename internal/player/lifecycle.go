@@ -137,6 +137,7 @@ func (p *Player) Close() {
 		return
 	}
 	p.closed = true
+	p.cancelSleepTimer()
 	p.gen++
 	p.endRadio()
 	p.dropAhead()

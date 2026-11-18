@@ -35,6 +35,7 @@ func (a *app) nowPlayingView(cx *core.Scope, p palette) core.Node {
 				Style: core.Style{Width: core.Pt(32), Height: core.Pt(32), Direction: core.Row, AlignItems: core.AlignCenter,
 					JustifyContent: core.JustifyCenter, CornerRadius: 16, Hover: &core.Style{Background: core.RGBA(0xffffff, 0.1)}},
 				Children: []core.Node{icon(lucideChevronDown, 18, core.RGBA(0xffffff, 0.7))}},
+			a.sleepButton(palette{text: white, muted: core.RGBA(0xffffff, .7), accent: white, hover: core.RGBA(0xffffff, .1)}, "np-sleep", 30, true),
 		}}
 	children := []core.Node{backdrop, topbar, body}
 	fade := core.NewAnimatedValue(cx, 0)
