@@ -43,6 +43,9 @@ func (a *app) playerBar(cx *core.Scope, p palette) core.Node {
 				Children: []core.Node{icon(lucideMic, 16, p.muted)}},
 		}
 	}))
+	if a.supportsDesktopLyrics() {
+		right = append(right, a.desktopLyricsButton(p))
+	}
 	right = append(right, base.Button{Label: i18n.T("Volume"), TestID: "volume-icon", OnPress: func(core.PressEvent) {
 		a.mute()
 	}, Style: core.Style{Width: core.Pt(24), Height: core.Pt(24), Direction: core.Row, AlignItems: core.AlignCenter,

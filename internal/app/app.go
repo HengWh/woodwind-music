@@ -17,6 +17,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/desktop"
 
+	"github.com/HengWh/woodwind-music/internal/desktoplyrics"
 	"github.com/HengWh/woodwind-music/internal/i18n"
 	"github.com/HengWh/woodwind-music/internal/local"
 	"github.com/HengWh/woodwind-music/internal/music"
@@ -115,14 +116,15 @@ type settings struct {
 	// StageStyle is how the stage sets its lyrics: Flow, Steps or Tilt.
 	StageStyle string `json:"stageStyle,omitempty"`
 	// StageSparks throws sparks off each word as it is sung.
-	StageSparks bool `json:"stageSparks,omitempty"`
+	StageSparks   bool                  `json:"stageSparks,omitempty"`
+	DesktopLyrics desktopLyricsSettings `json:"desktopLyrics"`
 
 	path string
 }
 
 func defaultSettings() settings {
 	return settings{Language: i18n.System, Appearance: "system", Volume: 0.8, Normalize: true, Quality: "high",
-		CacheMB: 2048, AppIcon: "dock-and-menubar"}
+		CacheMB: 2048, AppIcon: "dock-and-menubar", DesktopLyrics: defaultDesktopLyricsSettings()}
 }
 
 func loadSettings(dir string) settings {
@@ -138,6 +140,7 @@ func loadSettings(dir string) settings {
 		s.CacheDisabled = true
 		s.CacheMB = 2048
 	}
+	s.DesktopLyrics.normalize()
 	return s
 }
 
@@ -324,8 +327,11 @@ type app struct {
 	cacheUsed    int64
 	stageTicking bool
 
-	tray     trayIcon
-	openMain func()
+	tray            trayIcon
+	openMain        func()
+	lyricWindow     desktoplyrics.Window
+	lyricTimer      func() bool
+	openLyricWindow func() (desktoplyrics.Window, error)
 }
 
 // newApp makes the app and starts reading the library.
@@ -460,6 +466,7 @@ func newApp(cx *core.Scope) *app {
 	a.reload()
 	a.heartbeat()
 	a.setup(cx)
+	a.initDesktopLyrics()
 	cx.OnQuit(func(context.Context) {
 		a.saveSession()
 		a.pl.Close()
@@ -1420,6 +1427,9 @@ func (a *app) shortcuts(cx *core.Scope) {
 	cx.OnKey("mod+]", a.goForward)
 	cx.OnKey("mod+n", a.newPlaylist)
 	cx.OnKey("mod+,", a.openSettings)
+	if a.supportsDesktopLyrics() {
+		cx.OnKey("mod+shift+l", a.toggleDesktopLyrics)
+	}
 	cx.OnKey("mod+left", a.pl.Prev)
 	cx.OnKey("mod+right", a.pl.Next)
 	// Let menus and other overlays consume Escape before closing a page.

@@ -312,6 +312,10 @@ func (a *app) settingsCategories(p palette) []settingsCatDef {
 				control: a.normalizeControl},
 		}}}}
 
+	if a.supportsDesktopLyrics() && !(a.settingsInMain && a.phoneLayout(a.cx)) {
+		playback.groups = append(playback.groups, settingsGroupDef{title: i18n.T("Desktop Lyrics"), rows: a.desktopLyricsRows()})
+	}
+
 	library := settingsCatDef{id: "library", label: i18n.T("Library"), icon: lucide.Folder(),
 		groups: []settingsGroupDef{{rows: a.libraryRows()}}}
 
