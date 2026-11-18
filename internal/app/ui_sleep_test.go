@@ -68,9 +68,12 @@ func TestSleepTimerControlsAcrossLayouts(t *testing.T) {
 			}
 			if width > 720 {
 				ui.Press("id:bar-open")
-				ui.Press("id:np-sleep")
-				if !a.sleepOpen.GetUntracked() {
-					t.Fatal("desktop full player cannot open timer")
+				if ui.Exists("id:np-sleep") {
+					t.Fatal("desktop full player should not show a timer beside the close button")
+				}
+				ui.Press("id:np-close")
+				if !ui.Exists("id:bar-sleep") {
+					t.Fatal("closing desktop full player should restore the playback bar timer")
 				}
 			}
 		})
