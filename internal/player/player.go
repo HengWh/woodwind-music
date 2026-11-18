@@ -13,6 +13,7 @@ import (
 	"github.com/HengWh/woodwind-music/internal/i18n"
 	"github.com/HengWh/woodwind-music/internal/lyrics"
 	"github.com/HengWh/woodwind-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/offline"
 )
 
 type RepeatMode int
@@ -84,6 +85,8 @@ type Player struct {
 	Normalize func() bool
 	// Cache keeps the songs played, if set.
 	Cache *Cache
+	// Library supplies complete local copies and shared downloads on every platform.
+	Library *offline.Store
 	// Changed, if set, hears that what plays, where it is or whether it
 	// plays changed.
 	Changed func()
@@ -731,6 +734,9 @@ func (p *Player) Levels() ([Bands]float32, bool) {
 }
 
 func (p *Player) stop() {
+	if p.native != nil {
+		p.native.release()
+	}
 	if p.Native != nil {
 		p.Native.Close()
 	}
@@ -788,6 +794,12 @@ func (p *Player) record() {
 	if p.track == nil || !p.playing {
 		return
 	}
+	if p.Library != nil {
+		p.Library.RememberPlayed(*p.track)
+	}
+	if p.track.LocalOnly {
+		return
+	}
 	src, ok := p.sourceOf(p.track).(music.Recorder)
 	key := p.track.Source + "\x00" + p.track.ID
 	if !ok || key == p.recorded {
@@ -806,6 +818,17 @@ func (p *Player) loadSkipping(at, skipped, dir int, play bool, from time.Duratio
 	}
 	t := p.queue[p.order[at]]
 	src := p.sourceOf(&t)
+	if p.Library != nil && (t.StoredID != "" || t.Source != "local" && t.Source != "") {
+		if !t.LocalOnly && src != nil {
+			_ = p.Library.Remember(t, src.Info().Name)
+		}
+		if r, ok := p.Library.Get(t); ok && len(r.Variants) > 0 {
+			local := p.Library.Track(r)
+			local.LocalOnly = t.LocalOnly
+			t = local
+			p.queue[p.order[at]] = t
+		}
+	}
 	if was := p.remote; was != nil && was.started && p.playing && (src == nil || src.Info().ID != was.src.Info().ID) {
 		// Whatever plays next isn't its to play.
 		p.command(was.src, was.src.RemotePause)
@@ -821,11 +844,12 @@ func (p *Player) loadSkipping(at, skipped, dir int, play bool, from time.Duratio
 	p.pending = from
 	p.recorded = ""
 	p.announce(&t, nil)
+	p.sync()
 	p.refill()
 
 	p.loadCover(gen, &t)
 	p.loadLyrics(gen, src, t)
-	if src != nil && src.Info().Playback == music.PlaybackRemote {
+	if !t.LocalOnly && src != nil && src.Info().Playback == music.PlaybackRemote && (p.Library == nil || !p.Library.Has(t)) {
 		p.loadRemote(gen, src, at, skipped, dir, play, from)
 		return
 	}
@@ -893,10 +917,19 @@ func (p *Player) loadSkipping(at, skipped, dir int, play bool, from time.Duratio
 // loadCover shows the system the cover of t, once it has it.
 func (p *Player) loadCover(gen int, t *music.Track) {
 	url := t.Album.ImageURL
-	if url == "" {
+	if url == "" && p.Library == nil {
 		return
 	}
 	go func() {
+		if p.Library != nil && (t.StoredID != "" || t.Source != "local" && t.Source != "") {
+			if !t.LocalOnly && !p.Library.Has(*t) {
+				<-p.Library.Fill(*t, p.sourceOf(t), false)
+			}
+			url = p.Library.Cover(*t)
+		}
+		if url == "" {
+			return
+		}
 		// The system shows it small, as Now Playing does.
 		cover, err := music.Fetch(music.SizedImage(url, 600))
 		if err == nil {
@@ -913,7 +946,14 @@ func (p *Player) loadCover(gen int, t *music.Track) {
 func (p *Player) loadLyrics(gen int, src music.Source, t music.Track) {
 	go func() {
 		var lines []lyrics.Line
-		if src != nil && src.Can("lyrics") {
+		if p.Library != nil && (t.StoredID != "" || t.Source != "local" && t.Source != "") {
+			if !t.LocalOnly && !p.Library.Has(t) {
+				<-p.Library.Fill(t, src, false)
+			}
+			if l, ok := p.Library.Lyrics(t); ok {
+				lines = lyrics.FromSource(l)
+			}
+		} else if src != nil && src.Can("lyrics") {
 			if l, err := src.Lyrics(t.ID); err == nil && l != nil {
 				lines = lyrics.FromSource(l)
 			}
@@ -953,6 +993,10 @@ func (p *Player) loadFailed(source string, err error, at, skipped, dir int) {
 // the source's error is one the app knows.
 func errorText(err error) string {
 	switch {
+	case errors.Is(err, offline.ErrMissing):
+		return i18n.T("The local audio file is missing or incomplete")
+	case errors.Is(err, offline.ErrSource):
+		return i18n.T("The original plugin is unavailable and there is no local audio copy")
 	case errors.Is(err, errNoSource):
 		return i18n.T("The plugin of this song is gone")
 	case errors.Is(err, music.ErrUnavailable):
@@ -982,6 +1026,9 @@ func (p *Player) open(src music.Source, t music.Track, quality string, pre *ahea
 }
 
 func (p *Player) openPlayback(src music.Source, t music.Track, quality string, pre *ahead, b *playback) (*music.Stream, stream, error) {
+	if p.Library != nil && (t.StoredID != "" || t.Source != "local" && t.Source != "") {
+		return p.openStored(t, quality, pre, b)
+	}
 	// A canceled load must still release a prefetched download it took.
 	unused := pre
 	defer func() {
@@ -989,9 +1036,6 @@ func (p *Player) openPlayback(src music.Source, t music.Track, quality string, p
 			unused.close()
 		}
 	}()
-	if src == nil {
-		return nil, nil, errNoSource
-	}
 	var dl *download
 	var info *music.Stream
 	ok := false
@@ -1028,6 +1072,9 @@ func (p *Player) openPlayback(src music.Source, t music.Track, quality string, p
 	}
 	if !ok {
 		var err error
+		if src == nil {
+			return nil, nil, errNoSource
+		}
 		info, err = src.Stream(t.ID, quality)
 		if err != nil {
 			return nil, nil, err

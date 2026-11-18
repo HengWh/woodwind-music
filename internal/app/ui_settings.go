@@ -2,9 +2,7 @@ package app
 
 import (
 	"fmt"
-	"path/filepath"
 	"runtime"
-	"slices"
 	"strings"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -14,7 +12,6 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 
 	"github.com/HengWh/woodwind-music/internal/i18n"
-	"github.com/HengWh/woodwind-music/internal/player"
 )
 
 // settingsRowDef is a row of the settings: what it is, what it means, and
@@ -315,6 +312,10 @@ func (a *app) settingsCategories(p palette) []settingsCatDef {
 				control: a.normalizeControl},
 		}}}}
 
+	if a.supportsDesktopLyrics() && !(a.settingsInMain && a.phoneLayout(a.cx)) {
+		playback.groups = append(playback.groups, settingsGroupDef{title: i18n.T("Desktop Lyrics"), rows: a.desktopLyricsRows()})
+	}
+
 	library := settingsCatDef{id: "library", label: i18n.T("Library"), icon: lucide.Folder(),
 		groups: []settingsGroupDef{{rows: a.libraryRows()}}}
 
@@ -379,14 +380,53 @@ func (a *app) libraryRows() []settingsRowDef {
 
 // cacheRows are the songs kept on disk, and clearing them.
 func (a *app) cacheRows() []settingsRowDef {
-	rows := []settingsRowDef{{label: i18n.T("Song Cache"),
-		sub:     i18n.Tf("Songs from elsewhere are kept here to play again at once, without the network. %s", a.cacheUsage()),
-		control: a.cacheControl}}
-	if a.pl != nil && a.pl.Cache != nil {
-		rows = append(rows, settingsRowDef{label: i18n.T("Clear the Cache"), sub: i18n.T("Delete all the songs kept here"),
-			control: a.clearCacheControl})
+	rows := []settingsRowDef{{label: i18n.T("Automatic Cache"), sub: i18n.T("Keep recently played songs; saved offline copies are never automatically removed"), control: func(p palette) core.Node {
+		return settingsSwitch{palette: p, Touch: a.phoneLayout(a.cx), Label: i18n.T("Automatic Cache"), TestID: "settings-auto-cache", Checked: func() bool { return !a.set.CacheDisabled }, OnChange: func(v bool) {
+			a.set.CacheDisabled = !v
+			a.set.save()
+			if a.disk != nil {
+				go a.disk.Configure(int64(a.set.CacheMB)<<20, v)
+			}
+			a.bump()
+		}}
+	}},
+		{label: i18n.T("Automatic Cache Limit"), control: a.cacheControl},
+		{label: i18n.T("Saved Music"), sub: a.storedUsage(), control: func(p palette) core.Node {
+			return a.settingsAction(p, i18n.T("Manage"), "settings-stored", false, func() {
+				a.settingsInMain = false
+				if a.settingsWin != nil {
+					a.settingsWin.Hide()
+				}
+				a.showMain()
+				a.openStored()
+			})
+		}},
+		{label: i18n.T("Clear Automatic Cache"), sub: i18n.T("Offline copies are kept"), control: a.clearCacheControl}}
+	if a.video != nil {
+		rows = append(rows, settingsRowDef{label: i18n.T("Allow Mobile Data"), sub: i18n.T("Otherwise new offline downloads wait for Wi-Fi"), control: func(p palette) core.Node {
+			return settingsSwitch{palette: p, Touch: true, Label: i18n.T("Allow Mobile Data"), TestID: "settings-offline-mobile", Checked: func() bool { return a.set.OfflineMobile }, OnChange: func(v bool) {
+				a.set.OfflineMobile = v
+				a.set.save()
+				a.configureOfflineNetwork()
+				if a.disk != nil {
+					go a.disk.ResumeWaiting()
+				}
+				a.bump()
+			}}
+		}})
 	}
 	return rows
+}
+
+func (a *app) storedUsage() string {
+	if a.diskRev != nil {
+		a.diskRev.Get()
+	}
+	if a.disk == nil {
+		return a.diskErr
+	}
+	u := a.disk.Usage()
+	return i18n.Tf("Cache %s · Offline %s · Total %s", bytesLabel(u.Automatic), bytesLabel(u.Pinned), bytesLabel(u.Total))
 }
 
 // cacheUsage says how much the cache takes, once measured.
@@ -404,36 +444,18 @@ func (a *app) cacheUsage() string {
 // measureCache finds how much the cache takes, on a goroutine, for the
 // settings to show.
 func (a *app) measureCache() {
-	if a.pl == nil || a.pl.Cache == nil {
-		a.cacheUsed = 0
+	if a.disk != nil {
+		go func() { n := a.disk.Usage().Automatic; a.post(func() { a.cacheUsed = n; a.bump() }) }()
 		return
 	}
-	cache := a.pl.Cache
-	go func() {
-		n := cache.Size()
-		a.post(func() {
-			a.cacheUsed = n
-			a.bump()
-		})
-	}()
+	a.cacheUsed = 0
 }
 
 // clearCache deletes the songs kept, and measures the cache again.
 func (a *app) clearCache() {
-	cache := a.pl.Cache
-	if cache == nil {
-		return
+	if a.disk != nil {
+		a.storedWork(func() error { err := a.disk.ClearAutomatic(); a.post(a.measureCache); return err })
 	}
-	a.cacheUsed = 0
-	a.bump()
-	go func() {
-		cache.Clear()
-		n := cache.Size()
-		a.post(func() {
-			a.cacheUsed = n
-			a.bump()
-		})
-	}()
 }
 
 func (a *app) languageControl(p palette) core.Node {
@@ -606,37 +628,21 @@ func (a *app) localFilesControl(p palette) core.Node {
 
 func (a *app) cacheControl(p palette) core.Node {
 	var options []ui.Option[int]
-	value := a.set.CacheMB
-	sizes := cacheSizes
-	if !slices.Contains(sizes, value) {
-		sizes = append(append([]int{}, sizes...), value)
-	}
-	for _, mb := range sizes {
+	for _, mb := range []int{1024, 2048, 5120, 10240} {
 		options = append(options, ui.Option[int]{Value: mb, Label: cacheLabel(mb)})
 	}
-	return settingsChoice[int]{palette: p, Touch: a.settingsInMain && a.phoneLayout(a.cx), Options: options, Value: func() int { return a.set.CacheMB }, OnChange: func(v int) {
+	return settingsChoice[int]{palette: p, Touch: a.phoneLayout(a.cx), Options: options, Value: func() int { return a.set.CacheMB }, OnChange: func(v int) {
 		a.set.CacheMB = v
 		a.set.save()
-		if cache := a.pl.Cache; cache != nil {
-			limit := int64(v) << 20
-			go func() {
-				cache.SetLimit(limit)
-				n := cache.Size()
-				a.post(func() {
-					a.cacheUsed = n
-					a.bump()
-				})
-			}()
-		} else if v > 0 && a.dir != "" {
-			a.pl.Cache = player.NewCache(filepath.Join(a.dir, "songs"), int64(v)<<20)
-			a.cacheUsed = 0
+		if a.disk != nil {
+			go a.disk.Configure(int64(v)<<20, !a.set.CacheDisabled)
 		}
 		a.bump()
-	}, TestID: "settings-cache", Label: i18n.T("Song Cache"), Style: core.Style{Width: core.Pt(130)}}
+	}, TestID: "settings-cache", Label: i18n.T("Automatic Cache Limit"), Style: core.Style{Width: core.Pt(130)}}
 }
 
 func (a *app) clearCacheControl(p palette) core.Node {
-	empty := a.cacheUsed <= 0
+	empty := a.disk == nil
 	return a.settingsAction(p, i18n.T("Clear"), "settings-clear-cache", empty, a.clearCache)
 }
 

@@ -45,6 +45,9 @@ func (a *app) setAccount(src music.Source, account *music.Account) {
 	if a.source() == src {
 		a.account = account
 	}
+	if account != nil && a.disk != nil {
+		go a.disk.ResumeWaiting()
+	}
 }
 
 func (a *app) loadAccount(src music.Source) {

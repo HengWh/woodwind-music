@@ -67,7 +67,7 @@ func (a *app) makeTray(cx *core.Scope) trayIcon {
 	}
 	return newPlatformTray(cx, desktop.TrayOptions{Icon: image, Template: template, Tooltip: appName, OnClick: onClick,
 		Menu: func() []desktop.MenuItem {
-			return []desktop.MenuItem{
+			items := []desktop.MenuItem{
 				{Label: i18n.Tf("Open %s", appName), OnSelect: a.showMain},
 				{Separator: true},
 				{Label: i18n.T("Play/Pause"), OnSelect: func() { a.pl.TogglePlay(); a.heartbeat() }},
@@ -84,6 +84,17 @@ func (a *app) makeTray(cx *core.Scope) trayIcon {
 				{Separator: true},
 				{Label: i18n.Tf("Quit %s", appName), OnSelect: a.quit},
 			}
+			if a.supportsDesktopLyrics() {
+				visibility, lock := i18n.T("Show Desktop Lyrics"), i18n.T("Lock Desktop Lyrics")
+				if a.set.DesktopLyrics.Enabled {
+					visibility = i18n.T("Hide Desktop Lyrics")
+				}
+				if a.set.DesktopLyrics.Locked {
+					lock = i18n.T("Unlock Desktop Lyrics")
+				}
+				items = append(items[:len(items)-2], desktop.MenuItem{Label: visibility, OnSelect: a.toggleDesktopLyrics}, desktop.MenuItem{Label: lock, OnSelect: a.toggleDesktopLyricsLock}, desktop.MenuItem{Separator: true}, desktop.MenuItem{Label: i18n.Tf("Quit %s", appName), OnSelect: a.quit})
+			}
+			return items
 		}}, a.saveSession)
 }
 

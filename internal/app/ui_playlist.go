@@ -96,6 +96,9 @@ func (a *app) playlistHero(p palette, pl *music.Playlist) core.Node {
 			Style: core.Style{FontSize: 12.5, Color: p.muted, LineHeightMultiple: 1.45, Margin: core.Edges{Top: 2}}})
 	}
 	var actions []core.Node
+	if a.disk != nil && a.source() != a.local && len(pl.Tracks) > 0 {
+		actions = append(actions, a.settingsAction(p, i18n.T("Keep Offline"), "playlist-keep-offline", false, func() { a.pinTracks(pl.Tracks, "") }))
+	}
 	if len(pl.Tracks) > 0 || !a.phoneLayout(a.cx) {
 		play := a.playButtons(p, pl.Tracks).(core.View)
 		actions = append(actions, play.Children...)

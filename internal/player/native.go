@@ -1,10 +1,13 @@
 package player
 
 import (
+	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/HengWh/woodwind-music/internal/music"
+	"github.com/HengWh/woodwind-music/internal/offline"
 )
 
 // NativeOutput is a platform media player. Calls and event callbacks run on
@@ -30,15 +33,74 @@ type nativePlayback struct {
 	ready              bool
 	position, duration time.Duration
 	ended              bool
+	mu                 sync.Mutex
+	ctx                context.Context
+	cancel             context.CancelFunc
+	handle             *offline.Handle
+	unroute            func()
+	closed             bool
+}
+
+func (n *nativePlayback) release() {
+	n.mu.Lock()
+	if n.closed {
+		n.mu.Unlock()
+		return
+	}
+	n.closed = true
+	if n.cancel != nil {
+		n.cancel()
+	}
+	h, unroute := n.handle, n.unroute
+	n.handle, n.unroute = nil, nil
+	n.mu.Unlock()
+	if unroute != nil {
+		unroute()
+	}
+	if h != nil {
+		h.Close()
+	}
 }
 
 func (p *Player) loadNative(gen int, src music.Source, t music.Track, quality string, at, skipped, dir int) {
 	n := &nativePlayback{position: p.pending}
+	n.ctx, n.cancel = context.WithCancel(context.Background())
 	p.native = n
 	go func() {
 		var info *music.Stream
 		var err error
-		if src == nil {
+		if p.Library != nil && (t.StoredID != "" || t.Source != "local" && t.Source != "") {
+			var h *offline.Handle
+			h, err = p.Library.Acquire(t, quality)
+			if err == nil {
+				n.mu.Lock()
+				if n.closed {
+					h.Close()
+					n.mu.Unlock()
+					return
+				}
+				n.handle = h
+				n.mu.Unlock()
+				info, err = h.Info(n.ctx)
+				if err == nil {
+					var url string
+					var remove func()
+					url, remove, err = h.URL()
+					if err == nil {
+						n.mu.Lock()
+						if n.closed {
+							remove()
+							n.mu.Unlock()
+							return
+						}
+						n.unroute = remove
+						n.mu.Unlock()
+						info.URL = url
+						info.Headers = nil
+					}
+				}
+			}
+		} else if src == nil {
 			err = errNoSource
 		} else {
 			info, err = src.Stream(t.ID, quality)
@@ -56,9 +118,11 @@ func (p *Player) loadNative(gen int, src music.Source, t music.Track, quality st
 		}
 		p.post(func() {
 			if gen != p.gen || p.native != n {
+				n.release()
 				return
 			}
 			if err != nil {
+				n.release()
 				p.native = nil
 				p.loading = false
 				p.loadFailed(t.Source, err, at, skipped, dir)
@@ -115,6 +179,7 @@ func (p *Player) loadNative(gen int, src music.Source, t music.Track, quality st
 				},
 				Error: func(err error) {
 					current(func() {
+						n.release()
 						p.Native.Close()
 						p.native = nil
 						p.loading = false

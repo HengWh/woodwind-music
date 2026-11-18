@@ -36,6 +36,7 @@ func (a *app) sidebar(cx *core.Scope, top core.Points) core.Node {
 					r := a.route.Get()
 					return core.View{Style: core.Style{Direction: core.Column, Gap: 2, Padding: core.Symmetric(2, 0)}, Children: []core.Node{
 						core.Group{
+							a.navItem(p, "nav-stored", lucide.Download(), i18n.T("Saved Music"), r.page == pageStored, func() { a.openStored() }),
 							core.Group(a.sourceNavigation(p, r, false)),
 							core.Show{When: func() bool { return a.lastSearch.query != "" },
 								Then: func(*core.Scope) core.Node {

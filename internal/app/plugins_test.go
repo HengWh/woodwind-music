@@ -194,12 +194,16 @@ func TestAndroidPluginAuthenticatedStream(t *testing.T) {
 		if r.Header.Get("Authorization") != "Bearer song-token" {
 			t.Error("missing stream token")
 		}
-		if r.Header.Get("Range") != "bytes=8-15" {
-			t.Error("missing seek range")
+		// One upstream transfer serves all native range requests from disk.
+		if r.Header.Get("Range") != "" {
+			t.Error("native seek caused another upstream range")
 		}
-		w.Header().Set("Content-Range", "bytes 8-15/100")
-		w.WriteHeader(206)
-		w.Write([]byte("abcdefgh"))
+		audio, err := os.ReadFile("../player/testdata/seek.mp3")
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		w.Write(audio)
 	}))
 	defer origin.Close()
 	dir := filepath.Join(a.pluginDir(), "private")
@@ -243,7 +247,9 @@ func TestAndroidPluginAuthenticatedStream(t *testing.T) {
 	ui.Settle()
 	if response, err := http.Get(video.Video.Source); err == nil {
 		response.Body.Close()
-		t.Fatal("clearing playback left the relay open")
+		if response.StatusCode != http.StatusNotFound {
+			t.Fatal("clearing playback left the saved transfer accessible")
+		}
 	}
 }
 

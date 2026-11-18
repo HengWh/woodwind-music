@@ -11,6 +11,8 @@ import (
 // playback owns a load from opening its file through the output's final
 // fade. It releases resources even if the UI drops the load's posted result.
 type playback struct {
+	ctx     context.Context
+	cancel  context.CancelFunc
 	mu      sync.Mutex
 	closed  bool
 	dl      *download
@@ -21,6 +23,7 @@ type playback struct {
 
 func (p *Player) newPlayback() *playback {
 	b := new(playback)
+	b.ctx, b.cancel = context.WithCancel(context.Background())
 	p.resourcesMu.Lock()
 	if p.resources == nil {
 		p.resources = make(map[*playback]struct{})
@@ -102,6 +105,9 @@ func (b *playback) stop() {
 }
 
 func (b *playback) close() {
+	if b.cancel != nil {
+		b.cancel()
+	}
 	b.mu.Lock()
 	if b.closed {
 		b.mu.Unlock()
@@ -137,6 +143,9 @@ func (p *Player) Close() {
 	p.fade.attach(nil, 1)
 	if p.Native != nil {
 		p.Native.Close()
+	}
+	if p.native != nil {
+		p.native.release()
 	}
 	// Attach is also used by UI fixtures with an output not opened here.
 	if p.playback == nil && p.out != nil {

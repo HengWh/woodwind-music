@@ -160,9 +160,10 @@ func (a *app) confirmPluginInstall() {
 func (a *app) removePlugin(id string) {
 	for i, p := range a.plugins {
 		if p.Info().ID == id {
-			if tr := a.pl.Current(); tr != nil && tr.Source == id {
-				a.pl.Clear()
+			if a.disk != nil {
+				a.disk.RemoveSource(id)
 			}
+			a.pl.DetachSource(id)
 			if a.source().Info().ID == id {
 				a.switchSource(local.ID)
 			}
@@ -301,7 +302,7 @@ func (a *app) pluginDialogs(cx *core.Scope, settings bool) core.Node {
 		if in.remove != "" {
 			id := in.remove
 			dialog.Title = i18n.T("Remove Plugin?")
-			dialog.Description = i18n.T("Plugin settings are kept for reinstalling")
+			dialog.Description = i18n.T("Plugin settings and saved music are kept. Manage local copies in Saved Music.")
 			dialog.Footer = []core.Node{ui.Button{Text: i18n.T("Cancel"), OnPress: a.cancelPluginDialog}, ui.Button{Text: i18n.T("Remove"), TestID: "plugin-remove-confirm", OnPress: func() { a.removePlugin(id) }}}
 		} else if pending := in.pending; pending != nil {
 			dialog.Title = i18n.Tf("Install %s?", pending.Manifest.Name+" "+pending.Manifest.Version)

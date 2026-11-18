@@ -52,7 +52,7 @@ func (a *app) phoneView(cx *core.Scope, p palette) core.Node {
 		core.Show{When: func() bool { a.rev.Get(); return a.settingsInMain }, Then: func(cx *core.Scope) core.Node {
 			return core.View{TestID: "settings-in-main", Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0), ZIndex: 20}, Children: []core.Node{a.settingsView(cx)}}
 		}},
-		a.phoneSheets(cx, p), a.nameDialog(cx, p), a.deleteDialog(cx, p),
+		a.phoneSheets(cx, p), a.nameDialog(cx, p), a.deleteDialog(cx, p), a.storedDeleteDialog(cx, p),
 		core.Show{When: func() bool { return a.toast.Get() != "" }, Then: a.toastView},
 	}}
 }
@@ -88,6 +88,8 @@ func (a *app) phoneHeader(cx *core.Scope, p palette) core.Node {
 					title = i18n.T("Music Library")
 				}
 				switch r.page {
+				case pageStored:
+					title = i18n.T("Saved Music")
 				case pageAlbum:
 					title = i18n.T("Album")
 				case pageArtist:
@@ -207,7 +209,7 @@ func (s phoneSearchBox) Render(cx *core.Scope) core.Node {
 func (a *app) phoneNavigation(cx *core.Scope, p palette) core.Node {
 	return core.Dynamic(func(cx *core.Scope) core.Node {
 		a.route.Get()
-		a.rev.Get()
+		a.navigationRev.Get()
 		var tabs []core.Node
 		for i, tab := range []struct {
 			id, label string

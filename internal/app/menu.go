@@ -55,6 +55,11 @@ func (a *app) menu(cx *core.Scope) {
 		{Separator: true},
 		{Label: i18n.T("Toggle Full Screen"), Role: desktop.MenuToggleFullScreen},
 	}}
+	if a.supportsDesktopLyrics() {
+		view.Items = append(view.Items, desktop.MenuItem{Separator: true},
+			desktop.MenuItem{Label: i18n.T("Desktop Lyrics"), Shortcut: "mod+shift+l", OnSelect: a.toggleDesktopLyrics},
+			desktop.MenuItem{Label: i18n.T("Lock/Unlock Desktop Lyrics"), OnSelect: a.toggleDesktopLyricsLock})
+	}
 	window := desktop.MenuItem{Label: i18n.T("Window"), Items: []desktop.MenuItem{
 		{Role: desktop.MenuMinimize},
 		{Role: desktop.MenuZoom},
