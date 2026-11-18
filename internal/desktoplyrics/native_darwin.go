@@ -267,7 +267,7 @@ func attributes(font objc.ID, color uint32, stroke bool) objc.ID {
 	}
 	if stroke {
 		send(d, "setObject:forKey:", macColor(0), macAttributes["NSStrokeColorAttributeName"])
-		send(d, "setObject:forKey:", send(class("NSNumber"), "numberWithDouble:", float64(-5)), macAttributes["NSStrokeWidthAttributeName"])
+		send(d, "setObject:forKey:", send(class("NSNumber"), "numberWithDouble:", float64(5)), macAttributes["NSStrokeWidthAttributeName"])
 	}
 	return d
 }
@@ -281,8 +281,9 @@ func (w *nativeWindow) draw() {
 		fillRect(rect(0, 0, 800, 154), uint64(2)) // source over
 	}
 	font := send(class("NSFont"), "systemFontOfSize:weight:", float64(max(1, f.FontSize)), float64(.4))
-	white := attributes(font, 0xffffff, true)
-	highlight := attributes(font, f.Color, true)
+	outline := attributes(font, 0, true)
+	white := attributes(font, 0xffffff, false)
+	highlight := attributes(font, f.Color, false)
 	texts := make([]objc.ID, len(f.Words))
 	widths := make([]float64, len(f.Words))
 	total := float64(0)
@@ -301,7 +302,15 @@ func (w *nativeWindow) draw() {
 	send(transform, "translateXBy:yBy:", 16+(768-total*scale)/2, float64(43))
 	send(transform, "scaleBy:", scale)
 	send(transform, "concat")
+	// Draw every outline before any fill. A combined stroke-and-fill pass
+	// paints black over thin CJK strokes; repeating it for the highlight also
+	// cuts into the filled glyphs at the progress boundary.
 	x := float64(0)
+	for i := range f.Words {
+		send(texts[i], "drawAtPoint:withAttributes:", cgPoint{X: x, Y: 0}, outline)
+		x += widths[i]
+	}
+	x = 0
 	for i, word := range f.Words {
 		send(texts[i], "drawAtPoint:withAttributes:", cgPoint{X: x, Y: 0}, white)
 		send(context, "saveGraphicsState")
@@ -312,7 +321,8 @@ func (w *nativeWindow) draw() {
 	}
 	send(context, "restoreGraphicsState")
 	small := send(class("NSFont"), "systemFontOfSize:weight:", float64(18), float64(.23))
-	subAttrs := attributes(small, 0xffffff, true)
+	subOutline := attributes(small, 0, true)
+	subAttrs := attributes(small, 0xffffff, false)
 	sub := nsString(f.Secondary)
 	subWidth := objc.Send[cgSize](sub, sel("sizeWithAttributes:"), subAttrs).Width
 	subScale := float64(1)
@@ -324,6 +334,7 @@ func (w *nativeWindow) draw() {
 	send(transform, "translateXBy:yBy:", (800-subWidth*subScale)/2, float64(110))
 	send(transform, "scaleBy:", subScale)
 	send(transform, "concat")
+	send(sub, "drawAtPoint:withAttributes:", cgPoint{}, subOutline)
 	send(sub, "drawAtPoint:withAttributes:", cgPoint{}, subAttrs)
 	send(context, "restoreGraphicsState")
 	if w.hover && !f.Locked {
