@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/nsgo-dev/nsgo"
@@ -20,6 +21,7 @@ import (
 	"github.com/HengWh/woodwind-music/internal/local"
 	"github.com/HengWh/woodwind-music/internal/music"
 	"github.com/HengWh/woodwind-music/internal/nowplaying"
+	"github.com/HengWh/woodwind-music/internal/offline"
 	"github.com/HengWh/woodwind-music/internal/player"
 	"github.com/HengWh/woodwind-music/internal/plugin"
 )
@@ -75,6 +77,7 @@ const (
 	pageStations
 	pageComments
 	pageSavedAlbums
+	pageStored
 )
 
 // route identifies both the page and the source that owns its IDs.
@@ -88,13 +91,15 @@ type route struct {
 
 // settings are the app's own, kept in settings.json in its data directory.
 type settings struct {
-	Source     string  `json:"source,omitempty"`
-	Language   string  `json:"language"`
-	Appearance string  `json:"appearance"`
-	Volume     float64 `json:"volume"`
-	Normalize  bool    `json:"normalize"`
-	Quality    string  `json:"quality"`
-	CacheMB    int     `json:"cacheMB"`
+	Source        string  `json:"source,omitempty"`
+	Language      string  `json:"language"`
+	Appearance    string  `json:"appearance"`
+	Volume        float64 `json:"volume"`
+	Normalize     bool    `json:"normalize"`
+	Quality       string  `json:"quality"`
+	CacheMB       int     `json:"cacheMB"`
+	CacheDisabled bool    `json:"cacheDisabled,omitempty"`
+	OfflineMobile bool    `json:"offlineMobile,omitempty"`
 	// SearchHistory keeps submitted keywords, most recent first.
 	SearchHistory []string `json:"searchHistory,omitempty"`
 	// LyricsStage shows lyrics on the stage rather than scrolling.
@@ -128,6 +133,10 @@ func loadSettings(dir string) settings {
 	s.path = filepath.Join(dir, "settings.json")
 	if b, err := os.ReadFile(s.path); err == nil {
 		_ = json.Unmarshal(b, &s)
+	}
+	if s.CacheMB <= 0 {
+		s.CacheDisabled = true
+		s.CacheMB = 2048
 	}
 	return s
 }
@@ -188,11 +197,17 @@ type searchData struct {
 // app is the state the window shows. Everything in it is read and
 // changed on the engine goroutine; goroutines reach it through post.
 type app struct {
-	cx       *core.Scope
-	dir      string
-	dataDir  string
-	location *time.Location
-	set      settings
+	disk             *offline.Store
+	diskUI           storedUI
+	diskRev          *core.Signal[int]
+	navigationRev    *core.Signal[int]
+	diskErr          string
+	offlineUnmetered atomic.Bool
+	cx               *core.Scope
+	dir              string
+	dataDir          string
+	location         *time.Location
+	set              settings
 
 	sources             sourceRegistry
 	protectedImages     map[string]*core.Signal[*core.ImageSource]
@@ -355,6 +370,8 @@ func newApp(cx *core.Scope) *app {
 		queueAt:          -1,
 		scroll:           map[string]core.Points{},
 	}
+	a.diskRev = core.NewSignal(cx, 0)
+	a.navigationRev = core.NewSignal(cx, 0)
 	a.applyLanguage()
 	zone, _ := cx.HostParams()["music.timeZone"].(string)
 	a.location = deviceLocation(zone)
@@ -385,10 +402,26 @@ func newApp(cx *core.Scope) *app {
 	}
 	a.pl.Quality = func() string { return a.set.Quality }
 	a.pl.Normalize = func() bool { return a.set.Normalize }
-	if dir != "" && a.set.CacheMB > 0 {
-		a.pl.Cache = player.NewCache(filepath.Join(dir, "songs"), int64(a.set.CacheMB)<<20)
+	if dir != "" {
+		if disk, err := offline.Open(dir, int64(a.set.CacheMB)<<20, !a.set.CacheDisabled); err == nil {
+			a.disk = disk
+			a.pl.Library = disk
+			disk.SetSource(a.sourceByID)
+			disk.OnChange(func() {
+				a.post(func() {
+					if !a.cx.Disposed() {
+						a.pl.RefreshStored()
+						a.diskRev.Update(func(n int) int { return n + 1 })
+					}
+				})
+			})
+			cx.Cleanup(func() { a.pl.Close(); disk.Close() })
+		} else {
+			a.diskErr = err.Error()
+		}
 	}
 	a.pl.Changed = func() { a.heartbeat(); a.playRev.Update(func(n int) int { return n + 1 }) }
+	a.setupOfflineNetwork()
 	a.pl.SetVolume(a.set.Volume)
 	player.System.Set = func(info player.NowPlaying) {
 		nowplaying.Set(nowplaying.Info{Title: info.Title, Artist: info.Artist, Album: info.Album,
@@ -427,7 +460,14 @@ func newApp(cx *core.Scope) *app {
 	a.reload()
 	a.heartbeat()
 	a.setup(cx)
-	cx.OnQuit(func(context.Context) { a.saveSession(); a.closePlugins() })
+	cx.OnQuit(func(context.Context) {
+		a.saveSession()
+		a.pl.Close()
+		if a.disk != nil {
+			a.disk.Close()
+		}
+		a.closePlugins()
+	})
 	return a
 }
 
@@ -482,6 +522,9 @@ func (a *app) applyLanguage() {
 		code = i18n.Resolve(i18n.System, []string{a.cx.Env().Locale()})
 	}
 	i18n.SetLanguage(code)
+	if a.navigationRev != nil {
+		a.navigationRev.Update(func(n int) int { return n + 1 })
+	}
 }
 
 // reload reads what the sidebar and Home show: the playlists, the liked
@@ -791,7 +834,7 @@ func (a *app) searchChanged(d *searchData) {
 
 // open shows r, remembering the page before.
 func (a *app) open(r route) {
-	if r.src == "" && a.source() != a.local {
+	if r.page != pageStored && r.src == "" && a.source() != a.local {
 		r.src = a.source().Info().ID
 	}
 	if r == a.route.GetUntracked() {
@@ -808,7 +851,7 @@ func (a *app) show(r route) {
 	if target == "" {
 		target = local.ID
 	}
-	if target != a.source().Info().ID {
+	if r.page != pageStored && target != a.source().Info().ID {
 		a.activateSource(target)
 	}
 	a.closeNowPlaying()
@@ -1195,6 +1238,9 @@ func (a *app) restoreSession() {
 	}
 	var s player.Session
 	if json.Unmarshal(b, &s) == nil {
+		if a.disk != nil {
+			a.disk.AttachLegacy(s.Queue)
+		}
 		a.pl.Restore(s)
 		if src, _, _ := radioParts(s.Radio); src != "" && a.sourceByID(src) != nil && a.pl.Current() != nil {
 			a.pl.AttachRadio(s.Radio, a.radioFeed(s.Radio))
@@ -1279,6 +1325,7 @@ func (a *app) view(cx *core.Scope) core.Node {
 			core.Show{When: a.np.Get, Then: func(cx *core.Scope) core.Node { return a.nowPlayingView(cx, p) }},
 			a.nameDialog(cx, p),
 			a.deleteDialog(cx, p),
+			a.storedDeleteDialog(cx, p),
 			core.Show{When: func() bool { return a.toast.Get() != "" }, Then: a.toastView},
 			core.Show{When: func() bool { a.rev.Get(); return a.settingsInMain }, Then: func(cx *core.Scope) core.Node {
 				return core.View{TestID: "settings-in-main", Style: core.Style{Position: core.Absolute,

@@ -1,6 +1,7 @@
 package player
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -16,15 +17,33 @@ import (
 // of their own: kept in the cache, a file on disk, or at its source.
 type Song struct {
 	// Type is its file's: one of songTypes, as its source said.
-	Type string
-	file *os.File      // kept in the cache, or on disk
-	st   *music.Stream // or else where it streams from
+	Type   string
+	file   *os.File      // kept in the cache, or on disk
+	st     *music.Stream // or else where it streams from
+	handle interface{ Close() error }
 }
 
 // FindSong finds track t of src at quality, to save, as the player would play
 // it: kept in the cache, or as src streams it. It blocks, for src is asked; run
 // it off the main thread, and close what it returns, or save it.
 func (p *Player) FindSong(src music.Source, t music.Track, quality string) (*Song, error) {
+	if p.Library != nil && (t.StoredID != "" || t.Source != "local" && t.Source != "") {
+		h, err := p.Library.Acquire(t, quality)
+		if err != nil {
+			return nil, err
+		}
+		st, err := h.Info(context.Background())
+		if err != nil {
+			h.Close()
+			return nil, err
+		}
+		url, remove, err := h.URL()
+		if err != nil {
+			h.Close()
+			return nil, err
+		}
+		return &Song{Type: songType(st.Type), st: &music.Stream{URL: url, Type: st.Type}, handle: handleCloser{close: func() { remove(); h.Close() }}}, nil
+	}
 	if f, st, ok := p.Cache.find(t.Source, t.ID, quality); ok {
 		return &Song{Type: st.Type, file: f}, nil
 	}
@@ -62,10 +81,17 @@ func songType(typ string) string {
 
 // Close lets go of the song, unsaved.
 func (s *Song) Close() {
+	if s.handle != nil {
+		_ = s.handle.Close()
+	}
 	if s.file != nil {
 		s.file.Close()
 	}
 }
+
+type handleCloser struct{ close func() }
+
+func (h handleCloser) Close() error { h.close(); return nil }
 
 // SaveTo writes the song to path, in place of what's there, and closes it. It
 // comes into a file of its own beside path first, so one cut short leaves path

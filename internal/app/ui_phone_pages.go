@@ -246,6 +246,7 @@ func (a *app) phoneShortcut(p palette, id, label string, svg *core.SVG, action f
 
 func (a *app) phoneLibrary(cx *core.Scope, p palette) core.Node {
 	var body []core.Node
+	body = append(body, a.phoneLibraryRow(p, "phone-stored", i18n.T("Saved Music"), i18n.T("Offline copies and automatic cache"), lucideFolder, a.openStored))
 	if a.source() != a.local && (a.can("account") || a.can("signIn")) {
 		body = append(body, core.View{Style: core.Style{Margin: core.Edges{Bottom: 12}}, Children: []core.Node{a.accountRow(p)}})
 	}

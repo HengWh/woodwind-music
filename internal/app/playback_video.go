@@ -1,6 +1,7 @@
 package app
 
 import (
+	"net/url"
 	"strings"
 	"time"
 
@@ -48,7 +49,9 @@ func (v *videoOutput) Open(source string, paused bool, events player.NativeEvent
 
 func (v *videoOutput) OpenWithHeaders(source string, headers map[string]string, paused bool, events player.NativeEvents) {
 	v.Close()
-	if len(headers) == 0 && !strings.HasPrefix(strings.ToLower(source), "http://") {
+	u, _ := url.Parse(source)
+	local := u != nil && (u.Hostname() == "127.0.0.1" || u.Hostname() == "::1" || u.Hostname() == "localhost")
+	if len(headers) == 0 && (local || !strings.HasPrefix(strings.ToLower(source), "http://")) {
 		v.Open(source, paused, events)
 		return
 	}

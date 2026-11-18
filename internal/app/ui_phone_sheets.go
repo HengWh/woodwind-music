@@ -7,6 +7,7 @@ import (
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 
 	"github.com/HengWh/woodwind-music/internal/i18n"
 	"github.com/HengWh/woodwind-music/internal/music"
@@ -233,6 +234,11 @@ func (a *app) phoneActions(cx *core.Scope, p palette, kind string) core.Node {
 			}
 
 		default:
+			for i, node := range a.storedMenu(tr) {
+				if item, ok := node.(ui.MenuItem); ok {
+					body = append(body, a.phoneSheetAction(p, fmt.Sprintf("phone-stored-action-%d", i), item.Text, lucideFolder, close(item.OnSelect)))
+				}
+			}
 			if src := a.sourceByID(tr.Source); src != nil && src.Can("comments") {
 				body = append(body, a.phoneSheetAction(p, "phone-comments", i18n.T("Comments"), lucideNote, close(func() { a.openTrackPage(tr, pageComments, tr.ID) })))
 			}

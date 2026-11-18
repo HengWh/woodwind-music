@@ -21,6 +21,8 @@ const pagePad = 40
 func (a *app) page(cx *core.Scope, p palette) core.Node {
 	r := a.route.Get()
 	switch r.page {
+	case pageStored:
+		return a.storedPage(cx, p)
 	case pageHome:
 		if a.phoneLayout(cx) {
 			return a.phoneHome(cx, p)
@@ -496,13 +498,13 @@ func (a *app) trackList(p palette, tracks []music.Track, covers, showAlbum bool,
 
 // trackMenu is what a track's menu offers.
 func (a *app) trackMenu(tr music.Track, playlist string, index int) []core.Node {
-	var items []core.Node
+	items := a.storedMenu(tr)
 	src := a.sourceByID(tr.Source)
 	if tr.Source == "" {
 		src = a.source()
 	}
 	if src == nil {
-		return items
+		return append(items, ui.MenuItem{Text: i18n.T("Play"), OnSelect: func() { a.playTracks([]music.Track{tr}, 0) }}, ui.MenuItem{Text: i18n.T("Copy Title"), OnSelect: func() { a.cx.SetClipboard(tr.Name) }})
 	}
 	if src.Can("comments") {
 		items = append(items, ui.MenuItem{Text: i18n.T("Comments"), OnSelect: func() { a.openTrackPage(tr, pageComments, tr.ID) }})
@@ -723,6 +725,9 @@ func (a *app) albumPage(cx *core.Scope, p palette, id string) core.Node {
 	spans = append(spans, core.Span{Content: strings.Join(meta, " · ")})
 	sub := core.Text{Spans: spans, Style: core.Style{FontSize: 13, Color: p.muted}}
 	nodes := []core.Node{a.heroNode(p, a.cover(p, al.ImageURL, a.headingSize(212, 112), 14), i18n.T("Album"), al.Name, sub, tracks)}
+	if a.disk != nil && a.source() != a.local && len(tracks) > 0 {
+		nodes = append(nodes, a.settingsAction(p, i18n.T("Keep Offline"), "album-keep-offline", false, func() { a.pinTracks(tracks, "") }))
+	}
 	if a.can("saveAlbum") {
 		src := a.source()
 		on := !al.Saved

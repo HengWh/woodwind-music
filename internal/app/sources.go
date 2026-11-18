@@ -75,6 +75,10 @@ func (a *app) registerPlugin(p *plugin.Plugin) {
 	a.sources.Lock()
 	a.sources.items[p.Info().ID] = p
 	a.sources.Unlock()
+	if a.disk != nil {
+		a.disk.AllowSource(p.Info().ID)
+		go a.disk.ResumeWaiting()
+	}
 	p.OnSignInPrompt(func(prompt music.SignInPrompt) {
 		a.post(func() { a.signPrompt = prompt; a.bump() })
 	})

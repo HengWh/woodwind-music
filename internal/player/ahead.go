@@ -46,6 +46,10 @@ func (p *Player) getAhead(quality string) {
 		return
 	}
 	t, ok := p.upNext()
+	if p.track != nil && p.track.LocalOnly {
+		p.dropAhead()
+		return
+	}
 	if a := p.ahead; a != nil {
 		if ok && a.is(t, quality) {
 			return
@@ -56,6 +60,15 @@ func (p *Player) getAhead(quality string) {
 		return
 	}
 	src := p.sourceOf(&t)
+	if p.Library != nil && (t.StoredID != "" || t.Source != "local" && t.Source != "") {
+		if src == nil || p.Library.Has(t) || t.LocalOnly || src.Info().Playback == music.PlaybackRemote {
+			return
+		}
+		a := &ahead{source: t.Source, id: t.ID, quality: quality, done: make(chan struct{}), resource: p.newPlayback()}
+		p.ahead = a
+		go func() { defer close(a.done); a.info, _, a.err = p.storedInput(t, quality, a.resource) }()
+		return
+	}
 	if src == nil || src.Info().Playback == music.PlaybackRemote || p.Cache.has(t.Source, t.ID, quality) {
 		return
 	}

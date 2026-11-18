@@ -28,7 +28,8 @@ import (
 type download struct {
 	mu       sync.Mutex
 	cond     sync.Cond
-	file     *os.File // where the song is, or nil: then data
+	file     *os.File    // where the song is, or nil: then data
+	reader   io.ReaderAt // a shared managed transfer, whose file lifetime it owns
 	data     []byte
 	n        int64 // the bytes in so far
 	size     int64 // expected, or 0 if unknown
@@ -263,6 +264,9 @@ func (d *download) readAt(b []byte, off int64) (int, error) {
 	n := min(int64(len(b)), d.n-off)
 	if n <= 0 {
 		return 0, nil
+	}
+	if d.reader != nil {
+		return d.reader.ReadAt(b[:n], off)
 	}
 	if d.file == nil {
 		return copy(b, d.data[off:d.n]), nil

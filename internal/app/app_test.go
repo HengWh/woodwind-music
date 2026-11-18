@@ -335,7 +335,7 @@ func TestSettingsView(t *testing.T) {
 
 	// A search finds rows of every page; none, says so.
 	app.Type("id:settings-search", "cache")
-	app.WaitFor("text:Song Cache", 2*time.Second)
+	app.WaitFor("id:settings-auto-cache", 2*time.Second)
 	app.Type("id:settings-search", "zzz")
 	app.WaitFor("text:No settings found", 2*time.Second)
 	app.Clear("id:settings-search")

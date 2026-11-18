@@ -31,6 +31,10 @@ type Album struct {
 
 type Track struct {
 	ID string `json:"id"`
+	// StoredID identifies an application-managed copy, independently of its plugin.
+	StoredID string `json:"storedId,omitempty"`
+	// LocalOnly keeps saved-library queues from falling back to the network.
+	LocalOnly bool `json:"localOnly,omitempty"`
 	// Source is the ID of the source the track came from, which it plays
 	// through. The source's own answers leave it out; it's filled in for them.
 	Source   string   `json:"source,omitempty"`

@@ -6,6 +6,9 @@ import android.content.Intent;
 import android.content.MutableContextWrapper;
 import android.os.Handler;
 import android.os.Looper;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.util.Log;
 import android.view.ViewGroup;
 import java.util.HashMap;
@@ -18,6 +21,8 @@ final class PlaybackRuntime {
     static Map<String, Object> state = new HashMap<>();
     private static MutableContextWrapper context;
     private static Activity activity;
+    private static ConnectivityManager connectivity;
+    private static ConnectivityManager.NetworkCallback networkCallback;
     private static final Handler ui = new Handler(Looper.getMainLooper());
 
     static NsgoView attach(Activity host) {
@@ -25,7 +30,14 @@ final class PlaybackRuntime {
         if (view == null) {
             context = new MutableContextWrapper(host);
             view = new NsgoView(context);
-            view.setParams(Map.of("music.android", true, "music.timeZone", TimeZone.getDefault().getID()));
+            connectivity = (ConnectivityManager) host.getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+            view.setParams(Map.of("music.android", true, "music.timeZone", TimeZone.getDefault().getID(), "music.unmetered", unmetered()));
+            networkCallback = new ConnectivityManager.NetworkCallback() {
+                @Override public void onAvailable(Network network) { networkChanged(); }
+                @Override public void onLost(Network network) { networkChanged(); }
+                @Override public void onCapabilitiesChanged(Network network, NetworkCapabilities caps) { networkChanged(); }
+            };
+            connectivity.registerDefaultNetworkCallback(networkCallback);
             view.handle("playback.update", (data, reply) -> {
                 if (data instanceof Map) update((Map<String, Object>) data);
                 reply.resolve(null);
@@ -81,12 +93,26 @@ final class PlaybackRuntime {
     static void releaseIfIdle() {
         ui.postDelayed(() -> {
             if (activity == null && PlaybackService.instance == null && view != null) {
+                if (connectivity != null && networkCallback != null) connectivity.unregisterNetworkCallback(networkCallback);
+                networkCallback = null;
+                connectivity = null;
                 view.stop();
                 view = null;
                 context = null;
                 state = new HashMap<>();
             }
         }, 500);
+    }
+
+    private static boolean unmetered() {
+        if (connectivity == null) return false;
+        NetworkCapabilities caps = connectivity.getNetworkCapabilities(connectivity.getActiveNetwork());
+        return caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
+    }
+
+    private static void networkChanged() {
+        ui.post(() -> { if (view != null) view.send("android.network", Map.of("unmetered", unmetered())); });
     }
 
     static boolean flag(String key) { return Boolean.TRUE.equals(state.get(key)); }
