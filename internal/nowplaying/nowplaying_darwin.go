@@ -162,13 +162,14 @@ func Set(info Info) {
 }
 
 // Position moves what the system shows without changing anything else.
-func Position(pos time.Duration, playing bool) {
+func Position(pos time.Duration, playing bool, speed float64) {
 	mu.Lock()
 	if last == nil {
 		mu.Unlock()
 		return
 	}
 	last.Position, last.Playing = pos, playing
+	last.Speed = speed
 	info := *last
 	mu.Unlock()
 	apply(info)
@@ -218,7 +219,10 @@ func apply(info Info) {
 		put("MPNowPlayingInfoPropertyDefaultPlaybackRate", nsNumber(1))
 		rate, state := 0.0, paused
 		if info.Playing {
-			rate, state = 1, playing
+			rate, state = info.Speed, playing
+			if rate <= 0 {
+				rate = 1
+			}
 		}
 		put("MPNowPlayingInfoPropertyPlaybackRate", nsNumber(rate))
 		if len(info.Artwork) > 0 {

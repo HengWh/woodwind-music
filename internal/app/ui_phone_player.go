@@ -148,6 +148,7 @@ func (a *app) phoneNowPlaying(cx *core.Scope, p palette) core.Node {
 								}
 								return i18n.T("Lyrics")
 							}, Style: core.Style{FontSize: phoneFontBody, Color: ink.muted}}}},
+					a.playbackSpeedButton("phone-speed", ink.muted, 48),
 					base.Button{TestID: "np-details", Label: i18n.T("Details"), OnPress: func(core.PressEvent) {
 						if err := a.pl.Err(); err != "" {
 							a.phoneMessage = err

@@ -68,6 +68,11 @@ func TestAndroidImportAndNativePlayback(t *testing.T) {
 	if len(video.Seeks) == 0 || video.Seeks[len(video.Seeks)-1] != 25*time.Second {
 		t.Fatalf("seeks: %v", video.Seeks)
 	}
+	a.setPlaybackSpeed(1.5)
+	app.Settle()
+	if video.Video.Rate != 1.5 || !video.Video.Paused || app.FindMounted("id:android-audio") != video || a.pl.Position() != 25*time.Second {
+		t.Fatal("speed change did not update the mounted paused native player in place")
+	}
 	a.pl.SetVolume(0)
 	app.Settle()
 	if !video.Video.Muted {
@@ -113,8 +118,8 @@ func TestAndroidImportAndNativePlayback(t *testing.T) {
 	})
 	video = app.FindMounted("id:android-audio")
 	id = video.ID
-	if video.Video.Paused {
-		t.Fatal("repeat did not start a fresh native player")
+	if video.Video.Paused || video.Video.Rate != 1.5 {
+		t.Fatal("repeat did not start a fresh native player at the selected speed")
 	}
 	app.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: id, Text: "unsupported media"})
 	app.WaitUntil(time.Second, func() bool { return a.pl.Err() != "" })

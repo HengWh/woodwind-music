@@ -16,6 +16,7 @@ func (nativeSource) Stream(id, quality string) (*music.Stream, error) {
 }
 
 type nativeOutput struct {
+	speed  float64
 	source string
 	paused bool
 	volume float64
@@ -26,6 +27,7 @@ type nativeOutput struct {
 func (o *nativeOutput) Open(source string, paused bool, events NativeEvents) {
 	o.source, o.paused, o.events = source, paused, events
 }
+func (o *nativeOutput) SetSpeed(v float64)   { o.speed = v }
 func (o *nativeOutput) SetPaused(v bool)     { o.paused = v }
 func (o *nativeOutput) SetVolume(v float64)  { o.volume = v }
 func (o *nativeOutput) Seek(v time.Duration) { o.seek = v }

@@ -69,7 +69,7 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 	size := cx.Env().Window()
 	pad := max(core.Points(72), (size.Width-1280)/2)
 	gap := core.Points(72)
-	coverSize := min(size.Width*0.36, max(140, size.Height-436), 440)
+	coverSize := min(size.Width*0.36, max(140, size.Height-444), 440)
 	sideWidth := max(coverSize, 280)
 	direction := core.Row
 	coverPal := palette{sidebar: core.RGBA(0xffffff, 0.08), faint: core.RGBA(0xffffff, 0.3), hover: core.RGBA(0xffffff, 0.08)}
@@ -115,6 +115,7 @@ func (a *app) nowPlayingBody(cx *core.Scope, p palette, white core.Color) core.N
 			Children: a.transport(palette{text: white, hover: core.RGBA(0xffffff, 0.10), press: core.RGBA(0xffffff, 0.16)},
 				core.RGBA(0xffffff, 0.45), 28)},
 		core.View{TestID: "np-volume", Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Gap: 8}, Children: []core.Node{
+			a.playbackSpeedButton("np-speed", core.RGBA(0xffffff, 0.65), 26),
 			icon(lucideVolume, 14, core.RGBA(0xffffff, 0.55)),
 			base.Slider{Value: func() base.SliderValue { a.tick.Get(); return base.SingleValue(a.pl.Volume() * 100) },
 				Min: func() float64 { return 0 }, Max: func() float64 { return 100 },

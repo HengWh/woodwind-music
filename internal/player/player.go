@@ -53,6 +53,7 @@ type NowPlaying struct {
 	Duration             time.Duration
 	Position             time.Duration
 	Playing              bool
+	Speed                float64
 }
 
 // System, when set by the app, takes what the system's controls show, and
@@ -96,6 +97,7 @@ type Player struct {
 	shuffle bool
 	repeat  RepeatMode
 	volume  float64
+	speed   float64
 
 	// A radio goes on with the tracks its feed gives, as the queue nears
 	// its end, for as long as nothing else is played.
@@ -206,6 +208,7 @@ func (p *Player) announce(t *music.Track, artwork []byte) {
 			Duration: t.Length(),
 			Position: p.Position(),
 			Playing:  p.playing,
+			Speed:    p.Speed(),
 		})
 	}
 }
@@ -857,6 +860,7 @@ func (p *Player) loadSkipping(at, skipped, dir int, play bool, from time.Duratio
 			p.gain = normGain(info)
 			p.watch = &watched{stream: s, now: p.now, ended: func() { p.post(func() {}) }}
 			p.out = b.output(p.watch)
+			p.applySpeed()
 			// From its middle, as a session picked up again, it fades in.
 			level := 1.0
 			if p.pending > 0 {
@@ -1072,6 +1076,7 @@ type Session struct {
 	Repeat   RepeatMode    `json:"repeat"`
 	Position int64         `json:"position"` // milliseconds
 	Radio    string        `json:"radio,omitempty"`
+	Speed    float64       `json:"speed,omitempty"`
 }
 
 // Session returns where playback is, or false with nothing queued.
@@ -1087,6 +1092,7 @@ func (p *Player) Session() (Session, bool) {
 		Repeat:   p.repeat,
 		Position: p.Position().Milliseconds(),
 		Radio:    p.radio,
+		Speed:    p.speed,
 	}, true
 }
 
@@ -1104,6 +1110,7 @@ func (p *Player) Restore(s Session) {
 		}
 		seen[i] = true
 	}
+	p.speed = normalizedSpeed(s.Speed)
 	p.queue, p.order = s.Queue, s.Order
 	p.shuffle, p.repeat = s.Shuffle, s.Repeat%3
 	p.loadSkipping(s.At, 0, stay, false, time.Duration(s.Position)*time.Millisecond)

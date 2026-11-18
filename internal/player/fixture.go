@@ -38,6 +38,7 @@ func (p *Player) Hold(pos time.Duration) {
 // Attach makes out the current track's audio, playing.
 func (p *Player) Attach(out *audio.Player) {
 	p.out = out
+	p.applySpeed()
 	p.playing = true
 }
 

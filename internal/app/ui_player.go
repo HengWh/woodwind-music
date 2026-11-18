@@ -29,6 +29,7 @@ func (a *app) playerBar(cx *core.Scope, p palette) core.Node {
 	})
 	progress := a.progress(p, false)
 	var right []core.Node
+	right = append(right, a.playbackSpeedButton("bar-speed", p.muted, 30))
 	right = append(right, core.Dynamic(func(cx *core.Scope) core.Node {
 		a.playRev.Get()
 		if a.pl.Current() == nil {

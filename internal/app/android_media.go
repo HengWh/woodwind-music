@@ -98,7 +98,7 @@ func (a *app) publishAndroidMedia(artwork bool) {
 	data := map[string]any{
 		"hasTrack": a.pl.Current() != nil, "title": s.Title, "artist": s.Artist, "album": s.Album,
 		"position": a.pl.Position().Milliseconds(), "duration": a.pl.Duration().Milliseconds(),
-		"playing": a.pl.Playing(), "loading": a.pl.Loading(), "error": a.pl.Err(),
+		"speed": a.pl.Speed(), "playing": a.pl.Playing(), "loading": a.pl.Loading(), "error": a.pl.Err(),
 	}
 	if artwork {
 		data["artwork"] = base64.StdEncoding.EncodeToString(s.Artwork)

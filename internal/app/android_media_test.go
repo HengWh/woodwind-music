@@ -46,6 +46,11 @@ func TestAndroidMediaServiceBridge(t *testing.T) {
 		}
 		app.Settle()
 	}
+	a.setPlaybackSpeed(1.75)
+	app.Settle()
+	if v.Video.Rate != 1.75 || updates[len(updates)-1]["speed"] != 1.75 {
+		t.Fatal("speed did not reach native output and media session")
+	}
 	send("focus-pause")
 	if a.pl.Playing() {
 		t.Fatal("did not pause for a call")

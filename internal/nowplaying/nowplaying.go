@@ -12,6 +12,7 @@ type Info struct {
 	Duration time.Duration
 	Position time.Duration
 	Playing  bool
+	Speed    float64
 }
 
 // Command is a command of the media keys or the system's controls.

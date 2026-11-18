@@ -17,6 +17,7 @@ type videoOutput struct {
 	paused  *core.Signal[bool]
 	volume  *core.Signal[float32]
 	muted   *core.Signal[bool]
+	speed   *core.Signal[float32]
 	relay   *music.StreamRelay
 	managed bool
 }
@@ -33,6 +34,7 @@ func newVideoOutput(cx *core.Scope) *videoOutput {
 		paused:  core.NewSignal(cx, true),
 		volume:  core.NewSignal[float32](cx, 1),
 		muted:   core.NewSignal(cx, false),
+		speed:   core.NewSignal[float32](cx, 1),
 		managed: cx.HostParams()["music.android"] == true,
 	}
 }
@@ -60,6 +62,8 @@ func (v *videoOutput) OpenWithHeaders(source string, headers map[string]string, 
 	v.Open(relay.URL, paused, events)
 	v.relay = relay
 }
+
+func (v *videoOutput) SetSpeed(speed float64) { v.speed.Set(float32(speed)) }
 
 func (v *videoOutput) SetPaused(paused bool) { v.paused.Set(paused) }
 
@@ -97,7 +101,7 @@ func (v *videoOutput) view() core.Node {
 		}
 		return core.Video{
 			TestID: "android-audio", Source: r.source, Ref: &r.ref,
-			PausedFunc: v.paused.Get, VolumeFunc: v.volume.Get, MutedFunc: v.muted.Get,
+			RateFunc: v.speed.Get, PausedFunc: v.paused.Get, VolumeFunc: v.volume.Get, MutedFunc: v.muted.Get,
 			AudioSession: session, ProgressInterval: 200 * time.Millisecond,
 			// Keep a real node mounted for audio-only playback; it occupies
 			// no layout space and never becomes a visible video surface.

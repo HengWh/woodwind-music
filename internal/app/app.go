@@ -221,6 +221,7 @@ type app struct {
 	rev        *core.Signal[int]
 	playRev    *core.Signal[int]
 	modeRev    *core.Signal[int]
+	speedRev   *core.Signal[int]
 	route      *core.Signal[route]
 	tick       *core.Signal[int]
 	query      *core.Signal[string]
@@ -324,6 +325,7 @@ func newApp(cx *core.Scope) *app {
 		rev:              core.NewSignal(cx, 0),
 		playRev:          core.NewSignal(cx, 0),
 		modeRev:          core.NewSignal(cx, 0),
+		speedRev:         core.NewSignal(cx, 0),
 		route:            core.NewSignal(cx, route{page: pageHome}),
 		tick:             core.NewSignal(cx, 0),
 		query:            core.NewSignal(cx, ""),
@@ -392,9 +394,9 @@ func newApp(cx *core.Scope) *app {
 	a.pl.SetVolume(a.set.Volume)
 	player.System.Set = func(info player.NowPlaying) {
 		nowplaying.Set(nowplaying.Info{Title: info.Title, Artist: info.Artist, Album: info.Album,
-			Artwork: info.Artwork, Duration: info.Duration, Position: info.Position, Playing: info.Playing})
+			Artwork: info.Artwork, Duration: info.Duration, Position: info.Position, Playing: info.Playing, Speed: info.Speed})
 	}
-	player.System.Position = func(pos time.Duration, playing bool) { nowplaying.Position(pos, playing) }
+	player.System.Position = func(pos time.Duration, playing bool) { nowplaying.Position(pos, playing, a.pl.Speed()) }
 	player.System.Clear = nowplaying.Clear
 	if a.video != nil {
 		a.setupAndroidMedia()

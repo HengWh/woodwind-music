@@ -20,6 +20,9 @@ func Initialize() error {
 
 func Shutdown() { winshell.Stop(); winshell.SetCommandHandler(nil) }
 
-func Set(info Info)                            { winshell.SetMedia(winshell.MediaInfo(info)) }
-func Position(pos time.Duration, playing bool) { winshell.MoveMedia(pos, playing) }
-func Clear()                                   { winshell.ClearMedia() }
+func Set(info Info) {
+	winshell.SetMedia(winshell.MediaInfo{Title: info.Title, Artist: info.Artist, Album: info.Album,
+		Artwork: info.Artwork, Duration: info.Duration, Position: info.Position, Playing: info.Playing})
+}
+func Position(pos time.Duration, playing bool, _ float64) { winshell.MoveMedia(pos, playing) }
+func Clear()                                              { winshell.ClearMedia() }

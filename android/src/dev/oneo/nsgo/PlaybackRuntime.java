@@ -90,6 +90,7 @@ final class PlaybackRuntime {
     }
 
     static boolean flag(String key) { return Boolean.TRUE.equals(state.get(key)); }
+    static float speed() { Object n = state.get("speed"); return n instanceof Number ? Math.max(0.5f, Math.min(2f, ((Number) n).floatValue())) : 1f; }
     static long number(String key) { Object n = state.get(key); return n instanceof Number ? ((Number) n).longValue() : 0; }
     static String text(String key) { Object s = state.get(key); return s instanceof String ? (String) s : ""; }
 }

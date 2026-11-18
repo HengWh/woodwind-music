@@ -13,6 +13,7 @@ type NativeOutput interface {
 	Open(source string, paused bool, events NativeEvents)
 	SetPaused(bool)
 	SetVolume(float64)
+	SetSpeed(float64)
 	Seek(time.Duration)
 	Close()
 }
@@ -129,6 +130,7 @@ func (p *Player) loadNative(gen int, src music.Source, t music.Track, quality st
 				p.Native.Open(info.URL, !p.playing, events)
 			}
 			p.applyGain()
+			p.applySpeed()
 			p.sync()
 		})
 	}()

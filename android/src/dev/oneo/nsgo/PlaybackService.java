@@ -113,7 +113,7 @@ public final class PlaybackService extends Service {
         long actions = PlaybackState.ACTION_PLAY | PlaybackState.ACTION_PAUSE | PlaybackState.ACTION_PLAY_PAUSE
             | PlaybackState.ACTION_SKIP_TO_NEXT | PlaybackState.ACTION_SKIP_TO_PREVIOUS | PlaybackState.ACTION_SEEK_TO | PlaybackState.ACTION_STOP;
         PlaybackState.Builder state = new PlaybackState.Builder().setActions(actions)
-            .setState(status, PlaybackRuntime.number("position"), playing && !loading ? 1 : 0, SystemClock.elapsedRealtime());
+            .setState(status, PlaybackRuntime.number("position"), playing && !loading ? PlaybackRuntime.speed() : 0, SystemClock.elapsedRealtime());
         if (status == PlaybackState.STATE_ERROR) state.setErrorMessage(PlaybackRuntime.text("error"));
         session.setPlaybackState(state.build());
         Notification.Builder builder = new Notification.Builder(this, CHANNEL)
