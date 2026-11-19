@@ -78,10 +78,19 @@ func TestSearchSubmitsAndFindsEveryKind(t *testing.T) {
 		ui.Clear("id:search-input")
 		ui.Type("id:search-input", test.query)
 		ui.Submit("id:search-input")
-		ui.Press("id:search-tab-" + string(test.kind))
+		t.Logf("searching %q, then selecting %s", test.query, test.kind)
+		// Result completion rebuilds the search header. Let it finish before
+		// Press resolves a tab, so its pointer events target the same view.
+		submitted := route{page: pageSearch, query: test.query, kind: music.SearchTracks}
 		ui.WaitUntil(2*time.Second, func() bool {
-			d := a.searches[a.route.GetUntracked()]
-			return a.route.GetUntracked().kind == test.kind && d != nil && d.loaded && d.res.Len() == 1
+			d := a.searches[submitted]
+			return a.route.GetUntracked() == submitted && d != nil && d.loaded && !d.loading
+		})
+		ui.Press("id:search-tab-" + string(test.kind))
+		selected := route{page: pageSearch, query: test.query, kind: test.kind}
+		ui.WaitUntil(2*time.Second, func() bool {
+			d := a.searches[selected]
+			return a.route.GetUntracked() == selected && d != nil && d.loaded && !d.loading && d.res.Len() == 1
 		})
 		ui.Find(`id:app-content >> text:"` + test.result + `" >> nth=0`)
 	}
