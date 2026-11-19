@@ -308,7 +308,7 @@ go run scripts/test-quiet.go -run 'TestPause|TestSeek' ./internal/player
 
 入口先运行 `go tool nsgo check`，再运行无窗口的 NSGo 测试；使用 `woodwind_quiet` 构建标签，将系统音频输出替换为空输出，并关闭系统“正在播放”接入。每次创建独立的临时应用数据目录，结束后清理；构建缓存保存在当前 checkout 的 `.nsgo/quiet-go-cache/`。不使用本机 `go.work`，并移除继承的原生测试、截图及个人数据目录开关。它不接受平台目标、设备或其他透传参数。原始 `go tool nsgo test` 只保证默认无窗口，不能代替这个无声音、隔离数据的入口。Windows CI 使用同一入口。
 
-开发助手的目录、worktree 和测试约定见 [AGENTS.md](AGENTS.md)：默认留在当前目录；用户明确选择 Worktree 模式、使用可用的 `/worktree` 入口、显式调用个人 `$worktree` 技能，或输入“用 worktree 开发：<任务>”后，才为该任务创建或复用一个 worktree。不自行创建更多 worktree、子代理或并行任务。项目说明不会给应用注册新的斜杠菜单项，文字触发方式不依赖菜单是否显示。
+开发助手的目录、worktree 和测试约定见 [AGENTS.md](AGENTS.md)：`main` 只用于集成，功能开发和代码修复在各自的任务 worktree 中完成。用户明确选择 Worktree 模式、使用可用的 `/worktree` 入口、显式调用个人 `$worktree` 技能，或输入“用 worktree 开发：<任务>”后，为该任务创建或复用一个 worktree；所需安静自动化验证通过后，自动提交本次改动，并通过共享集成锁串行合并到本地 `main`。不自动推送或删除工作区，不自行创建额外 worktree、子代理或并行任务。项目说明不会给应用注册新的斜杠菜单项，文字触发方式不依赖菜单是否显示。
 
 现有测试覆盖本地导入、格式与播放、队列和会话恢复、歌词、桌面与手机布局、设置、插件宿主，以及安卓媒体协议和构建逻辑。
 
