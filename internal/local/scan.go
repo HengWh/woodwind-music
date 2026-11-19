@@ -186,7 +186,8 @@ func (s *Source) scan(ctx context.Context, gen int64, folders []string) {
 // publish makes the entries what's listed, and says so, unless a newer scan has
 // taken over. The last one of a scan ends it.
 func (s *Source) publish(gen int64, entries map[string]entry, last bool) {
-	cat := buildCatalog(slices.Collect(maps.Values(entries)))
+	s.catalogMu.Lock()
+	cat := s.buildCatalog(slices.Collect(maps.Values(entries)))
 	s.mu.Lock()
 	ok := gen == s.scanGen
 	if ok {
@@ -196,6 +197,7 @@ func (s *Source) publish(gen int64, entries map[string]entry, last bool) {
 		}
 	}
 	s.mu.Unlock()
+	s.catalogMu.Unlock()
 	if ok {
 		s.notify()
 	}
