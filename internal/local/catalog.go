@@ -32,11 +32,13 @@ type entry struct {
 	Cover   string `json:"cover,omitempty"`   // the picture inside, once kept
 	Sidecar string `json:"sidecar,omitempty"` // the picture beside it
 
+	SupplementCover string `json:"-"`
+
 	Gain float64 `json:"gain,omitempty"`
 	Peak float64 `json:"peak,omitempty"`
 }
 
-func (e *entry) image() string { return cmp.Or(e.Cover, e.Sidecar) }
+func (e *entry) image() string { return cmp.Or(e.Cover, e.Sidecar, e.SupplementCover) }
 
 // catalog is everything listed, sorted and ready to answer from. Once built
 // it's never changed, for any goroutine to read without a lock.

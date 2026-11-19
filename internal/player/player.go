@@ -87,6 +87,9 @@ type Player struct {
 	Cache *Cache
 	// Library supplies complete local copies and shared downloads on every platform.
 	Library *offline.Store
+	// CompleteLocal obtains missing local-track companions off the UI thread.
+	CompleteLocal func(music.Track) (music.Track, *music.Lyrics)
+	completeGen   int
 	// Changed, if set, hears that what plays, where it is or whether it
 	// plays changed.
 	Changed func()
@@ -805,6 +808,7 @@ func (p *Player) record() {
 	if p.track == nil || !p.playing {
 		return
 	}
+	p.completeLocal()
 	if p.Library != nil {
 		p.Library.RememberPlayed(*p.track)
 	}
@@ -971,7 +975,9 @@ func (p *Player) loadLyrics(gen int, src music.Source, t music.Track) {
 		}
 		p.post(func() {
 			if gen == p.gen {
-				p.lyrics = lines
+				if len(p.lyrics) == 0 {
+					p.lyrics = lines
+				}
 				p.lyricsLoaded = true
 			}
 		})

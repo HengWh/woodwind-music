@@ -17,13 +17,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/HengWh/woodwind-music/internal/i18n"
+	"github.com/HengWh/woodwind-music/internal/lyrics"
 	"github.com/HengWh/woodwind-music/internal/music"
 )
 
@@ -68,6 +69,14 @@ type Source struct {
 	scanDone   chan struct{} // closes when the latest scan has stopped
 	saves      int64         // counts changes to lib, for writing the latest
 
+	// catalogMu serializes scan publication and companion-only catalog refreshes.
+	catalogMu sync.Mutex
+
+	assetsMu   sync.Mutex
+	assets     map[string]companion
+	assetBusy  map[string]chan struct{}
+	assetRetry map[string]time.Time
+
 	// saveMu keeps writes of library.json in order, without holding up mu.
 	saveMu sync.Mutex
 	saved  int64 // which change library.json holds
@@ -82,7 +91,8 @@ func New(dataDir string) *Source {
 			log.Printf("local: reading library: %v", err)
 		}
 	}
-	s.cat.Store(buildCatalog(s.loadIndex(s.lib.Folders)))
+	s.loadCompanions()
+	s.cat.Store(s.buildCatalog(s.loadIndex(s.lib.Folders)))
 	return s
 }
 
@@ -529,9 +539,6 @@ func (s *Source) PostComment(trackID, text string) (*music.Comment, error) {
 	return nil, music.ErrUnsupported
 }
 
-// lrcTime is how a line of LRC starts, which tells it from plain words.
-var lrcTime = regexp.MustCompile(`\[\d+:\d{2}`)
-
 // Lyrics answers the .lrc beside the file, or else what's in its tags if it's
 // timed: plain words can't follow the song.
 func (s *Source) Lyrics(id string) (*music.Lyrics, error) {
@@ -542,7 +549,10 @@ func (s *Source) Lyrics(id string) (*music.Lyrics, error) {
 	base := strings.TrimSuffix(it.Path, filepath.Ext(it.Path))
 	for _, ext := range []string{".lrc", ".LRC"} {
 		if b, err := os.ReadFile(base + ext); err == nil {
-			return &music.Lyrics{LRC: strings.TrimPrefix(string(b), "\xef\xbb\xbf")}, nil
+			l := &music.Lyrics{LRC: strings.TrimPrefix(string(b), "\xef\xbb\xbf")}
+			if len(lyrics.FromSource(l)) > 0 {
+				return l, nil
+			}
 		}
 	}
 	f, err := os.Open(it.Path)
@@ -554,10 +564,11 @@ func (s *Source) Lyrics(id string) (*music.Lyrics, error) {
 	if info, err := f.Stat(); err == nil {
 		size = info.Size()
 	}
-	if t := readTags(f, fileType(f, it.Path), size); lrcTime.MatchString(t.lyrics) {
-		return &music.Lyrics{LRC: t.lyrics}, nil
+	tags := readTags(f, fileType(f, it.Path), size)
+	if l := (&music.Lyrics{LRC: tags.lyrics}); len(lyrics.FromSource(l)) > 0 {
+		return l, nil
 	}
-	return &music.Lyrics{}, nil
+	return s.companionLyrics(it), nil
 }
 
 // Stream answers the file itself. The quality asked for doesn't come into it.

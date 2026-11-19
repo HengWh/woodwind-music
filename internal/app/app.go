@@ -408,6 +408,7 @@ func newApp(cx *core.Scope) *app {
 		a.pl.Native = a.video
 	}
 	a.pl.Source = a.sourceByID
+	a.pl.CompleteLocal = a.completeLocalTrack
 	a.pl.Failed = func(id string, err error) {
 		a.say(err.Error())
 		if src := a.sourceByID(id); src != nil {

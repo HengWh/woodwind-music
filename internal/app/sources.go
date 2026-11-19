@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"sync"
 
 	"github.com/HengWh/woodwind-music/internal/i18n"
@@ -235,4 +236,21 @@ func (a *app) cancelSignIn() {
 		go p.Close()
 	}
 	a.bump()
+}
+
+// Snapshot providers before the background search; plugins may be installed or
+// removed while a local song keeps playing.
+func (a *app) completeLocalTrack(t music.Track) (music.Track, *music.Lyrics) {
+	a.sources.RLock()
+	var ids []string
+	for id := range a.sources.items {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	providers := make([]music.Source, 0, len(ids))
+	for _, id := range ids {
+		providers = append(providers, a.sources.items[id])
+	}
+	a.sources.RUnlock()
+	return a.local.Complete(t, providers)
 }
