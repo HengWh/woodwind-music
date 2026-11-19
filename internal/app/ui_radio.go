@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -37,18 +38,42 @@ func (a *app) radioFeed(name string) func(func([]music.Track)) {
 			got(nil)
 			return
 		}
+		seeded, usesSeeds := src.(music.LibraryRadio)
+		usesSeeds = usesSeeds && seeded.UsesLibrarySeeds(station)
+		seen := map[string]bool{}
+		if usesSeeds && a.pl.Radio() == name {
+			for _, t := range a.pl.Queue() {
+				seen[radioTrackKey(t)] = true
+			}
+		}
 		go func() {
 			var tracks []music.Track
 			var err error
-			for tries := 0; tries < 3 && len(tracks) == 0; tries++ {
-				var batch []music.Track
-				batch, err = src.StationNext(station)
+			var seeds []music.Track
+			attempts := 3
+			if usesSeeds {
+				seeds, err = a.radioSeeds(src)
 				if err != nil {
+					attempts = 0
+				}
+			}
+			for tries := 0; tries < attempts && len(tracks) == 0; tries++ {
+				var batch []music.Track
+				if usesSeeds {
+					batch, err = seeded.StationNextFrom(station, pickRadioSeeds(seeds))
+				} else {
+					batch, err = src.StationNext(station)
+				}
+				if err != nil {
+					if usesSeeds && errors.Is(err, music.ErrUnavailable) {
+						continue
+					}
 					break
 				}
 				for _, tr := range batch {
-					if !tr.Unavailable {
+					if !tr.Unavailable && (!usesSeeds || tr.ID != "" && !seen[radioTrackKey(tr)]) {
 						tracks = append(tracks, tr)
+						seen[radioTrackKey(tr)] = true
 					}
 				}
 			}
@@ -57,10 +82,13 @@ func (a *app) radioFeed(name string) func(func([]music.Track)) {
 					got(nil)
 					return
 				}
-				if err != nil && (a.radioStarting == name || a.pl.Radio() == name) {
+				report := a.radioStarting == name || a.pl.Radio() == name
+				got(tracks)
+				// Keep the useful seed error after the start callback's generic
+				// empty-station message, without reporting a stale request.
+				if err != nil && report {
 					a.say(err.Error())
 				}
-				got(tracks)
 				a.playRev.Update(func(n int) int { return n + 1 })
 			})
 		}()

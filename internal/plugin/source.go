@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/HengWh/woodwind-music/internal/i18n"
 	"github.com/HengWh/woodwind-music/internal/music"
 )
 
@@ -231,6 +232,11 @@ func (p *Plugin) Stations() ([]music.Station, error) {
 	var out []music.Station
 	if err := p.call("stations", nil, &out); err != nil {
 		return nil, err
+	}
+	for i := range out {
+		if p.UsesLibrarySeeds(out[i].ID) {
+			out[i].Description = i18n.T("Based on your downloads and liked songs")
+		}
 	}
 	return out, nil
 }

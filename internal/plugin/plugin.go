@@ -232,7 +232,7 @@ func Load(dir, dataDir string) (*Plugin, error) {
 	if strings.HasSuffix(m.Main, ".ts") {
 		compile = moejs.CompileTS
 	}
-	mod, err := compile(m.Main, string(source))
+	mod, err := compile(m.Main, kugouLibrarySource(m.ID, string(source)))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", dir, err)
 	}

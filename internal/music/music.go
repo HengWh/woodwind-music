@@ -392,6 +392,13 @@ type Recorder interface {
 	Played(track Track)
 }
 
+// LibraryRadio optionally chooses station tracks from the listener's explicit
+// library choices. Sources without it keep their existing station behavior.
+type LibraryRadio interface {
+	UsesLibrarySeeds(station string) bool
+	StationNextFrom(station string, seeds []Track) ([]Track, error)
+}
+
 // Source is where music comes from. Everything but Info and Can may take a
 // while and is called off the main thread. A source that doesn't do something
 // answers ErrUnsupported, and Can says so beforehand for the views to leave it
