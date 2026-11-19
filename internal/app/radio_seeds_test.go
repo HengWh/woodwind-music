@@ -99,7 +99,9 @@ func TestLibraryRadioFeedsAndDeduplicatesOnDesktopAndPhone(t *testing.T) {
 				if len(calls) > 1 {
 					tracks = append(tracks, music.Track{ID: "fifth", Source: src.Info().ID, Name: "New Fifth"})
 				}
-				return append(tracks, tracks[0], music.Track{ID: "bad", Unavailable: true}), nil
+				duplicate := tracks[0]
+				duplicate.Name = "Same ID, different metadata"
+				return append(tracks, tracks[0], duplicate, music.Track{ID: "bad", Unavailable: true}), nil
 			}
 			base.next = func(string) ([]music.Track, error) { return nil, errors.New("legacy FM must not be used") }
 			a.post(func() { a.sources.items[src.Info().ID] = src; a.active = src })

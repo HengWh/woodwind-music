@@ -87,11 +87,15 @@ func pickRadioSeeds(seeds []music.Track) []music.Track {
 	return copy[:min(radioSeedCount, len(copy))]
 }
 
-// Keep spelling variants of a track out of a single listening session too.
 func radioTrackKey(t music.Track) string {
+	return "id:" + t.Source + "\x00" + t.ID
+}
+
+// Keep different source IDs for the same song out of one listening session.
+func radioSongKey(t music.Track) string {
 	name, artists := strings.ToLower(strings.TrimSpace(t.Name)), strings.ToLower(strings.TrimSpace(t.ArtistNames()))
 	if name != "" && artists != "" {
-		return name + "\x00" + artists
+		return "song:" + name + "\x00" + artists
 	}
-	return t.Source + "\x00" + t.ID
+	return radioTrackKey(t)
 }

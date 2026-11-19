@@ -44,6 +44,7 @@ func (a *app) radioFeed(name string) func(func([]music.Track)) {
 		if usesSeeds && a.pl.Radio() == name {
 			for _, t := range a.pl.Queue() {
 				seen[radioTrackKey(t)] = true
+				seen[radioSongKey(t)] = true
 			}
 		}
 		go func() {
@@ -71,10 +72,12 @@ func (a *app) radioFeed(name string) func(func([]music.Track)) {
 					break
 				}
 				for _, tr := range batch {
-					if !tr.Unavailable && (!usesSeeds || tr.ID != "" && !seen[radioTrackKey(tr)]) {
-						tracks = append(tracks, tr)
-						seen[radioTrackKey(tr)] = true
+					key, song := radioTrackKey(tr), radioSongKey(tr)
+					if tr.Unavailable || usesSeeds && (tr.ID == "" || seen[key] || seen[song]) {
+						continue
 					}
+					tracks = append(tracks, tr)
+					seen[key], seen[song] = true, true
 				}
 			}
 			a.post(func() {
