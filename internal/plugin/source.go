@@ -235,7 +235,7 @@ func (p *Plugin) Stations() ([]music.Station, error) {
 	}
 	for i := range out {
 		if p.UsesLibrarySeeds(out[i].ID) {
-			out[i].Description = i18n.T("Based on your downloads and liked songs")
+			out[i].Description = i18n.T("Based on your liked songs")
 		}
 	}
 	return out, nil

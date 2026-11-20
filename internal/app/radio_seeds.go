@@ -9,74 +9,18 @@ import (
 	"github.com/HengWh/woodwind-music/internal/music"
 )
 
-const radioSeedCount = 3
+const radioSeedCount = 10
 
-// radioSeeds reads explicit library choices only. Automatic playback caches
-// and recent plays must not become positive preference signals.
-// Called off the UI thread, through the sources' thread-safe read methods.
+// Read the complete source collection before sampling, off the UI thread.
+// Downloads, local imports and recent plays are not preference seeds.
 func (a *app) radioSeeds(src music.Source) ([]music.Track, error) {
-	var seeds []music.Track
-	seen := map[string]bool{}
-	add := func(t music.Track, source string) {
-		if t.Source == "" {
-			t.Source = source
-		}
-		key := t.Source + "\x00" + t.ID
-		if t.ID == "" || t.ShowID != "" || seen[key] {
-			return
-		}
-		seen[key] = true
-		seeds = append(seeds, t)
+	tracks, err := allLiked(src)
+	if err != nil {
+		return nil, err
 	}
-	if a.local != nil {
-		for offset := 0; ; {
-			page, err := a.local.Search("", music.SearchTracks, offset)
-			if err != nil {
-				return nil, err
-			}
-			if page == nil {
-				break
-			}
-			for _, t := range page.Tracks {
-				add(t, a.local.Info().ID)
-			}
-			if !page.More || len(page.Tracks) == 0 {
-				break
-			}
-			offset += len(page.Tracks)
-		}
-	}
-	if a.disk != nil {
-		for _, record := range a.disk.List() {
-			if record.Pinned() {
-				add(record.Track, record.Track.Source)
-			}
-		}
-	}
-	if src.Can("liked") {
-		for offset := 0; ; {
-			page, err := src.Liked(offset)
-			if err != nil {
-				// Keep explicit downloads usable when online likes cannot load.
-				if len(seeds) == 0 {
-					return nil, err
-				}
-				break
-			}
-			if page == nil {
-				break
-			}
-			for _, t := range page.Tracks {
-				add(t, src.Info().ID)
-			}
-			if !page.More || len(page.Tracks) == 0 {
-				break
-			}
-			offset += len(page.Tracks)
-		}
-	}
+	seeds := slices.DeleteFunc(tracks, func(t music.Track) bool { return t.ShowID != "" })
 	if len(seeds) == 0 {
-		return nil, music.Fail(music.ErrUnavailable, i18n.T("Download or like some songs before starting this station."))
+		return nil, music.Fail(music.ErrUnavailable, i18n.T("Like some songs before starting this station."))
 	}
 	return seeds, nil
 }

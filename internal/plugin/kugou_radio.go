@@ -61,7 +61,7 @@ func (p *Plugin) StationNextFrom(station string, seeds []music.Track) ([]music.T
 		return nil, err
 	}
 	if !result.Matched {
-		return nil, music.Fail(music.ErrUnavailable, i18n.T("No matching Kugou songs found for these downloads and likes."))
+		return nil, music.Fail(music.ErrUnavailable, i18n.T("No matching Kugou songs found for these liked songs."))
 	}
 	p.stamp(result.Tracks)
 	return result.Tracks, nil

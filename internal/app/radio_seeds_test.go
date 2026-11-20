@@ -27,7 +27,7 @@ func (s *libraryRadioSource) Liked(offset int) (*music.Page, error) {
 	return s.likedPage(offset)
 }
 
-func TestLibraryRadioSeedsUseDownloadsAndAllLikes(t *testing.T) {
+func TestLibraryRadioSeedsUseOnlyAllLikes(t *testing.T) {
 	dir := t.TempDir()
 	stored := seedStored(t, dir) // first explicitly pinned, second automatic
 	disk, err := offline.Open(dir, 64<<20, true)
@@ -56,17 +56,17 @@ func TestLibraryRadioSeedsUseDownloadsAndAllLikes(t *testing.T) {
 		return &music.Page{Tracks: []music.Track{{ID: "liked-two", Name: "Later page"}, {ID: "podcast", ShowID: "show"}}}, nil
 	}}
 	seeds, err := a.radioSeeds(src)
-	if err != nil || len(seeds) != 4 || !slices.Equal(offsets, []int{0, 2}) {
+	if err != nil || len(seeds) != 3 || !slices.Equal(offsets, []int{0, 2}) {
 		t.Fatalf("seeds: %+v, pages %v, error %v", seeds, offsets, err)
 	}
 	if slices.ContainsFunc(seeds, func(t music.Track) bool { return t.Source == stored[1].Source || t.ShowID != "" }) {
 		t.Fatal("automatic caches or podcasts became preference seeds")
 	}
-	if !slices.ContainsFunc(seeds, func(t music.Track) bool { return t.Name == "Imported" && t.Source == local.ID }) || !slices.ContainsFunc(seeds, func(t music.Track) bool { return t.ID == "liked-two" && t.Source == src.Info().ID }) {
-		t.Fatal("missing local import or source-scoped likes", seeds)
+	if slices.ContainsFunc(seeds, func(t music.Track) bool { return t.Name == "Imported" || t.Source == local.ID }) || !slices.ContainsFunc(seeds, func(t music.Track) bool { return t.ID == "liked-two" && t.Source == src.Info().ID }) {
+		t.Fatal("unexpected local import or missing source-scoped likes", seeds)
 	}
 	before := slices.Clone(seeds)
-	if picked := pickRadioSeeds(seeds); len(picked) != radioSeedCount || len(seeds) != len(before) {
+	if picked := pickRadioSeeds(seeds); len(picked) != min(radioSeedCount, len(seeds)) || len(seeds) != len(before) {
 		t.Fatal("unexpected seed batch", picked)
 	}
 	for i := range seeds {
@@ -74,10 +74,10 @@ func TestLibraryRadioSeedsUseDownloadsAndAllLikes(t *testing.T) {
 			t.Fatal("sampling reordered the library")
 		}
 	}
-	// An unavailable online likes list does not invalidate explicit downloads.
+	// Downloads must not mask a failure to read the complete likes list.
 	src.likedPage = func(int) (*music.Page, error) { return nil, errors.New("offline") }
-	if seeds, err := a.radioSeeds(src); err != nil || len(seeds) != 2 {
-		t.Fatalf("download-only fallback: %+v, %v", seeds, err)
+	if seeds, err := a.radioSeeds(src); err == nil || len(seeds) != 0 {
+		t.Fatalf("unexpected download fallback: %+v, %v", seeds, err)
 	}
 }
 
@@ -90,8 +90,9 @@ func TestLibraryRadioFeedsAndDeduplicatesOnDesktopAndPhone(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ui, a, base := startRadioTest(t, phone)
 			calls := make(chan []music.Track, 8)
-			src := &libraryRadioSource{radioTestSource: base, likedPage: func(int) (*music.Page, error) {
-				return &music.Page{Tracks: []music.Track{{ID: "liked", Name: "Favorite"}}}, nil
+			favorites := favoriteTracks(310)
+			src := &libraryRadioSource{radioTestSource: base, likedPage: func(offset int) (*music.Page, error) {
+				return favoritePage(favorites, offset), nil
 			}}
 			src.nextFrom = func(id string, seeds []music.Track) ([]music.Track, error) {
 				calls <- seeds
@@ -125,8 +126,15 @@ func TestLibraryRadioFeedsAndDeduplicatesOnDesktopAndPhone(t *testing.T) {
 			}
 			for len(calls) > 0 {
 				seeds := <-calls
-				if len(seeds) != 1 || seeds[0].ID != "liked" || seeds[0].Source != src.Info().ID {
-					t.Fatal("FM did not use explicit, source-scoped likes", seeds)
+				if len(seeds) != 10 {
+					t.Fatal("FM did not request ten favorites", seeds)
+				}
+				seen := map[string]bool{}
+				for _, seed := range seeds {
+					if seen[seed.ID] || seed.Source != src.Info().ID || !slices.ContainsFunc(favorites, func(tr music.Track) bool { return tr.ID == seed.ID }) {
+						t.Fatal("FM did not use different, source-scoped favorites", seeds)
+					}
+					seen[seed.ID] = true
 				}
 			}
 		})
@@ -193,7 +201,7 @@ func TestLibraryRadioEmptySeedsAndFailuresKeepCurrentQueue(t *testing.T) {
 	// Call directly because the existing track makes the card show transport.
 	a.post(func() { a.playStation(src.stations[0]) })
 	ui.WaitUntil(time.Second, func() bool {
-		return a.radioStarting == "" && strings.Contains(a.toast.GetUntracked(), "Download or like")
+		return a.radioStarting == "" && strings.Contains(a.toast.GetUntracked(), "Like some songs")
 	})
 	if a.pl.Current().ID != "existing1" || len(a.pl.Queue()) != 4 || a.pl.Radio() != "" {
 		t.Fatal("empty seeds replaced the existing queue")
@@ -204,5 +212,30 @@ func TestLibraryRadioEmptySeedsAndFailuresKeepCurrentQueue(t *testing.T) {
 	ui.WaitUntil(time.Second, func() bool { return a.radioStarting == "" && a.toast.GetUntracked() == "seed service failed" })
 	if a.pl.Current().ID != "existing1" {
 		t.Fatal("failed recommendation replaced the current song")
+	}
+}
+
+func TestLibraryRadioLaterFavoriteFailureDoesNotRequestRecommendations(t *testing.T) {
+	ui, a, base := startRadioTest(t, false)
+	calls := 0
+	src := &libraryRadioSource{radioTestSource: base, likedPage: func(offset int) (*music.Page, error) {
+		if offset > 0 {
+			return nil, errors.New("favorite page failed")
+		}
+		return &music.Page{Tracks: favoriteTracks(100), More: true}, nil
+	}}
+	src.nextFrom = func(string, []music.Track) ([]music.Track, error) {
+		calls++
+		return radioTestTracks("unexpected"), nil
+	}
+	a.post(func() {
+		a.sources.items[src.Info().ID] = src
+		a.active = src
+		a.pl.Cue(radioTestTracks("existing"))
+		a.playStation(src.stations[0])
+	})
+	ui.WaitUntil(time.Second, func() bool { return a.radioStarting == "" && a.toast.GetUntracked() == "favorite page failed" })
+	if calls != 0 || a.pl.Current().ID != "existing1" || a.pl.Radio() != "" {
+		t.Fatal("partial favorites requested recommendations or replaced the queue")
 	}
 }

@@ -104,7 +104,11 @@ async function kg(path, options) {
 	if !p.UsesLibrarySeeds("normal") {
 		t.Fatal("1.3.2 helper structure was not adapted")
 	}
-	tracks, err := p.StationNextFrom("normal", []music.Track{{ID: "A_42_1", Source: "kugou-lite"}})
+	var selected []music.Track
+	for id := 301; id <= 310; id++ {
+		selected = append(selected, music.Track{ID: fmt.Sprintf("HASH_%d_0", id), Source: "kugou-lite"})
+	}
+	tracks, err := p.StationNextFrom("normal", selected)
 	if err != nil || len(tracks) != 1 || tracks[0].ID != "recommended" || tracks[0].Source != "kugou-lite" {
 		t.Fatalf("legacy result: %+v, %v", tracks, err)
 	}
@@ -115,8 +119,8 @@ async function kg(path, options) {
 		t.Fatal("invalid signed request", request)
 	}
 	seeds, _ := json.Marshal(request["recommend_source"])
-	if string(seeds) != `[{"ID":42}]` {
-		t.Fatal("request did not use the selected seed", string(seeds))
+	if string(seeds) != `[{"ID":301},{"ID":302},{"ID":303},{"ID":304},{"ID":305},{"ID":306},{"ID":307},{"ID":308},{"ID":309},{"ID":310}]` {
+		t.Fatal("request did not use all ten selected seeds", string(seeds))
 	}
 }
 
@@ -187,5 +191,26 @@ func TestKugouLibraryRadioRequestFailuresStayVisible(t *testing.T) {
 	p = load(t, plain, kugouRadioFixture+`export function search() { return {}; }`)
 	if p.Can("__woodwindLibraryNext") {
 		t.Fatal("adapted an unrelated plugin")
+	}
+}
+
+func TestKugouLibraryRadioPassesTenKnownIDs(t *testing.T) {
+	p := load(t, `{"id":"kugou-lite"}`, kugouRadioFixture+`export function search() { throw new Error("known IDs must not search"); }`)
+	var selected []music.Track
+	for id := 101; id <= 110; id++ {
+		selected = append(selected, music.Track{ID: fmt.Sprintf("HASH_%d_0", id), Source: "kugou-lite"})
+	}
+	tracks, err := p.StationNextFrom("normal", selected)
+	if err != nil || len(tracks) != 10 {
+		t.Fatalf("ten-seed result: %d tracks, %v", len(tracks), err)
+	}
+	var requests [][]int
+	if err := p.call("inspect", nil, &requests); err != nil || len(requests) != 1 || len(requests[0]) != 10 {
+		t.Fatalf("helper input: %v, %v", requests, err)
+	}
+	for i, id := range requests[0] {
+		if id != 101+i {
+			t.Fatal("wrong Kugou song ID", id)
+		}
 	}
 }

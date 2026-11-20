@@ -604,16 +604,16 @@ func (a *app) reload() {
 		})
 	}()
 	go func() {
-		page, err := src.Liked(0)
+		tracks, err := allLiked(src)
 		publish(func() {
 			a.likedBusy = false
 			if err != nil {
+				if message := sourceLoadError(err); message != "" {
+					a.say(message)
+				}
 				return
 			}
-			a.liked = nil
-			if page != nil {
-				a.liked = page.Tracks
-			}
+			a.liked = tracks
 			a.likedSet = map[string]bool{}
 			if a.trackLikes == nil {
 				a.trackLikes = map[string]map[string]bool{}
