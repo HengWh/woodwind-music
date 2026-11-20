@@ -30,6 +30,7 @@ func TestSettingsWindowSurvivesSidebarUpdates(t *testing.T) {
 		cx.SetMainView(a.view)
 	}))
 	ids := map[string]core.NodeID{}
+	closeKeys := map[*core.Tree]uint32{}
 	flush := func() {
 		for range 100 {
 			mu.Lock()
@@ -48,6 +49,11 @@ func TestSettingsWindowSurvivesSidebarUpdates(t *testing.T) {
 				if batch := surface.Commit(); batch != nil {
 					changed = true
 					for _, item := range batch.Items {
+						for _, binding := range item.Keys {
+							if binding.Key == "mod+w" {
+								closeKeys[surface] = binding.ID
+							}
+						}
 						if item.ViewProps != nil && item.ViewProps.TestID != "" {
 							ids[item.ViewProps.TestID] = item.ID
 						}
@@ -90,7 +96,12 @@ func TestSettingsWindowSurvivesSidebarUpdates(t *testing.T) {
 	// window from the button, without retaining old surfaces.
 	for _, surface := range tree.Surfaces() {
 		if surface != main {
-			surface.Dispatch(nsgotest.Event{Kind: nsgotest.EventKey, Text: "mod+w"})
+			// NSGo dispatches the binding ID matched by the platform's keymap.
+			id := closeKeys[surface]
+			if id == 0 {
+				t.Fatal("the settings window has no close shortcut")
+			}
+			surface.Dispatch(nsgotest.Event{Kind: nsgotest.EventKey, Count: id})
 		}
 	}
 	flush()

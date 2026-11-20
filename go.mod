@@ -9,7 +9,7 @@ require (
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/jfreymuth/oggvorbis v1.0.5
 	github.com/mewkiz/flac v1.0.14
-	github.com/nsgo-dev/nsgo v0.1.0
+	github.com/nsgo-dev/nsgo v0.2.0
 	github.com/tphakala/go-aac v0.7.1
 	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/image v0.48.0
