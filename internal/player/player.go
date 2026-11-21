@@ -937,7 +937,7 @@ func (p *Player) loadCover(gen int, t *music.Track) {
 	}
 	go func() {
 		if p.Library != nil && (t.StoredID != "" || t.Source != "local" && t.Source != "") {
-			if !t.LocalOnly && !p.Library.Has(*t) {
+			if !t.LocalOnly {
 				<-p.Library.Fill(*t, p.sourceOf(t), false)
 			}
 			url = p.Library.Cover(*t)
@@ -962,7 +962,7 @@ func (p *Player) loadLyrics(gen int, src music.Source, t music.Track) {
 	go func() {
 		var lines []lyrics.Line
 		if p.Library != nil && (t.StoredID != "" || t.Source != "local" && t.Source != "") {
-			if !t.LocalOnly && !p.Library.Has(t) {
+			if !t.LocalOnly {
 				<-p.Library.Fill(t, src, false)
 			}
 			if l, ok := p.Library.Lyrics(t); ok {
