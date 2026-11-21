@@ -16,12 +16,13 @@ import (
 )
 
 type storedUI struct {
-	query                                              *core.Signal[string]
-	mode, source, quality, complete, sort, view, group string
-	selected                                           map[string]bool
-	tasks                                              bool
-	details                                            string
-	deleteIDs                                          []string
+	query                   *core.Signal[string]
+	mode, sort, view, group string
+	selected                map[string]bool
+	offset                  core.Point
+	tasks                   bool
+	details                 string
+	deleteIDs               []string
 }
 
 func (a *app) openStored() { a.open(route{page: pageStored}) }
@@ -93,16 +94,6 @@ func (a *app) storedFilter(records []offline.Record) []offline.Record {
 		if u.mode == "pinned" && !r.Pinned() || u.mode == "automatic" && r.Pinned() {
 			continue
 		}
-		if u.source != "" && r.Track.Source != u.source {
-			continue
-		}
-		if u.quality != "" && !slices.ContainsFunc(r.Variants, func(v offline.Variant) bool { return v.Stream.Quality == u.quality }) {
-			continue
-		}
-		full := r.Cover != "" && r.Lyrics != nil
-		if u.complete == "complete" && !full || u.complete == "missing" && full {
-			continue
-		}
 		if q != "" && !strings.Contains(strings.ToLower(r.Track.Name+" "+r.Track.ArtistNames()+" "+r.Track.Album.Name), q) {
 			continue
 		}
@@ -141,7 +132,7 @@ func (a *app) storedFilter(records []offline.Record) []offline.Record {
 	return out
 }
 func (a *app) storedChoice(p palette, id, label string, value *string, options []ui.Option[string]) core.Node {
-	return settingsChoice[string]{palette: p, Touch: a.phoneLayout(a.cx), TestID: id, Label: label, Options: options, Value: func() string { return *value }, OnChange: func(v string) { *value = v; a.diskUI.group = ""; a.bump() }, Style: core.Style{Width: core.Pt(148)}}
+	return settingsChoice[string]{palette: p, Touch: a.phoneLayout(a.cx), TestID: id, Label: label, Options: options, Value: func() string { return *value }, OnChange: func(v string) { *value = v; a.diskUI.group = ""; a.diskUI.resetBrowse(); a.bump() }, Style: core.Style{Width: core.Pt(148)}}
 }
 func (a *app) storedPage(cx *core.Scope, p palette) core.Node {
 	if a.disk == nil {
@@ -163,9 +154,9 @@ type storedScreen struct {
 
 func (s storedScreen) Render(cx *core.Scope) core.Node {
 	a, p := s.a, s.p
-	return core.View{TestID: "stored-page", Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
-		core.View{Style: core.Style{Padding: core.Symmetric(8, 16)}, Children: []core.Node{
-			base.Input{TestID: "stored-search", Label: i18n.T("Search saved music"), Placeholder: i18n.T("Search saved music"), Value: a.diskUI.query.Get, OnChange: func(v string) { a.diskUI.query.Set(v) }, Style: core.Style{Height: core.Pt(44), Padding: core.Symmetric(0, 12), CornerRadius: 10, Background: p.sidebar, Color: p.text, PlaceholderColor: p.muted}},
+	return core.View{TestID: "stored-page", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Direction: core.Column}, Children: []core.Node{
+		core.View{Style: core.Style{FlexShrink: 0, Padding: core.Symmetric(8, 16)}, Children: []core.Node{
+			base.Input{TestID: "stored-search", Label: i18n.T("Search saved music"), Placeholder: i18n.T("Search saved music"), Value: a.diskUI.query.Get, OnChange: func(v string) { a.diskUI.resetBrowse(); a.diskUI.query.Set(v) }, Style: core.Style{Height: core.Pt(44), Padding: core.Symmetric(0, 12), CornerRadius: 10, Background: p.sidebar, Color: p.text, PlaceholderColor: p.muted}},
 		}},
 		core.Dynamic(func(cx *core.Scope) core.Node {
 			a.rev.Get()
@@ -180,7 +171,11 @@ func (a *app) storedBody(cx *core.Scope, p palette) core.Node {
 	all := a.disk.List()
 	records := a.storedFilter(all)
 	var body []core.Node
-	body = append(body, a.titleBlock(p, i18n.T("Saved Music"), i18n.Tf("%d songs available on this device", len(all))))
+	var size int64
+	for _, r := range records {
+		size += r.Size()
+	}
+	body = append(body, a.titleBlock(p, i18n.T("Saved Music"), i18n.Tf("%d songs available on this device", len(records))+" · "+bytesLabel(size)))
 	var tabs []core.Node
 	for _, it := range []struct{ value, label string }{{"", i18n.T("All")}, {"pinned", i18n.T("Keep Offline")}, {"automatic", i18n.T("Automatic Cache")}} {
 		it := it
@@ -188,25 +183,14 @@ func (a *app) storedBody(cx *core.Scope, p palette) core.Node {
 		if u.mode == it.value && !u.tasks {
 			label = "✓ " + label
 		}
-		tabs = append(tabs, a.settingsAction(p, label, "stored-tab-"+it.value, false, func() { u.mode = it.value; u.tasks = false; u.group = ""; a.bump() }))
+		tabs = append(tabs, a.settingsAction(p, label, "stored-tab-"+it.value, false, func() { u.mode = it.value; u.tasks = false; u.group = ""; u.resetBrowse(); a.bump() }))
 	}
-	tabs = append(tabs, a.settingsAction(p, i18n.T("Download Tasks"), "stored-tasks", false, func() { u.tasks = !u.tasks; a.bump() }))
+	tabs = append(tabs, a.settingsAction(p, i18n.T("Download Tasks"), "stored-tasks", false, func() { u.tasks = !u.tasks; u.resetBrowse(); a.bump() }))
 	body = append(body, storedBar(tabs))
 	if u.tasks {
-		return a.pageScroll(p, append(body, a.storedTasks(p))...)
-	}
-	sources := []ui.Option[string]{{Value: "", Label: i18n.T("All Sources")}}
-	seen := map[string]bool{}
-	for _, r := range all {
-		if !seen[r.Track.Source] {
-			sources = append(sources, ui.Option[string]{Value: r.Track.Source, Label: r.SourceName})
-			seen[r.Track.Source] = true
-		}
+		return a.storedScroll(p, append(body, a.storedTasks(p))...)
 	}
 	filters := []core.Node{
-		a.storedChoice(p, "stored-source", i18n.T("Music source"), &u.source, sources),
-		a.storedChoice(p, "stored-quality", i18n.T("Quality"), &u.quality, []ui.Option[string]{{Value: "", Label: i18n.T("All Qualities")}, {Value: "standard", Label: i18n.T("Standard")}, {Value: "high", Label: i18n.T("High")}, {Value: "lossless", Label: i18n.T("Lossless")}}),
-		a.storedChoice(p, "stored-complete", i18n.T("Companion Files"), &u.complete, []ui.Option[string]{{Value: "", Label: i18n.T("All Details")}, {Value: "complete", Label: i18n.T("Complete Details")}, {Value: "missing", Label: i18n.T("Missing Details")}}),
 		a.storedChoice(p, "stored-sort", i18n.T("Sort"), &u.sort, []ui.Option[string]{{Value: "", Label: i18n.T("Recently Saved")}, {Value: "played", Label: i18n.T("Recently Played")}, {Value: "title", Label: i18n.T("Name")}, {Value: "artist", Label: i18n.T("Artist")}, {Value: "size", Label: i18n.T("Storage Used")}}),
 		a.storedChoice(p, "stored-view", i18n.T("View"), &u.view, []ui.Option[string]{{Value: "", Label: i18n.T("Songs")}, {Value: "albums", Label: i18n.T("Albums")}, {Value: "artists", Label: i18n.T("Artists")}}),
 	}
@@ -217,12 +201,12 @@ func (a *app) storedBody(cx *core.Scope, p palette) core.Node {
 		if u.group == "" {
 			for _, g := range groups {
 				g := g
-				body = append(body, a.phoneLibraryRow(p, "stored-group-"+g.key, g.name, i18n.Tf("%d songs available on this device", len(g.records)), lucideDisc, func() { u.group = g.key; a.bump() }))
+				body = append(body, a.phoneLibraryRow(p, "stored-group-"+g.key, g.name, i18n.Tf("%d songs available on this device", len(g.records)), lucideDisc, func() { u.group = g.key; u.resetBrowse(); a.bump() }))
 			}
 			if len(groups) == 0 {
 				body = append(body, text(i18n.T("No saved songs match"), 14, core.FontWeightNormal, p.muted))
 			}
-			return a.pageScroll(p, body...)
+			return a.storedScroll(p, body...)
 		}
 		var chosen *storedGroup
 		for _, g := range groups {
@@ -238,14 +222,11 @@ func (a *app) storedBody(cx *core.Scope, p palette) core.Node {
 		} else {
 			records = nil
 		}
-		body = append(body, a.settingsAction(p, i18n.T("Back"), "stored-group-back", false, func() { u.group = ""; a.bump() }))
+		body = append(body, a.settingsAction(p, i18n.T("Back"), "stored-group-back", false, func() { u.group = ""; u.resetBrowse(); a.bump() }))
 	}
 	tracks := a.storedTracks(records)
 	selected := a.selectedStored(records)
 	targets := selected
-	if len(targets) == 0 {
-		targets = records
-	}
 	targetTracks := a.storedTracks(targets)
 	ids := make([]string, len(targets))
 	for i, r := range targets {
@@ -254,24 +235,23 @@ func (a *app) storedBody(cx *core.Scope, p palette) core.Node {
 	actions := []core.Node{
 		a.settingsAction(p, i18n.T("Play All"), "stored-play-all", len(records) == 0, func() { a.playTracks(tracks, 0) }),
 		a.settingsAction(p, i18n.T("Shuffle"), "stored-shuffle", len(records) == 0, func() { a.pl.PlayShuffled(tracks); a.heartbeat() }),
-		a.settingsAction(p, i18n.T("Add to Queue"), "stored-enqueue", len(targets) == 0, func() { a.pl.Enqueue(targetTracks); a.heartbeat() }),
-		a.settingsAction(p, i18n.T("Keep Offline"), "stored-pin", len(targets) == 0, func() { a.pinTracks(targetTracks, "") }),
-		a.settingsAction(p, i18n.T("Cancel Offline Retention"), "stored-unpin", len(targets) == 0, func() { a.cancelStoredRetention(ids) }),
-		a.settingsAction(p, i18n.T("Select All"), "stored-select-all", len(records) == 0, func() {
-			for _, r := range records {
-				u.selected[r.ID] = true
-			}
-			a.bump()
-		}),
-		a.settingsAction(p, i18n.T("Clear Selection"), "stored-select-none", len(selected) == 0, func() { u.selected = map[string]bool{}; a.bump() }),
-		a.settingsAction(p, i18n.T("Remove Local Copies"), "stored-delete", len(selected) == 0, func() { u.deleteIDs = slices.Clone(ids); a.bump() }),
 	}
 	body = append(body, storedBar(actions))
 	if len(selected) > 0 {
-		body = append(body, text(i18n.Tf("%d selected", len(selected)), 12, core.FontWeightNormal, p.muted))
+		body = append(body, storedBar([]core.Node{
+			text(i18n.Tf("%d selected", len(selected)), 12, core.FontWeightNormal, p.muted),
+			a.settingsAction(p, i18n.T("Add to Queue"), "stored-enqueue", false, func() { a.pl.Enqueue(targetTracks); a.heartbeat() }),
+			a.settingsAction(p, i18n.T("Keep Offline"), "stored-pin", false, func() { a.pinTracks(targetTracks, "") }),
+			a.settingsAction(p, i18n.T("Cancel Offline Retention"), "stored-unpin", false, func() { a.cancelStoredRetention(ids) }),
+			a.settingsAction(p, i18n.T("Remove Local Copies"), "stored-delete", false, func() { u.deleteIDs = slices.Clone(ids); a.bump() }),
+		}))
 	}
 	if len(records) == 0 {
-		body = append(body, text(i18n.T("No saved songs match"), 14, core.FontWeightNormal, p.muted))
+		if len(all) == 0 {
+			body = append(body, a.emptyNote(p, i18n.T("No saved music yet"), i18n.T("Play online music to cache it, or choose Keep Offline from a song's menu.")))
+		} else {
+			body = append(body, text(i18n.T("No saved songs match"), 14, core.FontWeightNormal, p.muted))
+		}
 	}
 	if u.details != "" {
 		for _, r := range all {
@@ -280,8 +260,10 @@ func (a *app) storedBody(cx *core.Scope, p palette) core.Node {
 			}
 		}
 	}
-	body = append(body, core.List{Count: func() int { return len(records) }, Key: func(i int) any { return records[i].ID }, EstimatedSize: 76, Viewport: core.ListViewportParent, Row: func(cx *core.Scope, row core.ListRow) core.Node { return a.storedRow(p, records, tracks, row.Index()) }})
-	return a.pageScroll(p, body...)
+	body = append(body, core.List{Count: func() int { return len(records) }, Key: func(i int) any { return records[i].ID }, EstimatedSize: 76, Viewport: core.ListViewportParent, Row: func(cx *core.Scope, row core.ListRow) core.Node {
+		return core.Dynamic(func(cx *core.Scope) core.Node { return a.storedRow(p, records, tracks, row.Index()) })
+	}})
+	return a.storedScroll(p, body...)
 }
 func storedBar(children []core.Node) core.Node {
 	return core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, Gap: 8, AlignItems: core.AlignCenter, Margin: core.Edges{Bottom: 12}}, Children: children}
@@ -363,17 +345,18 @@ func (a *app) storedRow(p palette, records []offline.Record, tracks []music.Trac
 	if r.Pinned() {
 		retention = i18n.T("Keep Offline")
 	}
-	label := r.Track.ArtistNames() + " · " + retention
-	if len(r.Variants) > 0 {
-		label += " · " + variantLabel(r.Variants[0])
-	}
-	label += " · " + bytesLabel(r.Size())
+	parts := []string{r.Track.ArtistNames(), r.Track.Album.Name, retention}
+	parts = slices.DeleteFunc(parts, func(v string) bool { return v == "" })
+	label := strings.Join(parts, " · ")
 	selection := "○"
 	if a.diskUI.selected[r.ID] {
 		selection = "✓"
 	}
 	return core.View{TestID: "stored-row-" + r.ID, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, MinHeight: core.Pt(76), Borders: core.Edges{Bottom: 0.5}, BorderColor: p.hairline}, Children: []core.Node{
-		a.settingsAction(p, selection, "stored-select-"+r.ID, false, func() { a.diskUI.selected[r.ID] = !a.diskUI.selected[r.ID]; a.bump() }),
+		base.Button{TestID: "stored-select-" + r.ID, Label: i18n.Tf("Select %s", savedName(r)), Selected: func() bool { return a.diskUI.selected[r.ID] },
+			OnPress:  func(core.PressEvent) { a.diskUI.selected[r.ID] = !a.diskUI.selected[r.ID]; a.bump() },
+			Style:    core.Style{Width: core.Pt(44), Height: core.Pt(48), FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, CornerRadius: 7, Hover: &core.Style{Background: p.hover}},
+			Children: []core.Node{text(selection, 16, core.FontWeightMedium, p.text)}},
 		base.Button{TestID: "stored-play-" + r.ID, Label: savedName(r), OnPress: func(core.PressEvent) { a.playTracks(tracks, index) }, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Padding: core.Symmetric(8, 0)}, Children: []core.Node{a.cover(p, tr.Album.ImageURL, 48, 8), core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 5}, Children: []core.Node{core.Text{Content: savedName(r), MaxLines: 1, Style: core.Style{FontSize: 14, Color: p.text}}, core.Text{Content: label, MaxLines: 2, Style: core.Style{FontSize: 11.5, Color: p.muted}}}}}},
 		base.Menu{TestID: "stored-more-" + r.ID, Label: i18n.T("More"), Trigger: text("•••", 18, core.FontWeightSemibold, p.muted), Style: core.Style{Padding: core.All(12)}, PopupStyle: core.Style{Background: p.sidebar, Padding: core.All(6), CornerRadius: 10}, Children: a.storedMenu(tr)},
 	}}
@@ -515,4 +498,21 @@ func (a *app) cancelStoredRetention(ids []string) {
 		a.post(func() { a.say(i18n.T("Offline retention canceled. These copies can now be automatically removed.")) })
 		return nil
 	})
+}
+
+func (a *app) storedScroll(p palette, children ...core.Node) core.Node {
+	scroll := a.pageScroll(p, children...).(core.Scroll)
+	scroll.TestID = "stored-scroll"
+	// Both the page and this viewport must shrink below the list's intrinsic height.
+	scroll.Style.FlexShrink = 1
+	scroll.ContentOffset = a.diskUI.offset
+	scroll.OnScroll = func(e core.ScrollEvent) { a.diskUI.offset = e.Offset }
+	scroll.OnScrollEnd = scroll.OnScroll
+	scroll.ScrollEventThrottle = 0
+	return scroll
+}
+
+func (u *storedUI) resetBrowse() {
+	u.offset = core.Point{}
+	u.selected = map[string]bool{}
 }
