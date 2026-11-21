@@ -1,6 +1,5 @@
-// Package desktoplyrics provides an independent, non-activating native lyric
-// window. UI state is supplied by the app; native callbacks are polled on its
-// clock, so neither platform calls back into the reactive graph.
+// Package desktoplyrics displays lyrics in an NSGo transparent, non-activating
+// panel. The app supplies playback snapshots and polls controls on its clock.
 package desktoplyrics
 
 // Word is a piece of a lyric with its sung fraction, from zero to one.
@@ -18,6 +17,8 @@ type Frame struct {
 	Locked, Playing bool
 	X, Y            int
 	Positioned      bool
+	// LegacyPixels marks positions saved by the former Windows native window.
+	LegacyPixels bool
 }
 
 type Action int
@@ -31,7 +32,7 @@ const (
 	Next
 )
 
-// Event reports an action or a completed drag in desktop screen coordinates.
+// Event reports an action or a position change in desktop screen points.
 type Event struct {
 	Action Action
 	Moved  bool

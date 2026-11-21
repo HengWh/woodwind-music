@@ -10,14 +10,15 @@ import (
 )
 
 type desktopLyricsSettings struct {
-	Enabled     bool   `json:"enabled"`
-	Locked      bool   `json:"locked"`
-	FontSize    int    `json:"fontSize"`
-	Color       string `json:"color"`
-	Translation bool   `json:"translation"`
-	X           int    `json:"x"`
-	Y           int    `json:"y"`
-	Positioned  bool   `json:"positioned"`
+	Enabled       bool   `json:"enabled"`
+	Locked        bool   `json:"locked"`
+	FontSize      int    `json:"fontSize"`
+	Color         string `json:"color"`
+	Translation   bool   `json:"translation"`
+	X             int    `json:"x"`
+	Y             int    `json:"y"`
+	Positioned    bool   `json:"positioned"`
+	PositionUnits string `json:"positionUnits,omitempty"`
 }
 
 func defaultDesktopLyricsSettings() desktopLyricsSettings {
@@ -40,7 +41,9 @@ func (a *app) supportsDesktopLyrics() bool {
 }
 
 func (a *app) initDesktopLyrics() {
-	a.openLyricWindow = desktoplyrics.Open
+	a.openLyricWindow = func() (desktoplyrics.Window, error) {
+		return desktoplyrics.Open(a.cx, a.desktopLyricsFrame())
+	}
 	a.cx.Cleanup(a.closeDesktopLyrics)
 	if a.supportsDesktopLyrics() && a.set.DesktopLyrics.Enabled {
 		a.post(a.showDesktopLyrics)
@@ -125,6 +128,7 @@ func (a *app) desktopLyricsBeat() {
 		if event.Moved {
 			a.set.DesktopLyrics.X, a.set.DesktopLyrics.Y = event.X, event.Y
 			a.set.DesktopLyrics.Positioned = true
+			a.set.DesktopLyrics.PositionUnits = "points"
 			a.set.save()
 		}
 		switch event.Action {
@@ -158,7 +162,11 @@ func (a *app) desktopLyricsFrame() desktoplyrics.Frame {
 	case "pink":
 		color = 0xff92cd
 	}
-	f := desktoplyrics.Frame{FontSize: s.FontSize, Color: color, Locked: s.Locked, Playing: a.pl.Playing(), X: s.X, Y: s.Y, Positioned: s.Positioned}
+	f := desktoplyrics.Frame{
+		FontSize: s.FontSize, Color: color, Locked: s.Locked, Playing: a.pl.Playing(),
+		X: s.X, Y: s.Y, Positioned: s.Positioned,
+		LegacyPixels: s.PositionUnits != "points" && a.cx != nil && a.cx.Env().OS() == core.OSWindows,
+	}
 	tr := a.pl.Current()
 	if tr == nil {
 		f.Words = []desktoplyrics.Word{{Text: i18n.T("Not Playing")}}

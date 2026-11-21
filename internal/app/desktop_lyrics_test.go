@@ -13,6 +13,7 @@ import (
 	"github.com/HengWh/woodwind-music/internal/music"
 	"github.com/HengWh/woodwind-music/internal/player"
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/desktop"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -99,7 +100,7 @@ func TestDesktopLyricsWindowLifetimeAndControls(t *testing.T) {
 	}
 	w.events = []desktoplyrics.Event{{Action: desktoplyrics.Lock}, {Moved: true, X: 123, Y: 456}}
 	ui.Advance(250 * time.Millisecond)
-	if !a.set.DesktopLyrics.Locked || !a.set.DesktopLyrics.Positioned || a.set.DesktopLyrics.X != 123 || !w.frames[len(w.frames)-1].Locked {
+	if !a.set.DesktopLyrics.Locked || !a.set.DesktopLyrics.Positioned || a.set.DesktopLyrics.X != 123 || a.set.DesktopLyrics.PositionUnits != "points" || !w.frames[len(w.frames)-1].Locked {
 		t.Fatal("lock or drag did not reach settings and native window")
 	}
 	saved := loadSettings(dir)
@@ -207,8 +208,14 @@ func TestDesktopLyricsRestoresAndSettingsApplyLive(t *testing.T) {
 	}, nsgotest.Size(780, 1000), nsgotest.Environment(core.Environment{OS: core.OSWindows, Locale: "en"}))
 	ui.WaitUntil(time.Second, func() bool { return len(windows) == 1 })
 	f := windows[0].frames[0]
-	if !f.Locked || f.FontSize != 42 || f.Color != 0xff92cd || f.X != 123 || !f.Positioned {
+	if !f.Locked || f.FontSize != 42 || f.Color != 0xff92cd || f.X != 123 || !f.Positioned || !f.LegacyPixels {
 		t.Fatal("startup did not restore saved desktop lyrics")
+	}
+	windows[0].events = []desktoplyrics.Event{{Moved: true, X: 61, Y: 228}}
+	ui.Advance(250 * time.Millisecond)
+	f = windows[0].frames[len(windows[0].frames)-1]
+	if f.LegacyPixels || f.X != 61 || f.Y != 228 || loadSettings(dir).DesktopLyrics.PositionUnits != "points" {
+		t.Fatal("converted position was not saved as points and would migrate twice")
 	}
 	ui.Press("id:desktop-lyrics-locked")
 	ui.Press("id:desktop-lyrics-size")
@@ -228,5 +235,59 @@ func TestDesktopLyricsRestoresAndSettingsApplyLive(t *testing.T) {
 	ui.Press("id:desktop-lyrics-enabled")
 	if !windows[1].closed || a.set.DesktopLyrics.Enabled {
 		t.Fatal("settings did not turn off the window")
+	}
+}
+
+// Use the real window factory in the headless desktop host, so the quiet path
+// verifies the same NSGo panel implementation that the packaged app uses.
+func TestDesktopLyricsNSGoPanelSurvivesMainWindowChanges(t *testing.T) {
+	for _, platform := range []core.OS{core.OSMacOS, core.OSWindows} {
+		t.Run(string(platform), func(t *testing.T) {
+			t.Setenv("WOOD_WIND_MUSIC_DATA_DIR", t.TempDir())
+			var a *app
+			var main *desktop.Window
+			ui := nsgotest.StartApp(t, func(cx *core.Scope) {
+				desktop.SetShutdownMode(cx, desktop.ShutdownOnExplicit)
+				a = newApp(cx)
+				cx.SetMainView(a.view)
+				main = desktop.MainWindow(cx)
+			}, nsgotest.Size(1180, 780), nsgotest.Environment(core.Environment{OS: platform, Locale: "en"}))
+			ui.Press("id:bar-desktop-lyrics")
+			ui.WaitUntil(time.Second, func() bool { return a.lyricWindow != nil })
+			first := a.lyricWindow
+			panels := 0
+			for _, cfg := range ui.Opened {
+				if cfg.Kind == nsgotest.SurfacePanel {
+					panels++
+					if !cfg.Transparent || !cfg.NoActivate || cfg.HideOnBlur {
+						t.Fatalf("incorrect lyrics panel options: %+v", cfg)
+					}
+				}
+			}
+			if panels != 1 {
+				t.Fatalf("expected one NSGo lyrics panel, got %d", panels)
+			}
+			ui.Press("text:Liked Songs")
+			a.post(a.bump)
+			ui.Settle()
+			a.post(main.Hide)
+			ui.Settle()
+			ui.Advance(250 * time.Millisecond)
+			if main.Visible() || a.lyricWindow != first {
+				t.Fatal("main window changes ended or replaced lyrics")
+			}
+			a.post(func() { a.setDesktopLyricsEnabled(false) })
+			ui.Settle()
+			if a.lyricWindow != nil || a.lyricTimer != nil {
+				t.Fatal("closing lyrics leaked panel or update timer")
+			}
+			a.post(func() { a.setDesktopLyricsEnabled(true) })
+			ui.WaitUntil(time.Second, func() bool { return a.lyricWindow != nil })
+			if a.lyricWindow == first {
+				t.Fatal("reopening reused a disposed panel")
+			}
+			a.post(a.closeDesktopLyrics)
+			ui.Settle()
+		})
 	}
 }
